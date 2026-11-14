@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
 ### Changed
 
 - Exit codes follow the heibench contract: `2` when a check cannot be
@@ -50,5 +52,6 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/heibench/boardwright/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/heibench/boardwright/releases/tag/v0.1.0
