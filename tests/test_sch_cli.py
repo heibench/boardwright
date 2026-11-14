@@ -71,9 +71,27 @@ def test_cli_review_exit_codes(tmp_path):
     assert bad.returncode == 1 and "LED_A" in bad.stdout
 
 
-def test_exit_codes_follow_the_heibench_contract(ldo_copy, monkeypatch, capsys):
+@pytest.fixture(params=["kicad present", "kicad absent"])
+def machine(request, monkeypatch):
+    """Run under this machine's KiCad, and again as if none were installed."""
+    if request.param == "kicad absent":
+        from boardwright import env
+
+        for v in ("KICAD", "KICAD10", "KICAD9"):
+            monkeypatch.delenv(f"{v}_SYMBOL_DIR", raising=False)
+            monkeypatch.delenv(f"{v}_FOOTPRINT_DIR", raising=False)
+        monkeypatch.setattr(env, "_library_candidates", lambda dir_: [])
+        monkeypatch.setenv("NETSPEC_KICAD_CLI", "/nonexistent/kicad-cli")
+        monkeypatch.setenv("BOARDWRIGHT_FREEROUTING", "/nonexistent/freerouting")
+    return request.param
+
+
+def test_exit_codes_follow_the_heibench_contract(ldo_copy, monkeypatch, capsys, machine):
     # 64 usage: bad arguments, or a spec naming something that is not there
     assert main(["gen"]) == 64
+    assert main(["gen", str(ldo_copy / "nowhere")]) == 64
+    assert main(["pins"]) == 64
+    assert main(["no-such-command"]) == 64
     assert main(["sch", str(ldo_copy), "set", "R1", "Colour=blue"]) == 64
     assert main(["existing", str(ldo_copy), "no-such-step"]) == 64
     # 2 could not tell: verify with no KiCad reports is not a verdict

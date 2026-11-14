@@ -32,6 +32,7 @@ import importlib.metadata
 import shutil
 import sys
 import traceback
+from pathlib import Path
 
 from . import __version__
 from .errors import Outcome, Usage
@@ -42,7 +43,7 @@ _MODULES = {
     "preview": "preview", "edits": "edits", "selection": "selection", "live": "live",
     "pins": "pins", "impedance": "si",
 }
-_NEEDS_LIBS = {"gen", "place", "pins", "sch"}
+_NEEDS_LIBS = {"gen", "place", "pins"}
 
 
 def doctor() -> int:
@@ -101,21 +102,22 @@ def _run(argv: list[str]) -> int:
         return 0
     if cmd == "doctor":
         return doctor()
-    if cmd in _NEEDS_LIBS:
+    if cmd not in _BUILD and cmd not in _MODULES:
+        raise Usage(f"unknown command {cmd!r}\n{__doc__}")
+    if cmd in _BUILD and not (rest and (Path(rest[0]) / "board.py").exists()):
+        raise Usage(f"usage: boardwright {cmd} DIR, where DIR holds a board.py")
+    if cmd == "pins" and not rest:
+        raise Usage("usage: boardwright pins LIB:SYMBOL [LIB:FOOTPRINT] [--libs DIR ...]")
+    if cmd in _NEEDS_LIBS:              # after the arguments are known to be usable
         from . import env
 
         env.use_libraries()
     if cmd in _BUILD:
-        if not rest:
-            raise Usage(f"usage: boardwright {cmd} DIR")
         from . import build
 
         return build.cli([rest[0], cmd])
-    if cmd in _MODULES:
-        mod = importlib.import_module(f".{_MODULES[cmd]}", __package__)
-        return mod.cli(rest) or 0
-    print(f"unknown command {cmd!r}\n{__doc__}", file=sys.stderr)
-    return 64
+    mod = importlib.import_module(f".{_MODULES[cmd]}", __package__)
+    return mod.cli(rest) or 0
 
 
 if __name__ == "__main__":
