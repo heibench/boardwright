@@ -29,4 +29,4 @@ boardwright existing examples/existing/stickhub review
 ```
 
 Then follow "First contact with a board you did not make" in
-[`docs/guide.md`](../../docs/guide.md).
+the [guide](https://heibench.com/boardwright/guide/).

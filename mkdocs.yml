@@ -1,0 +1,93 @@
+site_name: boardwright
+site_description: >-
+  Generate and edit KiCad boards and schematics from a short Python
+  description, checked by KiCad itself.
+site_url: https://heibench.com/boardwright/
+repo_url: https://github.com/heibench/boardwright
+repo_name: heibench/boardwright
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+  logo: https://heibench.com/assets/favicon.svg
+  favicon: https://heibench.com/assets/favicon.svg
+
+nav:
+  - Home: index.md
+  - Guide: guide.md
+  - Existing-board examples: examples.md
+  - Development log:
+      - Overview: devlog/README.md
+      - 01 LDO breakout: devlog/01-ldo_breakout.md
+      - 02 RP2040: devlog/02-rp2040_min.md
+      - 03 TPS54202 buck: devlog/03-tps54202_buck.md
+      - 04 STM32F103: devlog/04-stm32f103_min.md
+      - 05 ESP32-C3: devlog/05-esp32c3_min.md
+      - 06 STM32F103, 4 layers: devlog/06-stm32f103_4l.md
+      - 07 Existing board: devlog/07-existing-stickhub.md
+      - 08 Custom library: devlog/08-customlib_test.md
+      - 09 Existing schematic: devlog/09-existing-schematic.md
+      - 10 Hardening: devlog/10-hardening.md
+      - Known gaps: devlog/gaps.md
+      - Vendor references: devlog/references.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra_css:
+  - https://heibench.com/assets/docs.css
+
+extra:
+  homepage: https://heibench.com/
+  social:
+    - icon: fontawesome/solid/house
+      link: https://heibench.com/
+      name: heibench
+    - icon: fontawesome/brands/github
+      link: https://github.com/heibench/boardwright
+      name: boardwright on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/boardwright/
+      name: boardwright on PyPI
+
+copyright: Part of <a href="https://heibench.com/">heibench</a>. Apache-2.0.

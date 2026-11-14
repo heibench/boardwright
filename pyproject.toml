@@ -35,6 +35,7 @@ boardwright = "boardwright.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/heibench/boardwright"
+Documentation = "https://heibench.com/boardwright/"
 Issues = "https://github.com/heibench/boardwright/issues"
 Changelog = "https://github.com/heibench/boardwright/blob/main/CHANGELOG.md"
 
@@ -47,6 +48,8 @@ include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.8"]
+# Documentation site, built and deployed by .github/workflows/docs.yml.
+docs = ["mkdocs-material>=9.5,<10"]
 
 [tool.ruff]
 line-length = 120

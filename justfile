@@ -23,3 +23,7 @@ test:
 # Build the sdist and wheel into dist/
 build:
     uv build
+
+# Build the documentation site into site/ (strict: broken links fail)
+docs:
+    uv run --group docs mkdocs build --strict
