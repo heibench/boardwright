@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from . import env
+from .errors import Usage
 
 _SVG = ["pcb", "export", "svg", "--exclude-drawing-sheet", "--page-size-mode", "2", "--mode-single"]
 
@@ -49,12 +50,12 @@ def check(d: Path, quick: bool = False) -> int:
         r = subprocess.run([*cli, *s], capture_output=True, text=True)
         if r.returncode != 0:
             print(f"FAILED: {' '.join([*cli, *s])}\n{r.stdout[-2000:]}{r.stderr[-2000:]}")
-            return 1
+            return 4
         print("ok  ", " ".join(s[:3]))
     return 0
 
 
 def cli(argv: list[str]) -> int:
     if not argv:
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     return check(Path(argv[0]).resolve(), "--quick" in argv[1:])

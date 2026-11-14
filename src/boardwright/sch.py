@@ -46,6 +46,7 @@ import uuid
 from pathlib import Path
 
 from .copper import blocks
+from .errors import EnvironmentFault, Usage
 
 GRID = 1.27
 
@@ -86,7 +87,7 @@ def refs(block: str) -> list[str]:
 def sheets(d: Path) -> list[Sheet]:
     files = sorted(p for p in d.glob("*.kicad_sch") if not p.name.startswith(("~", "_")))
     if not files:
-        raise SystemExit(f"no .kicad_sch in {d}")
+        raise EnvironmentFault(f"no .kicad_sch in {d}")
     return [Sheet(p) for p in files]
 
 
@@ -96,7 +97,7 @@ def root(d: Path) -> Sheet:
         return Sheet(pros[0].with_suffix(".kicad_sch"))
     ss = sheets(d)
     if len(ss) != 1:
-        raise SystemExit("cannot tell which sheet is the root: expected <project>.kicad_sch beside one .kicad_pro")
+        raise EnvironmentFault("cannot tell which sheet is the root: expected <project>.kicad_sch beside one .kicad_pro")
     return ss[0]
 
 
@@ -140,13 +141,13 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
         name, _, val = pair.partition("=")
         if name in ("dnp", "in_bom", "on_board"):
             if val not in ("yes", "no"):
-                raise SystemExit(f"{name} takes yes or no")
+                raise Usage(f"{name} takes yes or no")
             nb, n = re.subn(r"\(%s (?:yes|no)\)" % name, f"({name} {val})", b, count=1)
         else:
             old = prop(b, name)
             if old is None:
                 have = ", ".join(re.findall(r'\(property "([^"]*)"', b))
-                raise SystemExit(f"{ref} has no property {name!r} (it has: {have})")
+                raise Usage(f"{ref} has no property {name!r} (it has: {have})")
             esc = val.replace("\\", "\\\\").replace('"', '\\"')
             nb, n = re.subn(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % re.escape(name), lambda m: f'{m.group(1)}"{esc}"', b, count=1)
             if name == "Reference":
@@ -286,9 +287,9 @@ def add(d: Path, spec_path: str) -> int:
     new = []
     for i, (ref, like, value, footprint, pins) in enumerate(m.ADD):
         if ref in by_ref:
-            raise SystemExit(f"{ref} already exists")
+            raise Usage(f"{ref} already exists")
         if like not in by_ref:
-            raise SystemExit(f"no part {like!r} to copy")
+            raise Usage(f"no part {like!r} to copy")
         src = by_ref[like]
         lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
         lp = _lib_pins(t, lib_id)
@@ -301,7 +302,7 @@ def add(d: Path, spec_path: str) -> int:
         new.append(b)
         for num, net in {str(k): v for k, v in pins.items()}.items():
             if num not in lp:
-                raise SystemExit(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+                raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
             px, py, ang = lp[num]
             sx, sy = x + px, y - py                                     # the pin's connection point on the sheet
             a = math.radians(ang + 180)
@@ -373,8 +374,10 @@ def cli(argv: list[str]) -> int:
     if len(a) >= 3 and a[0] == "ercdiff":
         return (ercdiff(a[1], a[2]))
     if len(a) < 2:
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     d, cmd, rest = Path(a[0]).resolve(), a[1], a[2:]
+    if cmd not in ("parts", "set", "remove", "add") or (cmd != "parts" and not rest):
+        raise Usage(__doc__)
     return ({"parts": lambda: parts(d, rest[0] if rest else "*"),
               "set": lambda: set_fields(d, rest[0], rest[1:]),
               "remove": lambda: remove(d, rest),

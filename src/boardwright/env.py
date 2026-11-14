@@ -17,6 +17,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from .errors import EnvironmentFault
+
 _FLATPAK_RT = "{root}/runtime/org.kicad.KiCad.Library.{kind}/x86_64/stable/active/files/{dir}"
 
 
@@ -43,7 +45,7 @@ def _library(dir_: str) -> Path:
             return Path(os.environ[var])
     cands = _library_candidates(dir_)
     if not cands:
-        raise SystemExit(
+        raise EnvironmentFault(
             f"KiCad's {dir_} library was not found. Install KiCad's libraries or set KICAD_{name}_DIR."
         )
     return cands[0]
@@ -70,15 +72,18 @@ def use_libraries(sym: Path | None = None, fp: Path | None = None) -> None:
 
 def kicad_cli() -> list[str]:
     """The command prefix that runs kicad-cli (found the way netspec finds it)."""
-    from kicad_netspec.oracle.discovery import find_kicad_cli
+    from kicad_netspec.oracle.discovery import KiCadNotFound, find_kicad_cli
 
-    return list(find_kicad_cli().argv)
+    try:
+        return list(find_kicad_cli().argv)
+    except KiCadNotFound as e:
+        raise EnvironmentFault(str(e)) from None
 
 
 def freerouting() -> list[str]:
     cmd = shlex.split(os.environ.get("BOARDWRIGHT_FREEROUTING", "freerouting"))
     if not shutil.which(cmd[0]):
-        raise SystemExit(
+        raise EnvironmentFault(
             f"Freerouting not found ({cmd[0]!r}). Install it or set BOARDWRIGHT_FREEROUTING, "
             'e.g. "java -jar /path/to/freerouting.jar".'
         )

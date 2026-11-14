@@ -7,6 +7,19 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+
+- Exit codes follow the heibench contract: `2` when a check cannot be
+  decided (`verify` with KiCad's reports missing or stale, which used to exit
+  `1`), `4` for an environment fault (KiCad, its libraries or Freerouting
+  missing or failing, which used to exit `1`), and `64` for usage errors
+  (which used to exit `1`, or `2` for an unknown command). An unexpected
+  error exits `2` instead of `1`.
+
+### Added
+
+- A documentation site at https://heibench.com/boardwright/.
+
 ## [0.1.0] - 2026-11-14
 
 First public release.

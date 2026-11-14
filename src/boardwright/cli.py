@@ -20,6 +20,9 @@ Lookups:
   boardwright pins LIB:SYMBOL [LIB:FOOTPRINT] [--libs DIR ...]
   boardwright impedance [STACKUP [Z | Z W]]
   boardwright doctor                 what this machine has for each step
+
+Exit codes: 0 done, 1 refused or violated, 2 could not tell,
+4 environment fault (never a verdict on the design), 64 usage.
 """
 
 from __future__ import annotations
@@ -28,8 +31,10 @@ import importlib
 import importlib.metadata
 import shutil
 import sys
+import traceback
 
 from . import __version__
+from .errors import Outcome, Usage
 
 _BUILD = {"gen", "place", "verify", "pads"}
 _MODULES = {
@@ -64,11 +69,29 @@ def doctor() -> int:
         print(f"-     {'kicad-python':<12} not installed; `live` needs boardwright[live]")
     rsvg = shutil.which("rsvg-convert")
     print(f"{'ok' if rsvg else '-':<5} {'rsvg-convert':<12} {rsvg or 'not found; previews stay SVG'}")
-    return 0 if ok else 1
+    return 0 if ok else 4
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run one command. Exit codes are in boardwright.errors."""
     argv = sys.argv[1:] if argv is None else argv
+    try:
+        return _run(argv)
+    except Outcome as e:
+        print(e.message, file=sys.stderr)
+        return e.exit
+    except SystemExit as e:                 # a refusal: the edit was not made
+        if isinstance(e.code, str):
+            print(e.code, file=sys.stderr)
+            return 1
+        raise
+    except Exception:
+        traceback.print_exc()
+        print("boardwright: internal error; nothing was checked or written as a result", file=sys.stderr)
+        return 2
+
+
+def _run(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help", "help"):
         print(__doc__)
         return 0
@@ -84,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         env.use_libraries()
     if cmd in _BUILD:
         if not rest:
-            raise SystemExit(f"usage: boardwright {cmd} DIR")
+            raise Usage(f"usage: boardwright {cmd} DIR")
         from . import build
 
         return build.cli([rest[0], cmd])
@@ -92,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         mod = importlib.import_module(f".{_MODULES[cmd]}", __package__)
         return mod.cli(rest) or 0
     print(f"unknown command {cmd!r}\n{__doc__}", file=sys.stderr)
-    return 2
+    return 64
 
 
 if __name__ == "__main__":

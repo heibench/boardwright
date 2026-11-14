@@ -17,6 +17,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from .errors import Usage
 from .model import Board
 
 
@@ -62,6 +63,6 @@ def describe(sel_file: Path, board_file: Path) -> list[str]:
 def cli(argv: list[str]) -> int:
     argv = ["boardwright", *argv]
     if len(argv) != 3:
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     print(*describe(Path(argv[1]), Path(argv[2])), sep="\n")
     return 0

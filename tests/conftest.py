@@ -35,7 +35,7 @@ def _have_kicad_cli() -> bool:
     try:
         env.kicad_cli()
         return True
-    except Exception:
+    except SystemExit:
         return False
 
 

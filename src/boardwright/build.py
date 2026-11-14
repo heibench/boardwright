@@ -23,6 +23,7 @@ from kicad_tools.schema.pcb import PCB
 from . import board as B
 from . import copper, env
 from .circuit import write_schematic
+from .errors import EnvironmentFault, Usage
 from .project import vendor_libs, write_project
 from .review import review
 from .verify import compare
@@ -240,7 +241,7 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
                        capture_output=True, text=True, timeout=getattr(m, "FR_TIMEOUT", 900))
     (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr)
     if not ses.exists():
-        raise RuntimeError("freerouting produced no SES; see out/freerouting.log")
+        raise EnvironmentFault("freerouting produced no SES; see out/freerouting.log")
     B.kct("pcb", "import-ses", str(pcb), str(ses), "-o", str(pcb))
     # Freerouting necks traces down to squeeze between pads; never below the fab minimum.
     minw = (getattr(m, "RULES", None) or {}).get("min_track_width", 0.15)
@@ -357,11 +358,11 @@ def _violations(report: Path) -> list[dict]:
 def verify(d: Path) -> int:
     m = load(d)
     out = d / "out"
-    ok = True
+    ok, missing = True, False
     for name in ("erc.json", "drc.json"):
         f = out / name
         if not f.exists():
-            print(f"FAIL {name} missing -- run the KiCad gate (boardwright check)"); ok = False; continue
+            print(f"MISSING {name} -- run the KiCad gate (boardwright check)"); missing = True; continue
         vs = [v for v in _violations(f) if v.get("severity") != "exclusion"]
         print(f"{'OK  ' if not vs else 'FAIL'} {name}: {len(vs)} violations")
         for v in vs[:40]:
@@ -374,21 +375,27 @@ def verify(d: Path) -> int:
         print(f"{'OK  ' if not probs else 'FAIL'} netlist == intent", *probs, sep="\n    ")
         ok &= not probs
     else:
-        print("FAIL netlist.xml missing"); ok = False
+        print("MISSING netlist.xml -- run the KiCad gate (boardwright check)"); missing = True
     pcb = d / f"{m.NAME}.kicad_pcb"
     if (out / "drc.json").exists() and (out / "drc.json").stat().st_mtime < pcb.stat().st_mtime - 2:
-        print("FAIL drc.json is older than the board -- rerun the gate"); ok = False
+        print("STALE drc.json is older than the board -- rerun the gate"); missing = True
     print("review:")
     rf = review(pcb, m)
     print(f"{'OK  ' if not rf else 'FAIL'} review", *rf, sep="\n    ")
     ok &= not rf
     gerbers = list((out / "gerbers").glob("*")) if (out / "gerbers").exists() else []
-    print(f"{'OK  ' if gerbers else 'FAIL'} gerbers+drill: {len(gerbers)} files")
-    ok &= bool(gerbers)
+    print(f"{'OK  ' if gerbers else 'MISSING'} gerbers+drill: {len(gerbers)} files")
+    missing |= not gerbers
     for svg in out.glob("*_Cu.svg"):      # copper plots: the only view that shows pours and polygons
         subprocess.run(["rsvg-convert", "-w", "1500", "-b", "white", str(svg), "-o", str(svg.with_suffix(".png"))], check=False)
-    print("PASS" if ok else "NOT DONE")
-    return 0 if ok else 1
+    if not ok:
+        print("NOT DONE")
+        return 1
+    if missing:
+        print("CANNOT TELL: reports are missing or stale")
+        return 2
+    print("PASS")
+    return 0
 
 
 def check_parts(c, d: Path) -> None:
@@ -421,5 +428,7 @@ def pads(d: Path) -> int:
 def cli(argv: list[str]) -> int:
     argv = ["boardwright", *argv]
     d, step = Path(argv[1]).resolve(), argv[2]
+    if not (d / "board.py").exists():
+        raise Usage(f"{d} has no board.py")
     return ({"gen": lambda: gen(d) or 0, "verify": lambda: verify(d), "pads": lambda: pads(d),
               "place": lambda: place_only(d)}[step]())

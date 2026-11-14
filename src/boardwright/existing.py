@@ -37,6 +37,7 @@ from pathlib import Path
 
 from . import board as B
 from . import copper, env
+from .errors import CannotTell, EnvironmentFault, Usage
 from .model import Board
 from .preview import ratsnest
 from .preview import write as write_preview
@@ -46,7 +47,7 @@ from .review import review
 def find(d: Path) -> Path:
     pcbs = [p for p in d.glob("*.kicad_pcb") if not p.name.endswith(".solve.kicad_pcb")]
     if len(pcbs) != 1:
-        raise SystemExit(f"{d}: expected exactly one .kicad_pcb, found {[p.name for p in pcbs]}")
+        raise EnvironmentFault(f"{d}: expected exactly one .kicad_pcb, found {[p.name for p in pcbs]}")
     return pcbs[0]
 
 
@@ -132,7 +133,7 @@ def do_review(d: Path) -> list[str]:
 def baseline(d: Path) -> int:
     o = out_dir(d)
     if not (o / "drc.json").exists():
-        raise SystemExit("run the DRC first (boardwright_out/drc.json)")
+        raise CannotTell("run the DRC first (boardwright_out/drc.json)")
     (o / "drc_baseline.json").write_bytes((o / "drc.json").read_bytes())
     print(f"baseline: {len(_findings(o / 'drc.json'))} existing DRC finding(s) accepted")
     return 0
@@ -158,10 +159,10 @@ def verify(d: Path, staged: bool = False) -> int:
         print(f"note: no {pcb.stem}.kicad_sch beside the board, so KiCad did not check schematic parity")
     if not (o / "drc.json").exists() or not (o / "drc_baseline.json").exists():
         print("FAIL need boardwright_out/drc.json and a baseline (see module docstring)")
-        return 1
+        return 2
     if (o / "drc.json").stat().st_mtime < pcb.stat().st_mtime - 2:
-        print("FAIL drc.json is older than the board -- rerun the DRC")
-        ok = False
+        print("STALE drc.json is older than the board -- rerun the DRC")
+        return 2
     old = _findings(o / "drc_baseline.json")
     new = _findings(o / "drc.json")
     left = list(old)
@@ -218,7 +219,7 @@ def apply(d: Path) -> int:
         p = PCB.load(str(pcb))
         for ref, (x, y, rot) in moves.items():
             if not p.update_footprint_position(ref, x, y, rot):
-                raise SystemExit(f"no footprint {ref}")
+                raise Usage(f"no footprint {ref}")
         p.save(str(pcb))
         print(f"moved {len(moves)} footprint(s)")
     rip = set(getattr(m, "RIPUP", []))
@@ -311,7 +312,7 @@ def reroute(d: Path, nets_: list[str]) -> int:
     known = {p.net for p in b0.pads}
     for n in nets_:
         if n not in known:
-            raise SystemExit(f"no net {n!r} (see `nets`)")
+            raise Usage(f"no net {n!r} (see `nets`)")
     original = pcb.read_text()
     names0 = dict(re.findall(r'\n\s*\(net (\d+) "([^"]*)"\)', original))
     was_open = {n for *_p, n in ratsnest(b0, set())}
@@ -328,7 +329,7 @@ def reroute(d: Path, nets_: list[str]) -> int:
     (o / "freerouting.log").write_text(r.stdout + r.stderr)
     if not ses.exists():
         pcb.write_text(text0)
-        raise SystemExit("freerouting produced no SES; see boardwright_out/freerouting.log")
+        raise EnvironmentFault("freerouting produced no SES; see boardwright_out/freerouting.log")
     routed = pcb.with_suffix(".solve.kicad_pcb")
     B.kct("pcb", "import-ses", str(pcb), str(ses), "-o", str(routed))
     rt = routed.read_text()
@@ -369,8 +370,10 @@ def reroute(d: Path, nets_: list[str]) -> int:
 def cli(argv: list[str]) -> int:
     argv = ["boardwright", *argv]
     if len(argv) < 3:
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     d, step, rest = Path(argv[1]).resolve(), argv[2], argv[3:]
+    if step not in ("info", "pads", "nets", "review", "baseline", "verify", "stage", "apply", "reroute"):
+        raise Usage(f"unknown step {step!r}\n{__doc__}")
     return ({"info": lambda: info(d), "pads": lambda: pads(d, rest), "nets": lambda: nets(d, rest[0] if rest else "*"),
               "review": lambda: 1 if do_review(d) else 0, "baseline": lambda: baseline(d),
               "verify": lambda: verify(d, "--staged" in rest), "stage": lambda: stage(d, Path(rest[0]).resolve()),

@@ -32,6 +32,7 @@ import importlib.util
 import types
 from pathlib import Path
 
+from .errors import EnvironmentFault, Usage
 from .model import Board
 
 
@@ -53,7 +54,7 @@ def connect():
         hint = ("The socket exists but this process may not open it."
                 if isinstance(e, PermissionError) or "ermission" in str(e) else
                 "Is KiCad running with the PCB editor open and Preferences > Plugins > Enable KiCad API switched on?")
-        raise SystemExit(f"cannot reach KiCad ({type(e).__name__}: {e}). {hint}") from e
+        raise EnvironmentFault(f"cannot reach KiCad ({type(e).__name__}: {e}). {hint}") from e
     return k
 
 
@@ -61,7 +62,7 @@ def board_of(k):
     try:
         return k.get_board()
     except Exception as e:
-        raise SystemExit(f"KiCad is running but no board is open in the PCB editor ({type(e).__name__}: {e})") from e
+        raise EnvironmentFault(f"KiCad is running but no board is open in the PCB editor ({type(e).__name__}: {e})") from e
 
 
 def snapshot(b, out: Path) -> Path:
@@ -104,7 +105,7 @@ def apply(k, b, doc: dict, save: bool) -> None:
     nets = {n.name: n for n in b.get_nets()}
     def net(name):
         if name not in nets:
-            raise SystemExit(f"no net {name!r} on the open board")
+            raise Usage(f"no net {name!r} on the open board")
         return nets[name]
     # kicad-python 0.8.0 cannot name the document in BeginCommit, and KiCad
     # refuses an unnamed one while the schematic editor is also open. Then the
@@ -151,7 +152,7 @@ def apply(k, b, doc: dict, save: bool) -> None:
                 tr.width, tr.layer, tr.net = from_mm(o["width"]), _layer(o["layer"]), net(o["net"])
                 made += len(b.create_items([tr]))
             else:
-                raise SystemExit(f"unknown op {kind!r}")
+                raise Usage(f"unknown op {kind!r}")
     except BaseException:
         if commit is not None:
             b.drop_commit(commit)
@@ -171,9 +172,9 @@ def main(argv: list[str]) -> int:
     try:
         import kipy  # noqa: F401
     except ImportError:
-        raise SystemExit('boardwright live needs the live extra: pip install "boardwright[live]"') from None
+        raise EnvironmentFault('boardwright live needs the live extra: pip install "boardwright[live]"') from None
     if not argv:
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     cmd, rest = argv[0], argv[1:]
     flags = {a for a in rest if a.startswith("--")}
     args = [a for a in rest if not a.startswith("--")]
@@ -181,7 +182,7 @@ def main(argv: list[str]) -> int:
     if cmd == "apply" and "--dry-run" in flags:      # no connection needed
         from . import edits
         if not args[0].endswith(".json") and len(args) < 2:
-            raise SystemExit("a dry run from a spec needs the board file too: apply SPEC.py BOARD.kicad_pcb --dry-run")
+            raise Usage("a dry run from a spec needs the board file too: apply SPEC.py BOARD.kicad_pcb --dry-run")
         doc = edit_list(args[0], Path(args[1]) if len(args) > 1 else None)
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         return 0
@@ -251,7 +252,7 @@ def main(argv: list[str]) -> int:
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         apply(k, b, doc, "--save" in flags)
         return 0
-    raise SystemExit(__doc__)
+    raise Usage(__doc__)
 
 
 cli = main

@@ -1,5 +1,11 @@
 # boardwright
 
+[![Check](https://github.com/heibench/boardwright/actions/workflows/check.yml/badge.svg)](https://github.com/heibench/boardwright/actions/workflows/check.yml)
+[![Docs](https://github.com/heibench/boardwright/actions/workflows/docs.yml/badge.svg)](https://heibench.com/boardwright/)
+[![PyPI](https://img.shields.io/pypi/v/boardwright)](https://pypi.org/project/boardwright/)
+[![Python](https://img.shields.io/pypi/pyversions/boardwright)](https://pypi.org/project/boardwright/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
 **Generate and edit KiCad boards and schematics from a short Python description,
 checked by KiCad itself.**
 
@@ -66,6 +72,19 @@ boardwright sch MYPROJ set R12 Value=4k7      # one block of the schematic repla
 boardwright live apply edit.py                # the same edits to the board open in KiCad, one undo step
 ```
 
+## Exit codes
+
+The same as the other [heibench](https://heibench.com/) tools, so a script or CI job can
+branch on them:
+
+| Code | Meaning |
+|---|---|
+| 0 | done: the board passed, or the edit was made |
+| 1 | violated or refused: a finding about the design, or an edit not made |
+| 2 | could not tell: a check could not be decided (a KiCad report is missing or stale) |
+| 4 | environment fault: KiCad, a library or Freerouting missing or failing; never a verdict on the design |
+| 64 | usage: bad arguments, or a spec naming parts, nets or layers that are not there |
+
 ## How it decides
 
 - **KiCad is the judge.** Nothing is "done" on the tool's own arithmetic. Every
@@ -102,6 +121,8 @@ existing-board and schematic commands. [`docs/devlog/`](docs/devlog/) records wh
 board broke in the tool and what was changed.
 
 ## Documentation
+
+The site is at **https://heibench.com/boardwright/**. In this repository:
 
 - [`docs/guide.md`](docs/guide.md): the full workflow, every `board.py` option, existing
   boards and schematics, the live KiCad client, and what the tool does badly.

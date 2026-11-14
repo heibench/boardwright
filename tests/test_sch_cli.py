@@ -55,7 +55,7 @@ def test_cli_version_and_help(capsys):
     assert capsys.readouterr().out.startswith("boardwright ")
     assert main([]) == 0
     assert "boardwright gen DIR" in capsys.readouterr().out
-    assert main(["no-such-command"]) == 2
+    assert main(["no-such-command"]) == 64
 
 
 def test_cli_review_exit_codes(tmp_path):
@@ -69,3 +69,20 @@ def test_cli_review_exit_codes(tmp_path):
     bad = subprocess.run([sys.executable, "-m", "boardwright", "review", str(board("ldo_breakout")), str(spec)],
                          capture_output=True, text=True)
     assert bad.returncode == 1 and "LED_A" in bad.stdout
+
+
+def test_exit_codes_follow_the_heibench_contract(ldo_copy, monkeypatch, capsys):
+    # 64 usage: bad arguments, or a spec naming something that is not there
+    assert main(["gen"]) == 64
+    assert main(["sch", str(ldo_copy), "set", "R1", "Colour=blue"]) == 64
+    assert main(["existing", str(ldo_copy), "no-such-step"]) == 64
+    # 2 could not tell: verify with no KiCad reports is not a verdict
+    assert main(["verify", str(ldo_copy)]) == 2
+    assert "CANNOT TELL" in capsys.readouterr().out
+    # 4 environment fault: no KiCad to run
+    monkeypatch.setenv("NETSPEC_KICAD_CLI", "/nonexistent/kicad-cli")
+    assert main(["check", str(ldo_copy)]) == 4
+    # 1 violated: a finding about the design
+    spec = ldo_copy / "spec.py"
+    spec.write_text('REVIEW = {"maxlen": {"LED_A": 0.1}}\n')
+    assert main(["review", str(ldo_copy / "ldo_breakout.kicad_pcb"), str(spec)]) == 1

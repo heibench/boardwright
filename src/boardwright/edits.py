@@ -32,6 +32,7 @@ import json
 from pathlib import Path
 
 from . import copper
+from .errors import Usage
 from .model import Board
 
 
@@ -43,16 +44,16 @@ def from_spec(m, board: Board, project=None) -> dict:
     r = lambda v: round(v, 4)
     def need_net(n):
         if n not in nets:
-            raise SystemExit(f"no net {n!r} on {board.path.name}")
+            raise Usage(f"no net {n!r} on {board.path.name}")
         return n
     ops = []
     if getattr(m, "ROUTES", None) and getattr(m, "MOVE", None):
-        raise SystemExit("ROUTES are worked out on the board as it is; apply the MOVE first, then route in a second edit")
+        raise Usage("ROUTES are worked out on the board as it is; apply the MOVE first, then route in a second edit")
     from .route import expand
     rtracks, rvias = expand(m, board, ignore=set(getattr(m, "RIPUP", [])), project=project)
     for ref, pos in getattr(m, "MOVE", {}).items():
         if ref not in refs:
-            raise SystemExit(f"no footprint {ref!r} on {board.path.name}")
+            raise Usage(f"no footprint {ref!r} on {board.path.name}")
         op = {"op": "move_footprint", "ref": ref, "x": r(pos[0] + ox), "y": r(pos[1] + oy)}
         if len(pos) > 2 and pos[2] is not None:
             op["rotation"] = pos[2]
@@ -68,7 +69,7 @@ def from_spec(m, board: Board, project=None) -> dict:
         width = t[2] if len(t) > 2 else 0.25
         layer = t[3] if len(t) > 3 else "F.Cu"
         if layer not in board.layers:
-            raise SystemExit(f"{board.path.name} has no layer {layer}")
+            raise Usage(f"{board.path.name} has no layer {layer}")
         for (x1, y1), (x2, y2) in zip(t[1], t[1][1:]):
             ops.append({"op": "add_track", "net": need_net(t[0]), "x1": r(x1 + ox), "y1": r(y1 + oy),
                         "x2": r(x2 + ox), "y2": r(y2 + oy), "width": width, "layer": layer})
@@ -88,7 +89,7 @@ def describe(doc: dict) -> list[str]:
         elif k == "add_track":
             out.append(f"track {o['net']} {o['layer']} w={o['width']}: ({o['x1']}, {o['y1']}) -> ({o['x2']}, {o['y2']})")
         else:
-            raise SystemExit(f"unknown op {k!r}")
+            raise Usage(f"unknown op {k!r}")
     return out
 
 
@@ -102,7 +103,7 @@ def load_spec(path: str):
 def cli(argv: list[str]) -> int:
     argv = ["boardwright", *argv]
     if len(argv) not in (4, 5):
-        raise SystemExit(__doc__)
+        raise Usage(__doc__)
     doc = from_spec(load_spec(argv[1]), Board(argv[2]), argv[4] if len(argv) == 5 else None)
     Path(argv[3]).write_text(json.dumps(doc, indent=1) + "\n")
     print(f"{len(doc['ops'])} op(s) -> {argv[3]}  (absolute mm)")

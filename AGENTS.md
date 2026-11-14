@@ -18,7 +18,13 @@ for changing it.
    variable or found in standard install places.
 4. **Numbers carry their source.** A threshold, cost or limit in the code or
    docs says where it was measured or which document it came from.
-5. **Limits are stated.** What the tool does badly is listed in
+5. **Exit codes are the heibench contract** (`src/boardwright/errors.py`):
+   0 done, 1 refused or violated, 2 could not tell, 4 environment fault, 64
+   usage. A missing tool or report is never reported as a finding about the
+   design. The org-wide rules are in
+   [heibench/.github AGENTS.md](https://github.com/heibench/.github/blob/main/AGENTS.md);
+   this file wins where they conflict.
+6. **Limits are stated.** What the tool does badly is listed in
    `docs/guide.md` and `docs/devlog/gaps.md`; keep both true.
 
 ## Workflow
