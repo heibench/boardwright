@@ -1,0 +1,61 @@
+[project]
+name = "boardwright"
+version = "0.1.0"
+description = "Generate and edit KiCad boards and schematics from a short Python description, checked by KiCad itself."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "heibench" }]
+keywords = ["kicad", "pcb", "eda", "schematic", "autorouter", "electronics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Manufacturing",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+dependencies = [
+    "kicad-tools==0.29.0",
+    "kicad-netspec==0.9.0",
+    "numpy>=1.24",
+    "shapely>=2.0",
+]
+
+[project.optional-dependencies]
+live = ["kicad-python==0.8.0"]
+
+[project.scripts]
+boardwright = "boardwright.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/heibench/boardwright"
+Issues = "https://github.com/heibench/boardwright/issues"
+Changelog = "https://github.com/heibench/boardwright/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501", "E701", "E702", "E731", "E741", "B023", "B905"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["kicad: needs kicad-cli (skipped when KiCad is not installed)"]
