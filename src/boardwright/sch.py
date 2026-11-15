@@ -16,11 +16,14 @@ a diff shows exactly the edit.
 and the flags dnp, in_bom, on_board (yes/no).
 
 `add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...]. `like` is
-the reference of a part already on the sheet with the same symbol: the new
-part is a copy of it (so the symbol, its fields and the file's own format
-come along), placed in free space with a short wire from each pin to a label
-or, for a power net, to a copy of that net's power symbol. Pins not listed
-are left open.
+either the reference of a part already on the sheet, which is copied (symbol,
+fields and the file's own format come along), or a library symbol LIB:NAME,
+looked up as for `repoint` and added to the sheet's symbol cache, with its
+fields from the library and the file's format from a part already placed.
+The new part goes in free space with a short wire from each pin to a label of
+the kind its net already uses (local or global) or, for a power net, to a copy
+of that net's power symbol. Pins not listed are left open. Library symbols
+must be single-unit and not power symbols.
 
 The judge is KiCad: record the connectivity before (`netspec snap`) and
 compare after (`netspec diff`), and compare ERC reports with `ercdiff`. An edit
@@ -38,8 +41,7 @@ used more than once, one symbol stands for a part in each use: `parts` says
 so, `set` changes all of them (and says so), and `remove` refuses. `add`
 works on the root sheet only.
 
-Limits: `add` needs a part with the same symbol already present; nothing is
-moved or re-drawn. A schematic open in
+Limits: nothing is moved or re-drawn. A schematic open in
 KiCad will not notice the change: close and reopen it.
 """
 
@@ -230,6 +232,32 @@ def _retarget(block: str, x: float, y: float, tidy: bool = True) -> str:
     return re.sub(r'(\(property "[^"]*" "(?:[^"\\]|\\.)*"\s+)\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', shift, block)
 
 
+def _rot(dx: float, dy: float, deg: float) -> tuple[float, float]:
+    """A sheet-axis offset (y down) turned counter-clockwise on screen by deg."""
+    c, s = round(math.cos(math.radians(deg)), 9), round(math.sin(math.radians(deg)), 9)
+    return dx * c + dy * s, -dx * s + dy * c
+
+
+def _place_power(src: str, ex: float, ey: float, away: float, pin: tuple[float, float, float]) -> str:
+    """A copy of power symbol `src` whose pin sits on (ex, ey) and whose body
+    points `away` (0 right, 90 up, 180 left, 270 down), so it never lies over the
+    part it connects. Its fields turn with it; their text stays upright."""
+    qx, qy, qa = pin                                 # a symbol's body lies in its pin's direction
+    m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", src)
+    ox, oy, r0 = float(m.group(1)), float(m.group(2)), float(m.group(3) or 0)
+    r = (away - qa) % 360
+    px, py = _rot(qx, -qy, r)
+    x, y = round(ex - px, 4), round(ey - py, 4)
+    b = src[:m.start()] + f"\n\t\t(at {x:g} {y:g} {r:g})" + src[m.end():]
+    b = re.sub(r"\n\t\t\(mirror [xy]\)", "", b, count=1)
+
+    def move(mm):
+        dx, dy = _rot(float(mm.group(2)) - ox, float(mm.group(3)) - oy, -r0)
+        dx, dy = _rot(dx, dy, r)
+        return f"{mm.group(1)}(at {x + dx:g} {y + dy:g} {mm.group(4) or '0'})"
+    return re.sub(r'(\(property "[^"]*" "(?:[^"\\]|\\.)*"\s+)\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', move, b)
+
+
 PAPER = {"A5": (210, 148), "A4": (297, 210), "A3": (420, 297), "A2": (594, 420), "A1": (841, 594), "A0": (1189, 841),
          "A": (279.4, 215.9), "B": (431.8, 279.4), "C": (558.8, 431.8), "D": (863.6, 558.8), "USLetter": (279.4, 215.9)}
 
@@ -238,8 +266,8 @@ def snap(v: float) -> float:
     return round(round(v / GRID) * GRID, 4)
 
 
-def _free_spot(t: str, n: int) -> tuple[float, float]:
-    """Top-left of an empty strip on the sheet big enough for n new parts in a row.
+def _free_spot(t: str, w_mm: float, h_mm: float) -> tuple[float, float]:
+    """Top-left of an empty w_mm x h_mm strip on the sheet for the new parts.
 
     Looks right of everything drawn, then below it, inside the frame; a full
     sheet is an error rather than a part dropped on top of the drawing."""
@@ -263,15 +291,100 @@ def _free_spot(t: str, n: int) -> tuple[float, float]:
         steps = max(1, int(math.hypot(x2 - x1, y2 - y1) / cell))
         for i in range(steps + 1):
             mark(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps, 2.54)
-    margin = 15.0
-    w, h = int((n * 10 * GRID + 10) / cell) + 1, int(33.0 / cell) + 1
+    margin = 20.0                                        # clear of the frame, its ruler and a part's own fields
+    w, h = int((w_mm + 5.08) / cell) + 1, int((h_mm + 5.08) / cell) + 1
     for j in range(int(margin / cell), ny - h - int(margin / cell)):
         for i in range(int(margin / cell), nx - w - int(margin / cell)):
             if i * cell > pw - 125 and j * cell > ph - 60:              # the title block corner
                 continue
             if not any(used[a][b] for a in range(i, i + w) for b in range(j, j + h)):
-                return snap(i * cell + 7.62), snap(j * cell + 15.24)
+                return snap(i * cell + 2.54), snap(j * cell + 2.54)
     raise SystemExit("no free area on the sheet for the new parts; make room in KiCad or use a larger sheet")
+
+
+def _pin_end(ang: float) -> tuple[int, int]:
+    """Unit step away from the body for a pin at library angle ang, in sheet axes."""
+    a = math.radians(ang + 180)
+    return round(math.cos(a)), -round(math.sin(a))
+
+
+def _extent(lp: dict, pins: dict) -> tuple[float, float, float, float]:
+    """Sheet-axis box (relative to the part's origin) round its pins, the stub
+    wires and the labels drawn on them: min x, min y, max x, max y."""
+    xs, ys = [-2 * GRID, 2 * GRID], [-2 * GRID, 2 * GRID]
+    for num, (px, py, ang) in lp.items():
+        dx, dy = _pin_end(ang)
+        reach = 2 * GRID + (len(pins.get(num, "")) * 1.0 + 2.54 if num in pins else 0)
+        sx, sy = px, -py
+        xs += [sx, sx + dx * reach]
+        ys += [sy, sy + dy * reach]
+    return min(xs) - GRID, min(ys) - GRID, max(xs) + GRID, max(ys) + GRID
+
+
+# ---- symbols taken straight from a library -----------------------------
+
+def _library_symbol(d: Path, lib_id: str) -> str:
+    """LIB:NAME from its library, flattened as KiCad caches it."""
+    nick, name = lib_id.split(":", 1)
+    lib = _lib_file(d, nick)
+    if lib is None or not lib.exists():
+        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'} or KiCad's stock libraries")
+    try:
+        syms = _symbol_blocks(lib.read_text())
+    except OSError as e:
+        raise EnvironmentFault(f"cannot read {lib}: {e}") from None
+    if name not in syms:
+        raise Usage(f"{lib.name} has no symbol {name!r}")
+    return _flatten(syms, name)
+
+
+def _cache_entry(body: str, lib_id: str) -> str:
+    """A library symbol as the schematic's lib_symbols cache holds it: one tab
+    deeper, named LIB:NAME (its units keep the bare name)."""
+    name = lib_id.split(":", 1)[1]
+    lines = body.split("\n")
+    fresh = "\n".join([lines[0]] + ["\t" + ln if ln else ln for ln in lines[1:]])
+    return re.sub(r'\(symbol "%s"' % re.escape(name), f'(symbol "{lib_id}"', fresh, count=1)
+
+
+def _check_placeable(body: str, lib_id: str) -> None:
+    name = lib_id.split(":", 1)[1]
+    if re.search(r"\n\t\t\(power\b", body):
+        raise Usage(f"{lib_id} is a power symbol: name its net in a pin map instead, and add one in KiCad if the sheet has none")
+    units = {int(u) for u in re.findall(r'\(symbol "%s_(\d+)_\d+"' % re.escape(name), body)} - {0}
+    if len(units) > 1:
+        raise SystemExit(f"{lib_id} has {len(units)} units; multi-unit parts are not handled, add this one in KiCad")
+
+
+def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> str:
+    """A placed symbol for library symbol `body` at (x, y), in the file's own
+    format: the head, pin lines and instance path come from `template` (another
+    placed symbol on the same sheet); the fields come from the library."""
+    t = _fresh(template)
+    p0 = re.search(r"\n\t\t\(property ", t)
+    i0 = re.search(r"\n\t\t\(instances\b", t)
+    pin_tpl = next(t[s:e] for s, e in blocks(t, ("pin",)))
+    head, tail = t[:p0.start()], t[i0.start():]
+    head = re.sub(r'\(lib_id "[^"]*"\)', f'(lib_id "{lib_id}")', head, count=1)
+    head = re.sub(r"\n\t\t\(lib_name \"[^\"]*\"\)", "", head)
+    head = re.sub(r"\n\t\t\(at [-\d.]+ [-\d.]+(?: [-\d.]+)?\)", f"\n\t\t(at {x:g} {y:g} 0)", head, count=1)
+    head = re.sub(r"\(unit \d+\)", "(unit 1)", head, count=1)
+    for flag in ("exclude_from_sim", "in_bom", "on_board"):
+        m = re.search(r"\n\t\t\(%s (yes|no)\)" % flag, body)
+        if m:
+            head = re.sub(r"\(%s (?:yes|no)\)" % flag, f"({flag} {m.group(1)})", head, count=1)
+    head = re.sub(r"\(dnp (?:yes|no)\)", "(dnp no)", head, count=1)
+    tail = re.sub(r"\(unit \d+\)", "(unit 1)", tail)
+    fields = []
+    for s, e in blocks(body, ("property",)):
+        p = body[s:e]
+        if re.match(r'\s*\(property "ki_', p):
+            continue
+        fields.append(re.sub(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)",
+                             lambda m: f"(at {x + float(m.group(1)):g} {y - float(m.group(2)):g} {m.group(3) or '0'})",
+                             p, count=1))
+    pins = [_fresh(re.sub(r'\(pin "[^"]*"', f'(pin "{n}"', pin_tpl, count=1)) for n in _pin_numbers(body)]
+    return _retarget(head + "".join(fields) + "".join(pins) + tail, x, y, tidy=False)   # the library placed the fields
 
 
 def add(d: Path, spec_path: str) -> int:
@@ -287,63 +400,94 @@ def add(d: Path, spec_path: str) -> int:
         if (prop(b, "Reference") or "").startswith("#PWR"):
             power.setdefault(prop(b, "Value"), b)
     labels = set(re.findall(r'\n\t\(label "([^"]*)"', t))
+    globals_ = set(re.findall(r'\n\t\(global_label "([^"]*)"', t))
     wire_t = next((t[s:e] for s, e in blocks(t, ("wire",))), None)
     label_t = next((t[s:e] for s, e in blocks(t, ("label",))), None)
-    if wire_t is None or label_t is None:
+    glabel_t = next((t[s:e] for s, e in blocks(t, ("global_label",))), None)
+    if wire_t is None or (label_t is None and glabel_t is None):
         raise SystemExit("the sheet has no wire or no label to take the file's format from")
-    bx, by = _free_spot(t, len(m.ADD))
+    template = next((b for b in inst if not (prop(b, "Reference") or "#").startswith("#")), None)
+    plan = []                                            # (ref, value, footprint, pins, lib_id, copy source or None, extent)
+    for ref, like, value, footprint, pins in m.ADD:
+        if ref in by_ref or any(ref == p[0] for p in plan):
+            raise Usage(f"{ref} already exists")
+        pins = {str(k): v for k, v in pins.items()}
+        if like in by_ref:
+            src, lib_id = by_ref[like], re.search(r'\(lib_id "([^"]*)"', by_ref[like]).group(1)
+        elif ":" in like:
+            src, lib_id = None, like
+            if template is None:
+                raise SystemExit("the sheet has no placed part to take the file's format from")
+            cache = blocks(t, ("lib_symbols",))
+            if not cache:
+                raise SystemExit("the sheet has no symbol cache (lib_symbols) to add to")
+            cs, ce = cache[0]
+            cached = _symbol_blocks(t[cs:ce]).get(lib_id)
+            body = _library_symbol(d, lib_id)
+            _check_placeable(body, lib_id)
+            if cached is None:
+                k = t.rfind("\n", cs, ce)
+                t = t[:k] + _cache_entry(body, lib_id) + t[k:]
+            elif _pin_numbers(cached) != _pin_numbers(body):
+                raise SystemExit(f"the sheet's cached {lib_id} has pins {_pin_numbers(cached)}, the library's has "
+                                 f"{_pin_numbers(body)}; update the symbol in KiCad first. Nothing written.")
+        else:
+            raise Usage(f"no part {like!r} to copy, and not a LIB:NAME symbol")
+        lp = _lib_pins(t, lib_id)
+        for num in pins:
+            if num not in lp:
+                raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+        plan.append((ref, like, value, footprint, pins, lib_id, src if src is not None else body, src is None,
+                     _extent(lp, pins)))
+    width = sum(ex[2] - ex[0] for *_, ex in plan)
+    height = max(ex[3] - ex[1] for *_, ex in plan)
+    bx, by = _free_spot(t, width, height)
     pwr_n = max([int(n) for n in re.findall(r'"#PWR0*(\d+)"', t)] or [0])
     new = []
-    for i, (ref, like, value, footprint, pins) in enumerate(m.ADD):
-        if ref in by_ref:
-            raise Usage(f"{ref} already exists")
-        if like not in by_ref:
-            raise Usage(f"no part {like!r} to copy")
-        src = by_ref[like]
-        lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
+    for ref, like, value, footprint, pins, lib_id, src, from_lib, (x0, y0, x1, _y1) in plan:
         lp = _lib_pins(t, lib_id)
-        x, y = snap(bx + i * 10 * GRID), by
-        b = _retarget(_fresh(src), x, y)
+        x, y = snap(bx - x0), snap(by - y0)
+        bx += x1 - x0
+        b = _from_library(template, src, lib_id, x, y) if from_lib else _retarget(_fresh(src), x, y)
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
             esc = val.replace("\\", "\\\\").replace('"', '\\"')
             b = re.sub(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda mm: f'{mm.group(1)}"{esc}"', b, count=1)
         b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{ref}")', b)
         new.append(b)
-        for num, net in {str(k): v for k, v in pins.items()}.items():
-            if num not in lp:
-                raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+        for num, net in pins.items():
             px, py, ang = lp[num]
             sx, sy = x + px, y - py                                     # the pin's connection point on the sheet
-            a = math.radians(ang + 180)
-            dx, dy = round(math.cos(a)), -round(math.sin(a))            # away from the body
+            dx, dy = _pin_end(ang)                                      # away from the body
             ex, ey = round(sx + dx * 2 * GRID, 4), round(sy + dy * 2 * GRID, 4)
             w = _fresh(wire_t)
             w = re.sub(r"\(pts\s+\(xy [-\d.]+ [-\d.]+\)\s+\(xy [-\d.]+ [-\d.]+\)\s*\)",
                        f"(pts\n\t\t\t(xy {sx:g} {sy:g}) (xy {ex:g} {ey:g})\n\t\t)", w, count=1)
             new.append(w)
+            rot = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}[(dx, dy)]
             if net in power:
                 pwr_n += 1
-                pb = _retarget(_fresh(power[net]), ex, ey, tidy=False)
+                src_p = _fresh(power[net])
+                ppin = _lib_pins(t, re.search(r'\(lib_id "([^"]*)"', src_p).group(1))
+                pb = _place_power(src_p, ex, ey, rot, next(iter(ppin.values()), (0.0, 0.0, rot)))
                 pref = f"#PWR0{pwr_n}"
                 pb = re.sub(r'(\(property "Reference" )"[^"]*"', lambda mm: f'{mm.group(1)}"{pref}"', pb, count=1)
                 pb = re.sub(r'\(reference "[^"]*"\)', f'(reference "{pref}")', pb)
-                ppin = _lib_pins(t, re.search(r'\(lib_id "([^"]*)"', pb).group(1))
-                if ppin:
-                    qx, qy, _qa = next(iter(ppin.values()))
-                    if abs(qx) > 1e-6 or abs(qy) > 1e-6:                # put the symbol's pin, not its origin, on the wire end
-                        pb = _retarget(pb, ex - qx, ey + qy, tidy=False)
                 new.append(pb)
                 kind = "power symbol"
             else:
-                rot = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}[(dx, dy)]
-                lb = _fresh(label_t)
-                lb = re.sub(r'\(label "[^"]*"', lambda mm: f'(label "{net}"', lb, count=1)
+                # the kind of label the net already uses; a new net takes local labels where the sheet has them
+                glob = net in globals_ or (net not in labels and label_t is None)
+                lb = _fresh(glabel_t if glob else label_t)
+                head = "global_label" if glob else "label"
+                lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{net}"', lb, count=1)
                 lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {ex:g} {ey:g} {rot})", lb, count=1)
-                lb = re.sub(r"\(justify [^)]*\)", "(justify right bottom)" if rot in (180, 270) else "(justify left bottom)", lb, count=1)
+                side = "right" if rot in (180, 270) else "left"
+                lb = re.sub(r"\(justify [^)]*\)", f"(justify {side})" if glob else f"(justify {side} bottom)", lb, count=1)
                 new.append(lb)
-                kind = "label" + ("" if net in labels else " (new net)")
+                kind = head.replace("_", " ") + ("" if net in labels | globals_ else " (new net)")
             print(f"{ref}.{num} -> {net}  [{kind}]")
-        print(f"added {ref} ({lib_id}, copied from {like}) at ({x:g}, {y:g})")
+        how = "from its library" if from_lib else f"copied from {like}"
+        print(f"added {ref} ({lib_id}, {how}) at ({x:g}, {y:g})")
     # insert before the sheet_instances / embedded_fonts tail, or before the final parenthesis
     tail = re.search(r"\n\t\((?:sheet_instances|embedded_fonts)\b", t)
     k = tail.start() if tail else t.rstrip().rfind(")")
@@ -468,9 +612,7 @@ def repoint(d: Path, old: str, new: str, body: str = "keep") -> int:
             region = t[cs:ce]
             old_block = entries[old]
             if body == "library":
-                lines = target.split("\n")
-                fresh = "\n".join([lines[0]] + ["\t" + ln if ln else ln for ln in lines[1:]])
-                fresh = re.sub(r'\(symbol "%s"' % re.escape(new_name), f'(symbol "{new}"', fresh, count=1)
+                fresh = _cache_entry(target, new)
             else:
                 fresh = old_block.replace(f'(symbol "{old}"', f'(symbol "{new}"', 1)
                 fresh = re.sub(r'\(symbol "%s_(\d+_\d+)"' % re.escape(old_name),

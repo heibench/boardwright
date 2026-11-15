@@ -7,6 +7,20 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `sch add` takes a library symbol `LIB:NAME` as `like`, so a part can be
+  added whose symbol the schematic does not use yet (part of #3). Its pins
+  are labelled with the kind of label each net already uses, so `add` now
+  also works on sheets connected by global labels, such as generated ones.
+
+### Changed
+
+- `sch add` sizes the free area from each part's pins and labels instead of
+  a fixed 12.7 mm per part, keeps 20 mm from the sheet edge, and turns each
+  power symbol to point away from the part it connects (a +3V3 on a pin that
+  faces down used to be drawn over the part).
+
 ### Fixed
 
 - `live status` names the open board by its full path, and `live apply`
