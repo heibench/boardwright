@@ -4,6 +4,7 @@
     boardwright sch <project dir> set REF Field=Value [Field=Value ...]
     boardwright sch <project dir> add SPEC.py
     boardwright sch <project dir> remove REF [REF ...]
+    boardwright sch <project dir> repoint OLD_LIB:OLD_NAME NEW_LIB:NEW_NAME [--body keep|library]
     boardwright sch ercdiff OLD.json NEW.json
 
 Nothing is parsed and rewritten: the file is searched for the exact block to
@@ -25,6 +26,13 @@ The judge is KiCad: record the connectivity before (`netspec snap`) and
 compare after (`netspec diff`), and compare ERC reports with `ercdiff`. An edit
 is right when the difference is the change you meant and nothing else.
 
+`repoint` points every part that uses one library symbol at another, on every
+sheet: the symbol cache entry, its units and each part's lib_id are renamed
+(`--body keep`, the default, keeps the drawing), or the cache entry is replaced
+from the new library (`--body library`). The new symbol is found through the
+project's sym-lib-table, then KiCad's stock libraries. Its pin numbers must be
+the same set as the cached symbol's, or nothing is written.
+
 Hierarchy: parts on sub-sheets are listed and can be `set`. On a sheet that is
 used more than once, one symbol stands for a part in each use: `parts` says
 so, `set` changes all of them (and says so), and `remove` refuses. `add`
@@ -45,6 +53,7 @@ import re
 import uuid
 from pathlib import Path
 
+from . import env
 from .copper import blocks
 from .errors import EnvironmentFault, Usage
 
@@ -344,6 +353,139 @@ def add(d: Path, spec_path: str) -> int:
     return 0
 
 
+# ---- repoint -------------------------------------------------------------
+
+def _lib_file(d: Path, nick: str) -> Path | None:
+    """The .kicad_sym a library nickname names: the project's sym-lib-table first,
+    then KiCad's stock library folder."""
+    table = d / "sym-lib-table"
+    if table.exists():
+        for name, uri in re.findall(r'\(lib \(name "([^"]*)"\).*?\(uri "([^"]*)"\)', table.read_text()):
+            if name == nick:
+                p = uri.replace("${KIPRJMOD}", str(d))
+                if "${" in p:
+                    try:
+                        p = re.sub(r"\$\{KICAD\d*_SYMBOL_DIR\}", str(env.libraries()[0]), p)
+                    except SystemExit:
+                        return None
+                return Path(p)
+    try:
+        stock = env.libraries()[0] / f"{nick}.kicad_sym"
+    except SystemExit:
+        return None
+    return stock if stock.exists() else None
+
+
+def _symbol_blocks(text: str) -> dict[str, str]:
+    """Top-level symbols of a .kicad_sym (or the entries of a lib_symbols cache), by name."""
+    out = {}
+    for s, e in blocks(text, ("symbol",)):
+        m = re.match(r'\s*\(symbol "((?:[^"\\]|\\.)*)"', text[s:e])
+        out[m.group(1)] = text[s:e]
+    return out
+
+
+def _flatten(syms: dict[str, str], name: str) -> str:
+    """A library symbol as KiCad embeds it: an `extends` symbol becomes its parent's
+    body under its own name, carrying its own properties."""
+    sym = syms[name]
+    m = re.search(r'\n\s*\(extends "([^"]*)"\)', sym)
+    if not m:
+        return sym
+    if m.group(1) not in syms:
+        raise SystemExit(f"{name} extends {m.group(1)}, which is not in the same library")
+    parent = _flatten(syms, m.group(1))
+    pname = re.escape(m.group(1))
+    body = re.sub(r'\(symbol "%s"' % pname, f'(symbol "{name}"', parent, count=1)
+    body = re.sub(r'\(symbol "%s_(\d+_\d+)"' % pname, lambda mm: f'(symbol "{name}_{mm.group(1)}"', body)
+    own = "".join(sym[s:e] for s, e in blocks(sym, ("property",)))
+    props = blocks(body, ("property",))
+    if props:
+        body = body[:props[0][0]] + own + "".join(body[e:n] for (_, e), (n, _) in zip(props, props[1:] + [(len(body), 0)]))
+    return body
+
+
+def _pin_numbers(sym: str) -> list[str]:
+    return sorted({n for s, e in blocks(sym, ("pin",)) for n in re.findall(r'\(number "([^"]*)"', sym[s:e])})
+
+
+def repoint(d: Path, old: str, new: str, body: str = "keep") -> int:
+    """Point every part that uses library symbol `old` at `new` instead.
+
+    keep: rename the cached symbol and its units; the drawing and pins stay as
+    they are. library: replace the cached symbol with `new` from its library.
+    Either way the pin numbers of the cached symbol and of `new` must be the
+    same set, or nothing is written: changing them changes connectivity."""
+    if body not in ("keep", "library"):
+        raise Usage(f"--body takes keep or library, not {body!r}")
+    if ":" not in old or ":" not in new:
+        raise Usage("symbols are named LIB:NAME")
+    nick, new_name = new.split(":", 1)
+    old_name = old.split(":", 1)[1]
+    lib = _lib_file(d, nick)
+    if lib is None or not lib.exists():
+        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'} or KiCad's stock libraries")
+    try:
+        syms = _symbol_blocks(lib.read_text())
+    except OSError as e:
+        raise EnvironmentFault(f"cannot read {lib}: {e}") from None
+    if new_name not in syms:
+        raise Usage(f"{lib.name} has no symbol {new_name!r}")
+    target = _flatten(syms, new_name)
+    want = _pin_numbers(target)
+
+    plans = []
+    for sh in sheets(d):
+        t = sh.text
+        uses = len(re.findall(r'\(lib_id "%s"\)' % re.escape(old), t))
+        cache = blocks(t, ("lib_symbols",))
+        entries = _symbol_blocks(t[cache[0][0]:cache[0][1]]) if cache else {}
+        if not uses and old not in entries:
+            continue
+        for s, e in sh.instances():
+            b = t[s:e]
+            if f'(lib_id "{old}")' in b and "(lib_name " in b:
+                raise SystemExit(f"{sh.path.name}: a part using {old} carries a lib_name override; not handled, do this one in KiCad")
+        have = entries.get(old)
+        if have is not None and _pin_numbers(have) != want:
+            gone = sorted(set(_pin_numbers(have)) - set(want))
+            added = sorted(set(want) - set(_pin_numbers(have)))
+            raise SystemExit(f"{sh.path.name}: {old} has pins {_pin_numbers(have)}, {new} has {want} "
+                             f"(missing {gone}, extra {added}); changing them changes connectivity. Nothing written.")
+        plans.append((sh, uses, entries))
+    if not plans:
+        raise Usage(f"no symbol uses {old}")
+
+    for sh, uses, entries in plans:
+        t = sh.text
+        cache = blocks(t, ("lib_symbols",))
+        if cache and old in entries:
+            cs, ce = cache[0]
+            region = t[cs:ce]
+            old_block = entries[old]
+            if body == "library":
+                lines = target.split("\n")
+                fresh = "\n".join([lines[0]] + ["\t" + ln if ln else ln for ln in lines[1:]])
+                fresh = re.sub(r'\(symbol "%s"' % re.escape(new_name), f'(symbol "{new}"', fresh, count=1)
+            else:
+                fresh = old_block.replace(f'(symbol "{old}"', f'(symbol "{new}"', 1)
+                fresh = re.sub(r'\(symbol "%s_(\d+_\d+)"' % re.escape(old_name),
+                               lambda mm: f'(symbol "{new_name}_{mm.group(1)}"', fresh)
+            if new in entries and new != old:
+                region = region.replace(old_block, "", 1)
+                if body == "library":
+                    region = region.replace(entries[new], fresh, 1)
+            else:
+                region = region.replace(old_block, fresh, 1)
+            t = t[:cs] + region + t[ce:]
+        t = t.replace(f'(lib_id "{old}")', f'(lib_id "{new}")')
+        sh.write(t)
+        print(f"{sh.path.name}: {uses} part(s) {old} -> {new} ({body} body)")
+        if locked(sh):
+            print(f"note: {sh.path.name} is open in KiCad; close and reopen it to see the change")
+    return 0
+
+
 # ---- netlist diff --------------------------------------------------------
 
 def ercdiff(a: str, b: str) -> int:
@@ -376,8 +518,17 @@ def cli(argv: list[str]) -> int:
     if len(a) < 2:
         raise Usage(__doc__)
     d, cmd, rest = Path(a[0]).resolve(), a[1], a[2:]
-    if cmd not in ("parts", "set", "remove", "add") or (cmd != "parts" and not rest):
+    if cmd not in ("parts", "set", "remove", "add", "repoint") or (cmd != "parts" and not rest):
         raise Usage(__doc__)
+    if cmd == "repoint":
+        args, mode = list(rest), "keep"
+        if "--body" in args:
+            i = args.index("--body")
+            mode = args[i + 1] if i + 1 < len(args) else ""
+            del args[i:i + 2]
+        if len(args) != 2:
+            raise Usage(__doc__)
+        return repoint(d, args[0], args[1], mode)
     return ({"parts": lambda: parts(d, rest[0] if rest else "*"),
               "set": lambda: set_fields(d, rest[0], rest[1:]),
               "remove": lambda: remove(d, rest),
