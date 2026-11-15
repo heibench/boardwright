@@ -147,6 +147,9 @@
 				)
 			)
 		)
+		(path "/f1820056-5a38-53c0-b328-1060ef68112f")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -293,6 +296,9 @@
 				)
 			)
 		)
+		(path "/5c16b19d-2ac4-5332-88e8-f468a9728855")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -439,6 +445,9 @@
 				)
 			)
 		)
+		(path "/cea3cb36-1203-564d-8668-b0097bbe8843")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -821,6 +830,9 @@
 				)
 			)
 		)
+		(path "/b26872c5-ac57-54b5-ae80-b924d0aa7b00")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1114,6 +1126,9 @@
 				)
 			)
 		)
+		(path "/82e218ae-b3e9-5421-947e-73a54df0c7df")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1449,6 +1464,9 @@
 				)
 			)
 		)
+		(path "/c1225eda-b096-5edb-8ee3-6b329e6e12ac")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1595,6 +1613,9 @@
 				)
 			)
 		)
+		(path "/abc116c9-74e4-5308-acb9-83a2f1736a16")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1741,6 +1762,9 @@
 				)
 			)
 		)
+		(path "/47534231-d6c4-51a9-8627-4e154f75a582")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1887,6 +1911,9 @@
 				)
 			)
 		)
+		(path "/0a95cdd7-52b7-5338-a5e7-01bf7d96bfe6")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2082,6 +2109,9 @@
 				)
 			)
 		)
+		(path "/daf32a3c-72d9-5cd5-bc42-ccd63e7726bc")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2422,6 +2452,9 @@
 				)
 			)
 		)
+		(path "/8928d885-8b85-5a41-8c5a-99eb34732a29")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2559,6 +2592,9 @@
 				)
 			)
 		)
+		(path "/4a6fd584-dbd0-52a3-8924-314bf2d0d065")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2838,6 +2874,9 @@
 				)
 			)
 		)
+		(path "/6b3ca82a-ae59-53d1-8bc7-fb7efa3e162a")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3693,6 +3732,9 @@
 				)
 			)
 		)
+		(path "/e7a6e118-0b6b-553f-950a-32b12a46e6ac")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3839,6 +3881,9 @@
 				)
 			)
 		)
+		(path "/3e64854c-bbdc-5e4d-9bd6-de368e50080b")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3985,6 +4030,9 @@
 				)
 			)
 		)
+		(path "/972e3d5e-4e08-5fda-8fe9-c5b5f0beac5c")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4131,6 +4179,9 @@
 				)
 			)
 		)
+		(path "/2a36b60c-c0e8-5540-a92f-2aaae36ed0bf")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4421,6 +4472,9 @@
 				)
 			)
 		)
+		(path "/32906971-e551-5dd9-8663-346fec68eb08")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4711,6 +4765,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/d7e17348-78be-5cbf-825b-3524f2e79c99")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4861,6 +4918,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/1f71043f-d735-5591-842a-fa886586463b")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5011,6 +5071,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/1ca383ef-f3f7-52cf-baf7-be19baa7f293")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5161,6 +5224,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/f79793a0-7f71-5680-ae12-7bd5fd87556a")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5311,6 +5377,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/d6672960-a41d-523b-af42-9114d403d1c3")
+		(sheetname "/")
+		(sheetfile "esp32c3_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line

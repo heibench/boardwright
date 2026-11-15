@@ -147,6 +147,9 @@
 				)
 			)
 		)
+		(path "/7c3db227-b98f-55db-b3db-8ed7b3e8cfa4")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -293,6 +296,9 @@
 				)
 			)
 		)
+		(path "/c9c164a2-6c11-5098-9d2e-6346ed419cdd")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -439,6 +445,9 @@
 				)
 			)
 		)
+		(path "/ad09929e-868a-5609-ad05-c6a12579992d")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
@@ -545,6 +554,9 @@
 				)
 			)
 		)
+		(path "/01713442-c85e-5b67-85ea-96b076a23c57")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
@@ -651,6 +663,9 @@
 				)
 			)
 		)
+		(path "/5a898e2b-c324-568e-8640-ba6da9b28934")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -797,6 +812,9 @@
 				)
 			)
 		)
+		(path "/a37ea20e-4497-5513-818b-0ef7ec752f72")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1149,6 +1167,9 @@
 				)
 			)
 		)
+		(path "/67681318-1ea9-503e-85b2-5dbd8a4388b3")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1295,6 +1316,9 @@
 				)
 			)
 		)
+		(path "/fdb245df-9d63-5250-80ab-46efda432a61")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1441,6 +1465,9 @@
 				)
 			)
 		)
+		(path "/9cfd9dbc-f13f-5a88-8a6e-8ef4183dd8ae")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1628,6 +1655,9 @@
 				)
 			)
 		)
+		(path "/276e416b-9ba8-574d-86ed-5d353f859fb3")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1870,6 +1900,9 @@
 				)
 			)
 		)
+		(path "/cf4bbde9-dbcb-5d11-9d44-1440d533349c")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2016,6 +2049,9 @@
 				)
 			)
 		)
+		(path "/cdc656fc-a4f5-5f7f-949a-84883b05e258")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2356,6 +2392,9 @@
 				)
 			)
 		)
+		(path "/2851b825-8c3c-5361-997e-a6976d737547")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2502,6 +2541,9 @@
 				)
 			)
 		)
+		(path "/4af1e60c-53a6-5151-a143-4aa00e5db0bb")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2648,6 +2690,9 @@
 				)
 			)
 		)
+		(path "/2e92a190-5c8b-5bba-acda-010e5d619a94")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2794,6 +2839,9 @@
 				)
 			)
 		)
+		(path "/6ff04aa2-0903-5233-bb54-00510ada786b")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2940,6 +2988,9 @@
 				)
 			)
 		)
+		(path "/afcda1b1-8dbc-5c07-a85b-3f49a30c339d")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3086,6 +3137,9 @@
 				)
 			)
 		)
+		(path "/d81117aa-6c40-5c87-b7b6-1f358aa6f4b2")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
@@ -3192,6 +3246,9 @@
 				)
 			)
 		)
+		(path "/45c2105b-c1f5-59f4-b7bc-b473f7bfd5ad")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3338,6 +3395,9 @@
 				)
 			)
 		)
+		(path "/92851d94-6c7c-5fba-a5b3-d682d30ef9d1")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3690,6 +3750,9 @@
 				)
 			)
 		)
+		(path "/79825253-29ee-5540-be6d-6abd0f9efc5d")
+		(sheetname "/")
+		(sheetfile "tps54202_buck.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle

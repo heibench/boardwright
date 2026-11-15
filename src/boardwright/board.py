@@ -52,6 +52,32 @@ def place(pcb_path: Path, placements: dict[str, tuple], circuit=None, board_dir:
     pcb.save(pcb_path)
     if board_dir is not None:
         place_footprint_zones(pcb_path, board_dir)
+    link_symbols(pcb_path, pcb_path.with_suffix(".kicad_sch"))
+
+
+def link_symbols(pcb_path: Path, sch_path: Path) -> int:
+    """Link each footprint of a generated board to its symbol on the (flat, root)
+    schematic, by reference, as KiCad links them: kicad-tools writes no link."""
+    from . import sch, update
+    if not sch_path.exists():
+        return 0
+    s = sch.Sheet(sch_path)
+    uuids = {}
+    for a, b in s.instances():
+        blk = s.text[a:b]
+        m = re.search(r'\n\t\t\(uuid "([^"]*)"\)', blk)
+        if m:
+            uuids[sch.prop(blk, "Reference")] = m.group(1)
+    t = pcb_path.read_text()
+    n = 0
+    for a, b in reversed(update._footprints(t)):
+        fp = t[a:b]
+        ref = update._prop(fp, "Reference")
+        if "\n\t\t(path " not in fp and ref in uuids:
+            t = t[:a] + update.link(fp, "/" + uuids[ref], "/", sch_path.name) + t[b:]
+            n += 1
+    pcb_path.write_text(t)
+    return n
 
 
 def place_footprint_zones(pcb_path: Path, board_dir: Path) -> int:

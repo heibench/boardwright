@@ -45,6 +45,8 @@ def test_place_with_a_custom_library(tmp_path):
     assert main(["place", str(d)]) == 0
     assert (d / "out" / "preview.svg").exists() or (d / "out" / "preview.png").exists()
     assert "Custom:MYLDO-3.3" in (d / "customlib_test.kicad_sch").read_text()
+    pcb = (d / "customlib_test.kicad_pcb").read_text()           # every footprint linked to its symbol
+    assert pcb.count("\n\t(footprint ") == pcb.count("\n\t\t(path ") > 0
 
 
 @pytest.mark.kicad
