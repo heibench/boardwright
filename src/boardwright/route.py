@@ -109,7 +109,11 @@ def route(board: Board, a: str, b: str, width: float = 0.2, clearance: float = 0
           edge: float = 0.3, step: float = 0.05, margin: float = 4.0, extra: list | None = None,
           max_nodes: int = 300_000, ignore=frozenset(), grow: int = 2) -> Routed:
     """Route pad a to pad b ("REF.PAD"). `extra` holds copper added since the board was read:
-    ("t", net, pts, width, layer) and ("v", net, x, y, size)."""
+    ("t", net, pts, width, layer) and ("v", net, x, y, size).
+
+    The route changes layer without a new via where it is already on its own
+    net's through copper (a via, or a through-hole pad), so routes sharing a pad
+    share its via instead of stacking one each."""
     pa, pb = board.pad(a), board.pad(b)
     net = pa.net
     if pb.net != net:
@@ -138,15 +142,28 @@ def route(board: Board, a: str, b: str, width: float = 0.2, clearance: float = 0
             if blocked is not None and not blocked.is_empty:
                 f &= ~shapely.contains_xy(blocked, X, Y)
             free[l] = f
-        via_ok = None
+        via_ok, reuse = None, None
         if len(layers) > 1:
             via_ok = shapely.contains_xy(outline.buffer(-(edge + via[0] / 2)), X, Y)
             for l in board.layers:                      # a through via has to clear every layer
                 shapes = _copper(board, net, l, window, extra, ignore)
                 if shapes:
                     via_ok &= ~shapely.contains_xy(unary_union(shapes).buffer(clearance + via[0] / 2), X, Y)
+            own = []                                    # this net's through copper: its vias and through-hole pads
+            for v in board.vias:
+                if v.net == net:
+                    own.append(Point(v.x, v.y).buffer(max(v.size / 2 - width / 2, step)))
+            for e in extra:
+                if e[0] == "v" and e[1] == net:
+                    own.append(Point(e[2], e[3]).buffer(max(e[4] / 2 - width / 2, step)))
+            for p in board.pads:
+                if p.thru and p.net == net:
+                    inner = pad_shape(p).buffer(-width / 2)
+                    own.append(inner if not inner.is_empty else Point(p.x, p.y).buffer(step))
+            reuse = shapely.contains_xy(unary_union(own), X, Y) if own else np.zeros_like(via_ok)
             for l in layers:
                 via_ok &= free[l]
+                reuse &= free[l]
         ia = (int(round((pa.x - gx[0]) / step)), int(round((pa.y - gy[0]) / step)))
         ib = (int(round((pb.x - gx[0]) / step)), int(round((pb.y - gy[0]) / step)))
         # the two pads themselves are always reachable on the layers they have copper on
@@ -159,7 +176,7 @@ def route(board: Board, a: str, b: str, width: float = 0.2, clearance: float = 0
                 free[l] |= own_b & inside
         goal = {(ib[0], ib[1], li) for li, l in enumerate(layers) if pb.on(l)}
         start = [(ia[0], ia[1], li) for li, l in enumerate(layers) if pa.on(l)]
-        path = _astar(start, goal, [free[l] for l in layers], via_ok, ib, step, via_cost, max_nodes)
+        path = _astar(start, goal, [free[l] for l in layers], via_ok, ib, step, via_cost, max_nodes, reuse)
         if path is not None or grow <= 0 or margin > max(outline.bounds[2] - outline.bounds[0], outline.bounds[3] - outline.bounds[1]):
             break
         margin *= 2                                   # widen the search window and try again
@@ -182,7 +199,8 @@ def route(board: Board, a: str, b: str, width: float = 0.2, clearance: float = 0
             continue
         if li != cur:
             flush()
-            out.vias.append((net, round(pt[0], 4), round(pt[1], 4), via[0], via[1]))
+            if reuse is None or not reuse[ix, iy]:      # on its own via or through-hole pad: no new via
+                out.vias.append((net, round(pt[0], 4), round(pt[1], 4), via[0], via[1]))
             cur, run = li, [pt]
         else:
             run.append(pt)
@@ -195,7 +213,7 @@ _MOVES = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
           (1, 1, math.sqrt(2)), (1, -1, math.sqrt(2)), (-1, 1, math.sqrt(2)), (-1, -1, math.sqrt(2))]
 
 
-def _astar(start, goal, free, via_ok, ib, step, via_cost, max_nodes):
+def _astar(start, goal, free, via_ok, ib, step, via_cost, max_nodes, reuse=None):
     nx, ny = free[0].shape
     def h(ix, iy):
         dx, dy = abs(ix - ib[0]), abs(iy - ib[1])
@@ -228,11 +246,12 @@ def _astar(start, goal, free, via_ok, ib, step, via_cost, max_nodes):
                 best[nb], came[nb] = ng, node
                 n += 1
                 heapq.heappush(heap, (ng + h(jx, jy), n, nb, di))
-        if via_ok is not None and via_ok[ix, iy]:
+        here = reuse is not None and reuse[ix, iy]
+        if via_ok is not None and (via_ok[ix, iy] or here):
             for lj in range(len(free)):
                 if lj != li and free[lj][ix, iy]:
                     nb = (ix, iy, lj)
-                    ng = g + via_cost
+                    ng = g + (step if here else via_cost)
                     if ng < best.get(nb, 1e18):
                         best[nb], came[nb] = ng, node
                         n += 1

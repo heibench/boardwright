@@ -1,3 +1,5 @@
+import itertools
+import math
 import types
 
 import pytest
@@ -7,7 +9,7 @@ from boardwright import copper
 from boardwright.edits import describe, from_spec
 from boardwright.model import Board
 from boardwright.preview import ratsnest
-from boardwright.route import route
+from boardwright.route import route, route_all
 
 
 def ripped(ldo_copy, nets):
@@ -61,3 +63,27 @@ def test_edit_list_rejects_unknown_names():
         from_spec(types.SimpleNamespace(MOVE={"R99": (1, 1)}), b)
     with pytest.raises(SystemExit, match="no net"):
         from_spec(types.SimpleNamespace(VIAS=[("NOPE", 1, 1)]), b)
+
+
+@pytest.mark.parametrize("routes", [
+    [("R9.1", "J3.1"), ("R9.1", "J2.1")],
+    [("R8.1", "J3.1"), ("R8.1", "J2.1")],
+    [("C2.1", "J3.1"), ("C2.1", "J2.18")],
+    [("R5.1", "J2.1"), ("R5.1", "J3.1")],
+])
+def test_routes_from_one_pad_share_a_via(routes):
+    """Two +3V3 routes from one SMD pad on the four-layer example both change layer
+    near it. The second reuses the first one's via instead of stacking its own
+    (it used to put a second via 0 to 0.3 mm away: KiCad's hole_to_hole), so no
+    hole comes nearer another than the project's min_hole_to_hole (0.25 mm)."""
+    from boardwright.route import defaults_for
+
+    b = Board(board("stm32f103_4l"))
+    o = defaults_for(b, None, "+3V3")
+    tracks, vias, failed = route_all(b, [(a, c, o) for a, c in routes])
+    assert not failed and len(vias) == 1
+    drill = {(fp.reference, str(q.number)): q.drill for fp in b.pcb.footprints for q in fp.pads if q.drill}
+    holes = [(v.x, v.y, v.drill) for v in b.vias] + [(p.x, p.y, drill[(p.ref, p.num)]) for p in b.pads if (p.ref, p.num) in drill]
+    holes += [(v[1], v[2], v[4]) for v in vias]
+    gaps = [math.dist(a[:2], c[:2]) - a[2] / 2 - c[2] / 2 for a, c in itertools.combinations(holes, 2)]
+    assert min(gaps) >= 0.25 - 1e-6
