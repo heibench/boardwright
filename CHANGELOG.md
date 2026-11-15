@@ -27,6 +27,8 @@ the command line).
   the part and KiCad reported the footprint as differing from its library.
   They are now placed with the footprint, on either side and at any rotation.
   The ESP32-C3 example no longer ignores that check (#6).
+- The LDO example's output capacitor is a 22 uF tantalum, as the AMS1117
+  datasheet asks for stability; it was a ceramic (#6).
 
 ## [0.2.0] - 2026-11-14
 
