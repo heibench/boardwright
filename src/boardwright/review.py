@@ -105,12 +105,43 @@ def via_current(drill: float, rise: float = 10.0, plating: float = 0.025) -> flo
     return 0.048 * rise ** 0.44 * area ** 0.725
 
 
+def neck(poly, pa, pc, cap: float = 10.0) -> float:
+    """Narrowest channel (mm) current must pass through to get from pad pa to pad
+    pc inside one filled piece of copper: the widest w for which the piece, shrunk
+    by w/2 on every edge, still joins the two pads. Parallel channels are not added
+    together, so a pour fed through two thin spokes measures as one spoke: this
+    errs on the safe side. The pads' own size is not counted."""
+    from shapely.geometry import Polygon
+
+    from .route import pad_shape
+
+    piece = Polygon(poly).buffer(0)
+    sa, sc = pad_shape(pa), pad_shape(pc)
+
+    def joined(w: float) -> bool:
+        shrunk = piece.buffer(-w / 2)
+        if shrunk.is_empty:
+            return False
+        for part in getattr(shrunk, "geoms", [shrunk]):
+            if part.distance(sa) <= w / 2 + 1e-6 and part.distance(sc) <= w / 2 + 1e-6:
+                return True
+        return False
+
+    if joined(cap):
+        return cap
+    lo, hi = 0.0, cap
+    for _ in range(24):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if joined(mid) else (lo, mid)
+    return lo
+
+
 def current_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
     """(report lines, failures) for REVIEW["current"]: a list of (pad a, pad b, amps).
 
     A path carries its current if both pads sit in one filled piece of a pour of
-    their net, or if tracks at least as wide as IPC-2221 asks join them (vias
-    counted against their own capacity). Current is a property of a path, not
+    their net that nowhere narrows below the IPC-2221 width (see `neck`), or if
+    tracks at least as wide join them (vias counted against their own capacity). Current is a property of a path, not
     of a net: a sense line on a power net carries none of it."""
     rise = spec.get("temp_rise", 10)
     lines, fails = [], []
@@ -118,13 +149,22 @@ def current_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
         pa, pc = b.pad(a), b.pad(c)
         net = pa.net
         need = {l: width_for_current(amps, rise, inner=l not in ("F.Cu", "B.Cu")) for l in b.layers}
-        how = None
+        how, necked = None, []
         for z in b.zones:
             if z.net != net or z.keepout:
                 continue
             for layer, polys in z.fills.items():
-                if pa.on(layer) and pc.on(layer) and any(inside(pa.x, pa.y, poly) and inside(pc.x, pc.y, poly) for poly in polys):
-                    how = f"one piece of the {net} pour on {layer}"
+                if how or not (pa.on(layer) and pc.on(layer)):
+                    continue
+                for poly in polys:
+                    if inside(pa.x, pa.y, poly) and inside(pc.x, pc.y, poly):
+                        cap = max(2 * need[layer], 1.0)
+                        w = neck(poly, pa, pc, cap=cap)
+                        if w + 1e-3 >= need[layer]:
+                            at = "at least " if w >= cap else ""
+                            how = f"one piece of the {net} pour on {layer}, narrowest {at}{w:.2f} mm"
+                        else:
+                            necked.append(f"{layer} pour narrows to {w:.2f} mm")
         if how is None:
             wide = Board.__new__(Board)                 # the same board, keeping only tracks wide enough
             wide.__dict__.update(b.__dict__)
@@ -139,6 +179,7 @@ def current_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
         if how is None:
             thin = b.route_path(a, c)
             fails.append(f"{a} -> {c} must carry {amps} A: no shared {net} pour and no track path at least {need['F.Cu']:.2f} mm wide"
+                         + (f" ({'; '.join(necked)})" if necked else "")
                          + (f" (a {thin[0]:.1f} mm path exists but is narrower)" if thin else " (no track path at all)"))
     return lines, fails
 

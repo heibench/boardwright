@@ -57,3 +57,34 @@ def test_current_rules_of_thumb():
     assert width_for_current(2.0) > width_for_current(1.0)
     assert width_for_current(1.0, inner=True) > width_for_current(1.0)
     assert via_current(0.3) > via_current(0.2) > 0
+
+
+def _pad(x, y, size=1.0):
+    from boardwright.model import Pad
+
+    return Pad("U1", "1", "N", x, y, "F.Cu", size, size, 0.0, False, ["F.Cu"])
+
+
+@pytest.mark.parametrize("bridge", [0.3, 0.8, 1.5])
+def test_neck_measures_the_narrowest_channel(bridge):
+    from boardwright.review import neck
+
+    # two 5 mm squares joined by a 2 mm long bridge `bridge` wide
+    y0, y1 = 2.5 - bridge / 2, 2.5 + bridge / 2
+    poly = [(0, 0), (5, 0), (5, y0), (7, y0), (7, 0), (12, 0), (12, 5), (7, 5), (7, y1), (5, y1), (5, 5), (0, 5)]
+    assert neck(poly, _pad(2.5, 2.5), _pad(9.5, 2.5), cap=4.0) == pytest.approx(bridge, abs=0.01)
+
+
+def test_neck_reports_the_cap_when_wider():
+    from boardwright.review import neck
+
+    poly = [(0, 0), (12, 0), (12, 5), (0, 5)]
+    assert neck(poly, _pad(2.5, 2.5), _pad(9.5, 2.5), cap=1.0) == 1.0
+
+
+def test_current_review_fails_a_necked_pour():
+    """The buck board's SW pour narrows to about 0.80 mm; asking for more current
+    than that carries must fail even though the pour is one piece."""
+    spec = types.SimpleNamespace(REVIEW={"current": [("U1.2", "L1.1", 3.0)]})
+    fails = review(board("tps54202_buck"), spec)
+    assert any("narrows to" in f for f in fails), fails
