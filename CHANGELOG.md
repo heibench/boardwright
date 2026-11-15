@@ -43,6 +43,9 @@ the command line).
 
 ### Fixed
 
+- A preview (`place`, `existing apply`, `existing info`) crashed with exit 2
+  after the board was written when `rsvg-convert` was not installed; it now
+  stays SVG, as `doctor` says.
 - Generated boards now link each footprint to its symbol (`path`,
   `sheetname`, `sheetfile`), as KiCad does; kicad-tools wrote no link, so
   renaming a part in the schematic orphaned its placed footprint (#26). The

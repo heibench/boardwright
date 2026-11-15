@@ -117,3 +117,15 @@ def test_footprint_zone_is_put_back_on_its_footprint(tmp_path):
     lib = (d / "libs/RF_Module.pretty/ESP32-C3-WROOM-02.kicad_mod").read_text()
     want = [(float(x) + fx, float(y) + fy) for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", lib[slice(*blocks(lib, ("zone",))[0])])]
     assert [c for p in got for c in p] == pytest.approx([c for p in want for c in p])
+
+
+def test_preview_stays_svg_without_rsvg_convert(tmp_path, monkeypatch, capsys):
+    """`doctor` says previews stay SVG without rsvg-convert; the preview must not crash."""
+    from conftest import board
+
+    from boardwright import preview
+
+    monkeypatch.setenv("PATH", str(tmp_path))                 # nothing on PATH
+    assert preview.write(board("ldo_breakout"), tmp_path / "p.png") == 0
+    assert (tmp_path / "p.svg").exists() and not (tmp_path / "p.png").exists()
+    assert "preview: " + str(tmp_path / "p.svg") in capsys.readouterr().out

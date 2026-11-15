@@ -386,7 +386,7 @@ def verify(d: Path) -> int:
     gerbers = list((out / "gerbers").glob("*")) if (out / "gerbers").exists() else []
     print(f"{'OK  ' if gerbers else 'MISSING'} gerbers+drill: {len(gerbers)} files")
     missing |= not gerbers
-    for svg in out.glob("*_Cu.svg"):      # copper plots: the only view that shows pours and polygons
+    for svg in out.glob("*_Cu.svg") if shutil.which("rsvg-convert") else []:   # copper plots, as PNG where it can
         subprocess.run(["rsvg-convert", "-w", "1500", "-b", "white", str(svg), "-o", str(svg.with_suffix(".png"))], check=False)
     if not ok:
         print("NOT DONE")

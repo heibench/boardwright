@@ -10,6 +10,7 @@ placement and what is left to route, in well under a second.
 from __future__ import annotations
 
 import math
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -123,7 +124,10 @@ def write(pcb: Path, out: Path) -> int:
     s, n = svg(b)
     sv = out.with_suffix(".svg")
     sv.write_text(s)
-    subprocess.run(["rsvg-convert", "-w", "1500", str(sv), "-o", str(out)], check=False)
+    if shutil.which("rsvg-convert"):
+        subprocess.run(["rsvg-convert", "-w", "1500", str(sv), "-o", str(out)], check=False)
+    else:                                           # as `doctor` says: without rsvg-convert, previews stay SVG
+        out = sv
     print(f"preview: {out}  ({len(b.pads)} pads, {len(b.tracks)} tracks, {n} unrouted connection(s) on unpoured nets)")
     return n
 
