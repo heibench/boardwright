@@ -570,22 +570,24 @@ def add(d: Path, spec_path: str) -> int:
 
 # ---- repoint -------------------------------------------------------------
 
-def _expand(uri: str, d: Path) -> str | None:
-    """A library table URI with KiCad's path variables filled in; None if one is unknown."""
+def _expand(uri: str, d: Path, kind: str = "SYMBOL") -> str | None:
+    """A library table URI with KiCad's path variables filled in; None if one is unknown.
+    kind is SYMBOL or FOOTPRINT: which stock folder ${KICAD*_<kind>_DIR} means."""
     names = {**env.path_variables(), "KIPRJMOD": str(d)}
     for _ in range(5):                                   # variables may name other variables
         uri = re.sub(r"\$\{([^}]*)\}", lambda m: names.get(m.group(1), m.group(0)), uri)
-    if re.search(r"\$\{KICAD\d*_SYMBOL_DIR\}", uri):
+    stock = r"\$\{KICAD\d*_%s_DIR\}" % kind
+    if re.search(stock, uri):
         try:
-            uri = re.sub(r"\$\{KICAD\d*_SYMBOL_DIR\}", str(env.libraries()[0]), uri)
+            uri = re.sub(stock, str(env.libraries()[0 if kind == "SYMBOL" else 1]), uri)
         except SystemExit:
             return None
     return None if "${" in uri else uri
 
 
-def _in_table(table: Path, nick: str, d: Path, depth: int = 0) -> tuple[bool, Path | None]:
-    """Whether a sym-lib-table (or a table nested in it, as KiCad allows) names
-    `nick`, and the file it points at (None when a path variable is unknown)."""
+def _in_table(table: Path, nick: str, d: Path, depth: int = 0, kind: str = "SYMBOL") -> tuple[bool, Path | None]:
+    """Whether a library table (or a table nested in it, as KiCad allows) names
+    `nick`, and what it points at (None when a path variable is unknown)."""
     try:
         text = table.read_text()
     except OSError:
@@ -593,15 +595,31 @@ def _in_table(table: Path, nick: str, d: Path, depth: int = 0) -> tuple[bool, Pa
     rows = re.findall(r'\(lib \(name "([^"]*)"\)\s*\(type "([^"]*)"\)\s*\(uri "([^"]*)"\)', text)
     for name, kind, uri in rows:
         if name == nick and kind != "Table":
-            p = _expand(uri, d)
+            p = _expand(uri, d, kind)
             return True, Path(p) if p else None
     for _name, kind, uri in rows:
         if kind == "Table" and depth < 4:
-            p = _expand(uri, d)
-            found = _in_table(Path(p), nick, d, depth + 1) if p else (False, None)
+            p = _expand(uri, d, kind)
+            found = _in_table(Path(p), nick, d, depth + 1, kind) if p else (False, None)
             if found[0]:
                 return found
     return False, None
+
+
+def fp_dir(d: Path, nick: str) -> Path | None:
+    """The .pretty folder a footprint library nickname names, looked up as
+    symbol libraries are: fp-lib-table of the project, then KiCad's global one,
+    then KiCad's stock footprint folder."""
+    cfg = env.kicad_config()
+    for table in (d / "fp-lib-table", *([cfg / "fp-lib-table"] if cfg else [])):
+        found, path = _in_table(table, nick, d, kind="FOOTPRINT")
+        if found:
+            return path
+    try:
+        stock = env.libraries()[1] / f"{nick}.pretty"
+    except SystemExit:
+        return None
+    return stock if stock.is_dir() else None
 
 
 def _lib_file(d: Path, nick: str) -> Path | None:

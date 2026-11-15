@@ -10,6 +10,7 @@
     boardwright existing <project dir> verify --staged
     boardwright existing <project dir> apply         # MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
     boardwright existing <project dir> reroute NET [NET ...]
+    boardwright existing <project dir> update [NETLIST.net]   # the schematic's parts and nets onto the board
 
 The project keeps its own schematic, libraries and rules; nothing is
 regenerated. An optional `boardwright.py` beside the board holds the same names a
@@ -42,6 +43,7 @@ from .model import Board
 from .preview import ratsnest
 from .preview import write as write_preview
 from .review import review
+from .update import update as update_board
 
 
 def find(d: Path) -> Path:
@@ -372,9 +374,10 @@ def cli(argv: list[str]) -> int:
     if len(argv) < 3:
         raise Usage(__doc__)
     d, step, rest = Path(argv[1]).resolve(), argv[2], argv[3:]
-    if step not in ("info", "pads", "nets", "review", "baseline", "verify", "stage", "apply", "reroute"):
+    if step not in ("info", "pads", "nets", "review", "baseline", "verify", "stage", "apply", "reroute", "update"):
         raise Usage(f"unknown step {step!r}\n{__doc__}")
     return ({"info": lambda: info(d), "pads": lambda: pads(d, rest), "nets": lambda: nets(d, rest[0] if rest else "*"),
               "review": lambda: 1 if do_review(d) else 0, "baseline": lambda: baseline(d),
               "verify": lambda: verify(d, "--staged" in rest), "stage": lambda: stage(d, Path(rest[0]).resolve()),
-              "apply": lambda: apply(d), "reroute": lambda: reroute(d, rest)}[step]())
+              "apply": lambda: apply(d), "reroute": lambda: reroute(d, rest),
+              "update": lambda: update_board(d, find(d), rest[0] if rest else None)}[step]())
