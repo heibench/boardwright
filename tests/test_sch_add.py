@@ -190,3 +190,11 @@ def test_an_unknown_path_variable_is_a_usage_error(own_kicad_settings, proj, tmp
     (own_kicad_settings / "kicad_common.json").write_text("{}")
     assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 64
 
+
+def test_a_long_library_name_is_found_in_the_cache(proj, tmp_path):
+    """LIB:NAME longer than the 40 characters the cache lookup once looked at."""
+    long_nick = "A_Library_Nickname_Of_Some_Length"
+    t = (proj / "sym-lib-table").read_text()
+    (proj / "sym-lib-table").write_text(t.replace('(name "Mine")', f'(name "{long_nick}")'))
+    row = ("R50", f"{long_nick}:R_new", "1k", "Resistor_SMD:R_0805_2012Metric", {1: "+3V3", 2: "GND"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0

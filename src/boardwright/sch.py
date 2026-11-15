@@ -193,12 +193,10 @@ def remove(d: Path, refs: list[str]) -> int:
 
 def _lib_pins(text: str, lib_id: str) -> dict[str, tuple[float, float, float]]:
     """pin number -> (x, y, angle) in library coordinates, from the sheet's symbol cache."""
-    i = text.index("(lib_symbols")
-    span = next(((s, e) for s, e in blocks(text[i:], ("symbol",))
-                 if text[i + s:i + s + 40].lstrip().startswith(f'(symbol "{lib_id}"')), None)
-    if span is None:
+    cache = blocks(text, ("lib_symbols",))
+    body = _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
+    if body is None:
         raise SystemExit(f"{lib_id} is not in the sheet's symbol cache")
-    body = text[i + span[0]:i + span[1]]
     out = {}
     for s, e in blocks(body, ("pin",)):
         p = body[s:e]
