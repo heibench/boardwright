@@ -43,6 +43,9 @@ the command line).
 
 ### Fixed
 
+- Pad-to-pad routes that share a pad no longer stack a via each at it, 0 to
+  0.3 mm apart (KiCad's `hole_to_hole`): a route changes layer on its own
+  net's existing via or through-hole pad without adding one (#23).
 - A preview (`place`, `existing apply`, `existing info`) crashed with exit 2
   after the board was written when `rsvg-convert` was not installed; it now
   stays SVG, as `doctor` says.
