@@ -9,6 +9,11 @@ the command line).
 
 ### Added
 
+- `sch add` and `sch repoint` find a library in KiCad's global
+  `sym-lib-table` too, after the project's: its path variables (Preferences >
+  Configure Paths, or the environment) are filled in and tables nested in it
+  are followed. `KICAD_CONFIG_HOME` names KiCad's settings folder; otherwise
+  the newest one in the usual places is used.
 - `sch add` takes a library symbol `LIB:NAME` as `like`, so a part can be
   added whose symbol the schematic does not use yet (part of #3). Its pins
   are labelled with the kind of label each net already uses, so `add` now

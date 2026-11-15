@@ -16,9 +16,8 @@
 - **Schematic editing is narrow.** `boardwright.sch` changes fields, removes
   parts and adds a part, copied from one on the sheet or taken from a library
   (single-unit only), connected by label or power symbol (09). It adds on the
-  root sheet only, does not wire point to point, finds libraries through the
-  project's table and KiCad's stock folder but not the global table, and
-  does not push the change to the board.
+  root sheet only, does not wire point to point, and does not push the change
+  to the board.
 - **The pad-to-pad router is new and narrow.** It routed two nets on the
   StickHub demo (one that Freerouting could not), applied live and DRC-clean
   against the baseline, and five of six layer-changing nets on a 6-layer demo

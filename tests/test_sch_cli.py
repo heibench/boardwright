@@ -104,3 +104,18 @@ def test_exit_codes_follow_the_heibench_contract(ldo_copy, monkeypatch, capsys, 
     spec = ldo_copy / "spec.py"
     spec.write_text('REVIEW = {"maxlen": {"LED_A": 0.1}}\n')
     assert main(["review", str(ldo_copy / "ldo_breakout.kicad_pcb"), str(spec)]) == 1
+
+
+def test_the_newest_kicad_settings_folder_wins(tmp_path, monkeypatch):
+    from boardwright import env
+
+    monkeypatch.delenv("KICAD_CONFIG_HOME")
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".config"))
+    old = tmp_path / ".config/kicad/9.0"
+    new = tmp_path / ".var/app/org.kicad.KiCad/config/kicad/10.0"
+    for d in (old, new):
+        d.mkdir(parents=True)
+        (d / "sym-lib-table").write_text("(sym_lib_table)\n")
+    assert env.kicad_config() == new
