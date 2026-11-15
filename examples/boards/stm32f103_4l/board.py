@@ -57,8 +57,8 @@ mcu.update({18: "PB0", 19: "PB1", 21: "PB10", 22: "PB11", 25: "PB12", 26: "PB13"
             38: "PA15", 39: "PB3", 40: "PB4", 41: "PB5", 42: "PB6", 43: "PB7", 45: "PB8", 46: "PB9"})
 c.add("U1", "MCU_ST_STM32F1:STM32F103C8Tx", "STM32F103C8T6", "Package_QFP:LQFP-48_7x7mm_P0.5mm", mcu)
 
-# decoupling per AN2586: 100n per VDD/VSS pair + one 4.7u; VDDA 10n + 1u
-for ref, val in [("C3", "100n"), ("C4", "100n"), ("C5", "100n"), ("C6", "10n"), ("C7", "1u")]:
+# decoupling per AN2586: 100n per VDD/VSS pair + one 4.7u; VDDA 100n + 1u (AN2586 Rev 8, 2.2)
+for ref, val in [("C3", "100n"), ("C4", "100n"), ("C5", "100n"), ("C6", "100n"), ("C7", "1u")]:
     c.add(ref, "Device:C", val, C, {1: V, 2: G})
 c.add("C9", "Device:C", "4.7u", C0805, {1: V, 2: G})
 
