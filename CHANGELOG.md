@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-15
+
 ### Added
 
 - `boardwright sch DIR repoint OLD_LIB:OLD_NAME NEW_LIB:NEW_NAME [--body keep|library]`
@@ -25,8 +27,9 @@ the command line).
 - A footprint's own zones (an RF module's antenna keep-out) were left in the
   library's coordinates when kicad-tools created the board, so they sat beside
   the part and KiCad reported the footprint as differing from its library.
-  They are now placed with the footprint, on either side and at any rotation.
-  The ESP32-C3 example no longer ignores that check (#6).
+  They are now placed with the footprint; KiCad accepts the result at 0, 90
+  and 180 degrees on top and 0 and 90 on the bottom. The ESP32-C3 example no
+  longer ignores that check (#6; upstream rjwalters/kicad-tools#8958).
 - The LDO example's output capacitor is a 22 uF tantalum, as the AMS1117
   datasheet asks for stability; it was a ceramic (#6).
 
@@ -75,6 +78,7 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/heibench/boardwright/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/heibench/boardwright/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/heibench/boardwright/releases/tag/v0.1.0
