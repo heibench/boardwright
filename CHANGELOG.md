@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `sch repoint --body keep` onto a symbol the schematic already caches now
+  also compares the cached copy's pin numbers with the library's, and refuses
+  when they differ; it used to move parts onto a stale cached copy silently.
+
 ## [0.3.0] - 2026-11-15
 
 ### Added
