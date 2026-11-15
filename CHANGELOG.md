@@ -13,6 +13,13 @@ the command line).
   points every part that uses one library symbol at another, across all
   sheets, and refuses when the pin numbers differ (#8).
 
+### Changed
+
+- The `current` review measures how narrow a pour gets between the two pads
+  and fails a pour that necks below the IPC-2221 width, instead of accepting
+  any single piece. Parallel channels are not added together, so a pad fed
+  through thermal spokes measures as one spoke (#5).
+
 ## [0.2.0] - 2026-11-14
 
 ### Changed

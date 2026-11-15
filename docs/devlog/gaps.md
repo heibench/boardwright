@@ -30,9 +30,6 @@
 - **Two reference documents could not be read** (ST AN2586, the AMS1117
   datasheet): boards 01, 04 and 06 still rest on remembered values. See
   `references.md`.
-- **The current check knows pours as "one piece or not".** It does not
-  measure the narrowest neck of a polygon, so a pour that necks down to a
-  sliver still passes.
 - **`si.pair` and the impedance numbers have not been used on a real board.**
   Stackup figures are from memory of the fabs' tables.
 - **02's bottom pour stays in five pieces (78 %).** Tried `FR_BOTTOM_COST = 20`
@@ -53,6 +50,7 @@
 
 ## Closed
 
+- Pour necks not measured by the current check -> `review.neck` (#5).
 - Pours invisible in renders -> copper plots (03).
 - Legal-but-split power polygons -> review (03).
 - Hand routing, vias, polygons, keep-outs, silkscreen text -> `copper.py` (03, 05).
