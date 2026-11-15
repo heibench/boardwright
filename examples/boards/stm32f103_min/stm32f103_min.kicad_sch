@@ -4733,7 +4733,7 @@
 				)
 			)
 		)
-		(property "Value" "10n"
+		(property "Value" "100n"
 			(at 111.76 170.18 0)
 			(effects
 				(font

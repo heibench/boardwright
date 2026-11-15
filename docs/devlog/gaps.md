@@ -27,9 +27,6 @@
 - **Alternatives to Freerouting were not tried.** Its job mode and the
   Topola router both need installing or configuring, which is a decision
   about the machine, not this tool.
-- **Two reference documents could not be read** (ST AN2586, the AMS1117
-  datasheet): boards 01, 04 and 06 still rest on remembered values. See
-  `references.md`.
 - **`si.pair` and the impedance numbers have not been used on a real board.**
   Stackup figures are from memory of the fabs' tables.
 - **02's bottom pour stays in five pieces (78 %).** Tried `FR_BOTTOM_COST = 20`
@@ -69,5 +66,5 @@
 - Autorouter leaving random nets open -> completion pass and retry (06).
 - Decouplers with no via of their own -> `via_near`, hand ground vias (06).
 - No current sizing -> `current`, per path, IPC-2221 (03).
-- Values from memory -> 02, 03, 05 and the stackups read from the documents (`references.md`).
+- Values from memory -> every board and the stackups read from the documents (`references.md`).
 - No check of an edited live board -> `stage` and `verify --staged` (07).
