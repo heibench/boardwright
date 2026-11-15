@@ -452,6 +452,10 @@ def repoint(d: Path, old: str, new: str, body: str = "keep") -> int:
             added = sorted(set(want) - set(_pin_numbers(have)))
             raise SystemExit(f"{sh.path.name}: {old} has pins {_pin_numbers(have)}, {new} has {want} "
                              f"(missing {gone}, extra {added}); changing them changes connectivity. Nothing written.")
+        cached = entries.get(new)
+        if cached is not None and new != old and body == "keep" and _pin_numbers(cached) != want:
+            raise SystemExit(f"{sh.path.name}: the cached {new} has pins {_pin_numbers(cached)}, the library's has {want}; "
+                             f"parts moved onto it would use the cached one. Use --body library to refresh it. Nothing written.")
         plans.append((sh, uses, entries))
     if not plans:
         raise Usage(f"no symbol uses {old}")

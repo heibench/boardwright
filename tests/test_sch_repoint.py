@@ -102,3 +102,29 @@ def test_kicad_sees_the_same_nets(proj, body, tmp_path):
     assert main(["sch", str(proj), "repoint", "Device:R", "Mine:R_copy", "--body", body]) == 0
     after = _nets(netlist("after"))
     assert before == after and len(before) >= 4
+
+
+def test_two_symbols_onto_one_target_share_its_cache_entry(proj):
+    """Two different symbols re-pointed to the same target: the second finds the
+    target cached already and drops its own entry."""
+    f = proj / SCH
+    assert sch.repoint(proj, "Device:R", "Mine:R_copy") == 0
+    assert sch.repoint(proj, "Mine:R_copy", "Mine:R_child", "library") == 0
+    text = f.read_text()
+    assert text.count('(symbol "Mine:R_child"') == 1 and '(symbol "Mine:R_copy"' not in text
+
+
+def test_a_stale_cached_target_is_refused(proj):
+    """The old symbol and the library's target agree on pins, but the schematic
+    already caches the target with an extra pin: moving parts onto that copy with
+    --body keep would silently use it, so the edit is refused."""
+    f = proj / SCH
+    text = f.read_text()
+    e = next(text[s:e] for s, e in sch.blocks(text, ("symbol",)) if text[s:s + 40].lstrip().startswith('(symbol "Device:R"'))
+    stale = e.replace('(symbol "Device:R"', '(symbol "Mine:R_copy"', 1).replace('(symbol "R_', '(symbol "R_copy_')
+    pin2 = next(stale[s:e2] for s, e2 in sch.blocks(stale, ("pin",)) if '(number "2"' in stale[s:e2])
+    stale = stale.replace(pin2, pin2 + pin2.replace('(number "2"', '(number "3"'), 1)
+    f.write_text(text.replace(e, e + stale, 1))
+    before = f.read_text()
+    assert main(["sch", str(proj), "repoint", "Device:R", "Mine:R_copy"]) == 1
+    assert f.read_text() == before
