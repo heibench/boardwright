@@ -105,7 +105,8 @@ multi-unit symbols, and placing and routing the parts a schematic change adds
 
     boardwright existing <project dir> info | pads [REF..] | nets [PATTERN]
     boardwright existing <project dir> review | baseline | verify
-    boardwright existing <project dir> apply
+    boardwright existing <project dir> apply [--force]
+    boardwright existing <project dir> free REF [near REF.PAD | near X,Y]
     boardwright existing <project dir> reroute NET [NET ...]
     boardwright existing <project dir> update [NETLIST.net]
 
@@ -127,6 +128,16 @@ place: commit before `apply` or `reroute`.
   byte-identical to before. A net the router cannot finish gets its original
   routing back. New tracks are held to the project's own minimum width.
 - `apply` is repeatable: exact duplicates are dropped.
+- `apply` checks every part `MOVE` moves before it keeps the move: its pads
+  against other nets' tracks, vias and pads (the net classes' clearance), and
+  against the board edge (the project's copper-to-edge clearance), and its
+  courtyard against the other courtyards on its side. A clash is listed and
+  nothing is written (exit 1); `--force` applies it anyway.
+- `free REF [near REF.PAD]` lists spots, nearest first, where that part (its
+  own pads and courtyard, at 0, 90, 180 or 270 degrees) clears everything
+  else, as `MOVE` entries. A part `update` put beside the board is placed with
+  it. Pads are modelled with their real shapes (circle, oval, rounded
+  rectangle); KiCad's DRC is still the judge.
 - `update` does what KiCad's Update PCB from Schematic does, from KiCad's own
   netlist (`kicad-cli sch export netlist --format kicadsexpr`, made for you
   unless you pass one). Footprints are matched to symbols by their path, or by

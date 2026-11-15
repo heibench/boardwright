@@ -9,6 +9,10 @@ the command line).
 
 ### Added
 
+- `existing apply` checks each part `MOVE` moves (pads against other nets'
+  copper and the board edge, courtyard against courtyards) and writes
+  nothing on a clash unless given `--force`; `existing free REF [near PAD]`
+  lists clear spots for a part (#24).
 - `existing update`: carry schematic changes to the board, as KiCad's
   Update PCB from Schematic does, from KiCad's own netlist (the last part of
   #3). New parts land beside the board on their nets; references, values
