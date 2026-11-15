@@ -75,7 +75,7 @@ jobs:
       - run: uv run boardwright doctor
       - name: Generate, gate and verify the LDO example; schematic edits judged by KiCad
         shell: bash  # -o pipefail, so tee does not hide a failure
-        run: xvfb-run -a uv run pytest tests/test_pipeline.py tests/test_sch_repoint.py -v -rs | tee pipeline.log
+        run: xvfb-run -a uv run pytest tests/test_pipeline.py tests/test_sch_repoint.py tests/test_sch_add.py -v -rs | tee pipeline.log
       - name: Assert nothing skipped
         run: |
           if grep -q SKIPPED pipeline.log; then echo "::error::the pipeline test skipped"; exit 1; fi

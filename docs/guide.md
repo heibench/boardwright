@@ -140,9 +140,12 @@ with KiCad; its README says where to copy them from.
     boardwright sch ercdiff OLD.json NEW.json
 
 Edits replace one block of the file and leave the rest byte-identical; the
-file is written only if it is still what was read. A new part is a copy of a
-part already on the sheet with the same symbol, put in an empty area with a
-short wire from each pin to a label, or to a copy of the net's power symbol.
+file is written only if it is still what was read. A new part is put in an
+empty area with a short wire from each pin to a label of the kind the net
+already uses (local or global), or to a copy of the net's power symbol. `like`
+is either a part already on the sheet, which is copied, or a library symbol
+`LIB:NAME`, found like `repoint`'s and added to the sheet's symbol cache; its
+fields come from the library. Single-unit symbols only, and not power symbols.
 
 The check is KiCad's own connectivity: `netspec snap` before, `netspec diff`
 after, and the difference must be the change you meant and nothing else.
