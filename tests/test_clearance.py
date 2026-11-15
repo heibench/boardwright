@@ -80,3 +80,57 @@ def test_kicad_finds_no_clash_where_free_put_a_part(stm, tmp_path, capsys):
            if v["type"] in ("clearance", "shorting_items", "courtyards_overlap", "copper_edge_clearance")
            and any("R9" in i["description"] for i in v["items"])]
     assert bad == []
+
+
+# R7 and R5 on the top at 90 and -90 degrees, C7 and C3 on the bottom at 90 and 180:
+# each one's reference text moved onto the centre of a pad elsewhere on the board.
+FIELD_MOVES = {
+    "R7": (15.25, 41.2, 90, {"ref": (28.0, 26.24)}),        # onto J3.7
+    "R5": (20.525, 30.87, -90, {"ref": (2.6, 21.16)}),      # onto J2.5
+    "C7": (13.197, 35.0, 90, {"ref": (17.003, 31.02)}),     # onto C4.1
+    "C3": (17.0, 36.503, 180, {"ref": (28.0, 13.54)}),      # onto J3.2
+}
+FIELD_TARGETS = {"R7": ("J3", "7"), "R5": ("J2", "5"), "C7": ("C4", "1"), "C3": ("J3", "2")}
+
+
+def test_reference_text_lands_where_asked(stm):
+    """Read back with the footprint frame KiCad uses (and boardwright uses for
+    footprint zones), each moved reference sits at the point asked for."""
+    import math
+    import re
+
+    from boardwright import update
+
+    _spec(stm, f"MOVE = {FIELD_MOVES!r}\n")
+    assert main(["existing", str(stm), "apply", "--force"]) == 0
+    t = (stm / f"{NAME}.kicad_pcb").read_text()
+    ox, oy = Board(stm / f"{NAME}.kicad_pcb").origin
+    for ref, mv in FIELD_MOVES.items():
+        fp = next(t[s:e] for s, e in update._footprints(t) if update._prop(t[s:e], "Reference") == ref)
+        fx, fy, rot = map(float, re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+) ([-\d.]+)\)", fp).groups())
+        lx, ly = map(float, re.search(r'\(property "Reference" "%s"\s*\(at ([-\d.]+) ([-\d.]+)' % ref, fp).groups())
+        r = math.radians(rot)
+        ax, ay = fx + lx * math.cos(r) + ly * math.sin(r), fy - lx * math.sin(r) + ly * math.cos(r)
+        assert (round(ax - ox, 3), round(ay - oy, 3)) == pytest.approx(mv[3]["ref"], abs=1e-3)
+
+
+def test_an_unknown_text_field_is_refused(stm):
+    _spec(stm, "MOVE = {'R7': (15.25, 41.2, 90, {'footprint': (1, 1)})}\n")
+    assert main(["existing", str(stm), "apply"]) == 64
+
+
+@pytest.mark.kicad
+@needs_kicad
+def test_kicad_draws_each_moved_reference_over_the_pad_aimed_at(stm, tmp_path):
+    from boardwright import env
+
+    _spec(stm, f"MOVE = {FIELD_MOVES!r}\n")
+    assert main(["existing", str(stm), "apply", "--force"]) == 0
+    out = tmp_path / "drc.json"
+    subprocess.run([*env.kicad_cli(), "pcb", "drc", "--format", "json", "--severity-all", "-o", str(out),
+                    str(stm / f"{NAME}.kicad_pcb")], check=True, capture_output=True)
+    hits = {(i["description"].split()[3], j["description"]) for v in json.loads(out.read_text())["violations"]
+            if v["type"] == "silk_over_copper" for i in v["items"] if i["description"].startswith("Reference field of")
+            for j in v["items"] if j is not i}
+    for ref, (tref, num) in FIELD_TARGETS.items():
+        assert any(r == ref and f"pad {num} " in d.lower() and f" of {tref}" in d for r, d in hits), (ref, hits)

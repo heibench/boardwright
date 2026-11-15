@@ -112,7 +112,10 @@ multi-unit symbols, and placing and routing the parts a schematic change adds
 
 The project keeps its own schematic, libraries and rules. An optional
 `boardwright.py` beside the board holds `REVIEW`, `TRACKS`, `VIAS`, `ZONES`,
-`KEEPOUTS`, `TEXT`, plus `MOVE = {ref: (x, y, rot)}` and `RIPUP = [nets]`.
+`KEEPOUTS`, `TEXT`, plus `MOVE = {ref: (x, y, rot)}` and `RIPUP = [nets]`. A
+`MOVE` entry may carry a fourth item placing the part's text, in the same
+board-relative mm: `{"ref": (x, y[, angle]), "value": (x, y[, angle])}`; the
+angle stays as it was unless given.
 Outputs go to `<project dir>/boardwright_out/`. The board file is edited in
 place: commit before `apply` or `reroute`.
 

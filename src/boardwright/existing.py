@@ -18,7 +18,7 @@ regenerated. An optional `boardwright.py` beside the board holds the same names 
 generated board's board.py uses (REVIEW, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT,
 PLANES, FR_BOTTOM_COST, FR_PASSES) plus
 
-    MOVE  = {"C12": (41.2, 18.0, 90)}       # ref -> x, y, rot
+    MOVE  = {"C12": (41.2, 18.0, 90)}       # ref -> x, y, rot[, {"ref": (x, y[, angle]), "value": ...}]
     RIPUP = ["/USB_D+", "/USB_D-"]          # nets whose tracks and vias are removed first
 
 Coordinates are the board-relative mm that `pads` prints. Outputs go to
@@ -32,6 +32,7 @@ from __future__ import annotations
 import fnmatch
 import importlib.util
 import json
+import math
 import re
 import subprocess
 import types
@@ -183,6 +184,29 @@ def verify(d: Path, staged: bool = False) -> int:
     return 0 if ok else 1
 
 
+def place_field(t: str, ref: str, name: str, at: tuple, origin: tuple[float, float]) -> str:
+    """The board file with footprint `ref`'s Reference or Value text at board-relative
+    (x, y[, angle]). KiCad keeps a field's position in its footprint's own frame
+    (rotated with it) and its angle absolute; the angle stays as it was unless given."""
+    from .update import _footprints, _prop
+    for s, e in _footprints(t):
+        fp = t[s:e]
+        if _prop(fp, "Reference") != ref:
+            continue
+        m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
+        fx, fy, rot = float(m.group(1)), float(m.group(2)), math.radians(float(m.group(3) or 0))
+        dx, dy = at[0] + origin[0] - fx, at[1] + origin[1] - fy
+        lx = dx * math.cos(rot) - dy * math.sin(rot)
+        ly = dx * math.sin(rot) + dy * math.cos(rot)
+        pm = re.search(r'(\n\t\t\(property "%s" "(?:[^"\\]|\\.)*"\s*)\(at [-\d.]+ [-\d.]+(?: ([-\d.]+))?\)' % name, fp)
+        if pm is None:
+            raise Usage(f"{ref} has no {name} text to move")
+        ang = at[2] if len(at) > 2 else float(pm.group(2) or 0)
+        fp = fp[:pm.start()] + pm.group(1) + f"(at {round(lx, 4):g} {round(ly, 4):g} {ang:g})" + fp[pm.end():]
+        return t[:s] + fp + t[e:]
+    raise Usage(f"no footprint {ref}")
+
+
 def free(d: Path, args: list[str]) -> int:
     """Clear spots for a part: its own pads and courtyard against everything else."""
     from .placement import Clearance
@@ -249,10 +273,20 @@ def apply(d: Path, force: bool = False) -> int:
         from .placement import Clearance
         original = pcb.read_text()
         p = PCB.load(str(pcb))
-        for ref, (x, y, rot) in moves.items():
-            if not p.update_footprint_position(ref, x, y, rot):
+        for ref, mv in moves.items():
+            if not p.update_footprint_position(ref, *mv[:3]):
                 raise Usage(f"no footprint {ref}")
         p.save(str(pcb))
+        fields = {ref: mv[3] for ref, mv in moves.items() if len(mv) > 3}
+        if fields:
+            t, origin = pcb.read_text(), Board(pcb).origin
+            for ref, f in fields.items():
+                for key, at in f.items():
+                    name = {"ref": "Reference", "value": "Value"}.get(key)
+                    if name is None:
+                        raise Usage(f"MOVE {ref}: unknown field {key!r} (ref or value)")
+                    t = place_field(t, ref, name, at, origin)
+            pcb.write_text(t)
         clear = Clearance(Board(pcb))
         found = [c for ref in moves for c in clear.clashes(ref)]
         for c in found:

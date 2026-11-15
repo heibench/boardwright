@@ -9,6 +9,8 @@ the command line).
 
 ### Added
 
+- A `MOVE` entry can place the part's reference and value text:
+  `{"R10": (25, 25, 270, {"ref": (25.2, 27.4, 0)})}` (#25).
 - `existing apply` checks each part `MOVE` moves (pads against other nets'
   copper and the board edge, courtyard against courtyards) and writes
   nothing on a clash unless given `--force`; `existing free REF [near PAD]`
