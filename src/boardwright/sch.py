@@ -15,14 +15,17 @@ a diff shows exactly the edit.
 `set` changes properties (Value, Footprint, any other the part already has)
 and the flags dnp, in_bom, on_board (yes/no).
 
-`add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...]. `like` is
-either the reference of a part already on the sheet, which is copied (symbol,
+`add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...] and an
+optional SHEET = "file.kicad_sch" (default: the root sheet). `like` is
+either the reference of a part already in the project, which is copied (symbol,
 fields and the file's own format come along), or a library symbol LIB:NAME,
 looked up as for `repoint` and added to the sheet's symbol cache, with its
 fields from the library and the file's format from a part already placed.
 The new part goes in free space with a short wire from each pin to a label of
-the kind its net already uses (local or global) or, for a power net, to a copy
-of that net's power symbol. Pins not listed are left open. Library symbols
+the kind its net already uses (a sheet pin's hierarchical label, a local or a
+global label) or, for a power net, to a copy of that net's power symbol, from
+any sheet. A net that is local to another sheet is refused: it can only be
+reached through a sheet pin. Pins not listed are left open. Library symbols
 must be single-unit and not power symbols.
 
 The judge is KiCad: record the connectivity before (`netspec snap`) and
@@ -39,8 +42,9 @@ written.
 
 Hierarchy: parts on sub-sheets are listed and can be `set`. On a sheet that is
 used more than once, one symbol stands for a part in each use: `parts` says
-so, `set` changes all of them (and says so), and `remove` refuses. `add`
-works on the root sheet only.
+so, `set` changes all of them (and says so), and `remove` and `add` refuse.
+A part added to a sub-sheet takes that sheet's hierarchy path from a part
+already on it.
 
 Limits: nothing is moved or re-drawn. A schematic open in
 KiCad will not notice the change: close and reopen it.
@@ -386,68 +390,129 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     return _retarget(head + "".join(fields) + "".join(pins) + tail, x, y, tidy=False)   # the library placed the fields
 
 
+def _cached_entry(text: str, lib_id: str) -> str | None:
+    cache = blocks(text, ("lib_symbols",))
+    return _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
+
+
+def _with_cached(t: str, lib_id: str, entry: str) -> str:
+    """t with `entry` (a symbol already in cache form) in its symbol cache, unless there."""
+    if _cached_entry(t, lib_id) is not None:
+        return t
+    cache = blocks(t, ("lib_symbols",))
+    if not cache:
+        raise SystemExit("the sheet has no symbol cache (lib_symbols) to add to")
+    k = t.rfind("\n", cache[0][0], cache[0][1])
+    return t[:k] + entry + t[k:]
+
+
+def _instance_path(block: str) -> str | None:
+    m = re.search(r'\(path "([^"]*)"', block[block.find("(instances"):]) if "(instances" in block else None
+    return m.group(1) if m else None
+
+
+def _set_path(block: str, path: str) -> str:
+    i = block.find("(instances")
+    return block if i < 0 else block[:i] + re.sub(r'\(path "[^"]*"', f'(path "{path}"', block[i:])
+
+
+def _target(d: Path, name: str | None, all_sheets: list[Sheet]) -> Sheet:
+    """The sheet to add to: the root, or a sub-sheet used exactly once."""
+    if not name:
+        return root(d)
+    hits = [s for s in all_sheets if s.path.name == name]
+    if not hits:
+        raise Usage(f"no sheet {name!r} in {d} (there are {', '.join(s.path.name for s in all_sheets)})")
+    uses = sum(len(re.findall(r'\(property "Sheetfile" "%s"' % re.escape(name), s.text)) for s in all_sheets)
+    if uses > 1:
+        raise SystemExit(f"{name} is used {uses} times in the hierarchy; a part added to it would be added to each use. "
+                         "Not handled: add it in KiCad")
+    return hits[0]
+
+
 def add(d: Path, spec_path: str) -> int:
     sp = importlib.util.spec_from_file_location("sch_spec", spec_path)
     m = importlib.util.module_from_spec(sp)
     sp.loader.exec_module(m)
-    sh = root(d)
+    all_sheets = sheets(d)
+    sh = _target(d, getattr(m, "SHEET", None), all_sheets)
+    sh = next(s for s in all_sheets if s.path == sh.path)
     t = sh.text
-    inst = [t[s:e] for s, e in sh.instances()]
-    by_ref = {prop(b, "Reference"): b for b in inst}
-    power = {}                                           # net name -> a power symbol instance to copy
-    for b in inst:
-        if (prop(b, "Reference") or "").startswith("#PWR"):
-            power.setdefault(prop(b, "Value"), b)
-    labels = set(re.findall(r'\n\t\(label "([^"]*)"', t))
-    globals_ = set(re.findall(r'\n\t\(global_label "([^"]*)"', t))
-    wire_t = next((t[s:e] for s, e in blocks(t, ("wire",))), None)
-    label_t = next((t[s:e] for s, e in blocks(t, ("label",))), None)
-    glabel_t = next((t[s:e] for s, e in blocks(t, ("global_label",))), None)
+    others = [s for s in all_sheets if s.path != sh.path]
+    here = [t[s:e] for s, e in sh.instances()]
+    everywhere = [(s, s.text[a:b]) for s in [sh, *others] for a, b in s.instances()]
+    taken = {r for _, b in everywhere for r in refs(b)}
+    by_ref = {}                                          # reference -> (sheet text, placed symbol) to copy
+    power = {}                                           # net name -> (sheet text, a power symbol to copy), this sheet first
+    for s, b in everywhere:
+        r = prop(b, "Reference") or ""
+        by_ref.setdefault(r, (s.text, b))
+        if r.startswith("#PWR"):
+            power.setdefault(prop(b, "Value"), (s.text, b))
+    def names(kind, texts):
+        return {n for x in texts for n in re.findall(r'\n\t\(%s "([^"]*)"' % kind, x)}
+    labels, hier = names("label", [t]), names("hierarchical_label", [t])
+    globals_ = names("global_label", [s.text for s in all_sheets])
+    elsewhere = names("label", [s.text for s in others]) | names("hierarchical_label", [s.text for s in others])
+    def first(kind, texts):
+        return next((x[a:b] for x in texts for a, b in blocks(x, (kind,))), None)
+    rest = [s.text for s in others]
+    wire_t = first("wire", [t, *rest])
+    label_here = first("label", [t])
+    label_t = label_here or first("label", rest)
+    glabel_t, hlabel_t = first("global_label", [t, *rest]), first("hierarchical_label", [t])
     if wire_t is None or (label_t is None and glabel_t is None):
-        raise SystemExit("the sheet has no wire or no label to take the file's format from")
-    template = next((b for b in inst if not (prop(b, "Reference") or "#").startswith("#")), None)
-    plan = []                                            # (ref, value, footprint, pins, lib_id, copy source or None, extent)
+        raise SystemExit("the project has no wire or no label to take the file's format from")
+    template = next((b for b in here if not (prop(b, "Reference") or "#").startswith("#")), None)
+    if template is None:
+        raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
+    path = _instance_path(template)
+    plan = []                                            # (ref, like, value, footprint, pins, lib_id, source, from library, extent)
     for ref, like, value, footprint, pins in m.ADD:
-        if ref in by_ref or any(ref == p[0] for p in plan):
+        if ref in taken or any(ref == p[0] for p in plan):
             raise Usage(f"{ref} already exists")
         pins = {str(k): v for k, v in pins.items()}
-        if like in by_ref:
-            src, lib_id = by_ref[like], re.search(r'\(lib_id "([^"]*)"', by_ref[like]).group(1)
+        if like in by_ref and not like.startswith("#"):
+            src_text, src = by_ref[like]
+            lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
+            t = _with_cached(t, lib_id, _cached_entry(src_text, lib_id))
         elif ":" in like:
             src, lib_id = None, like
-            if template is None:
-                raise SystemExit("the sheet has no placed part to take the file's format from")
-            cache = blocks(t, ("lib_symbols",))
-            if not cache:
-                raise SystemExit("the sheet has no symbol cache (lib_symbols) to add to")
-            cs, ce = cache[0]
-            cached = _symbol_blocks(t[cs:ce]).get(lib_id)
+            cached = _cached_entry(t, lib_id)
             body = _library_symbol(d, lib_id)
             _check_placeable(body, lib_id)
             if cached is None:
-                k = t.rfind("\n", cs, ce)
-                t = t[:k] + _cache_entry(body, lib_id) + t[k:]
+                t = _with_cached(t, lib_id, _cache_entry(body, lib_id))
             elif _pin_numbers(cached) != _pin_numbers(body):
                 raise SystemExit(f"the sheet's cached {lib_id} has pins {_pin_numbers(cached)}, the library's has "
                                  f"{_pin_numbers(body)}; update the symbol in KiCad first. Nothing written.")
         else:
             raise Usage(f"no part {like!r} to copy, and not a LIB:NAME symbol")
         lp = _lib_pins(t, lib_id)
-        for num in pins:
+        for num, net in pins.items():
             if num not in lp:
                 raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+            if net not in power and net not in labels | hier | globals_ and net in elsewhere:
+                raise SystemExit(f"{ref}.{num}: net {net!r} is local to another sheet and cannot be reached from "
+                                 f"{sh.path.name} by a label; connect it through a sheet pin in KiCad. Nothing written.")
         plan.append((ref, like, value, footprint, pins, lib_id, src if src is not None else body, src is None,
                      _extent(lp, pins)))
+    for net in {n for p in plan for n in p[4].values() if n in power}:
+        src_text, pb = power[net]
+        lid = re.search(r'\(lib_id "([^"]*)"', pb).group(1)
+        t = _with_cached(t, lid, _cached_entry(src_text, lid))
     width = sum(ex[2] - ex[0] for *_, ex in plan)
     height = max(ex[3] - ex[1] for *_, ex in plan)
     bx, by = _free_spot(t, width, height)
-    pwr_n = max([int(n) for n in re.findall(r'"#PWR0*(\d+)"', t)] or [0])
+    pwr_n = max([int(n) for s in all_sheets for n in re.findall(r'"#PWR0*(\d+)"', s.text)] or [0])
     new = []
     for ref, like, value, footprint, pins, lib_id, src, from_lib, (x0, y0, x1, _y1) in plan:
         lp = _lib_pins(t, lib_id)
         x, y = snap(bx - x0), snap(by - y0)
         bx += x1 - x0
         b = _from_library(template, src, lib_id, x, y) if from_lib else _retarget(_fresh(src), x, y)
+        if path:
+            b = _set_path(b, path)
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
             esc = val.replace("\\", "\\\\").replace('"', '\\"')
             b = re.sub(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda mm: f'{mm.group(1)}"{esc}"', b, count=1)
@@ -465,28 +530,35 @@ def add(d: Path, spec_path: str) -> int:
             rot = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}[(dx, dy)]
             if net in power:
                 pwr_n += 1
-                src_p = _fresh(power[net])
+                src_p = _fresh(power[net][1])
                 ppin = _lib_pins(t, re.search(r'\(lib_id "([^"]*)"', src_p).group(1))
                 pb = _place_power(src_p, ex, ey, rot, next(iter(ppin.values()), (0.0, 0.0, rot)))
+                if path:
+                    pb = _set_path(pb, path)
                 pref = f"#PWR0{pwr_n}"
                 pb = re.sub(r'(\(property "Reference" )"[^"]*"', lambda mm: f'{mm.group(1)}"{pref}"', pb, count=1)
                 pb = re.sub(r'\(reference "[^"]*"\)', f'(reference "{pref}")', pb)
                 new.append(pb)
                 kind = "power symbol"
             else:
-                # the kind of label the net already uses; a new net takes local labels where the sheet has them
-                glob = net in globals_ or (net not in labels and label_t is None)
-                lb = _fresh(glabel_t if glob else label_t)
-                head = "global_label" if glob else "label"
+                # the kind of label the net already uses here or project-wide; a new net
+                # takes local labels where the sheet (or, failing that, the project) has them
+                if net in hier:
+                    head, tpl = "hierarchical_label", hlabel_t
+                elif net in labels or (net not in globals_ and label_t is not None and (label_here or glabel_t is None)):
+                    head, tpl = "label", label_t
+                else:
+                    head, tpl = "global_label", glabel_t
+                lb = _fresh(tpl)
                 lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{net}"', lb, count=1)
                 lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {ex:g} {ey:g} {rot})", lb, count=1)
                 side = "right" if rot in (180, 270) else "left"
-                lb = re.sub(r"\(justify [^)]*\)", f"(justify {side})" if glob else f"(justify {side} bottom)", lb, count=1)
+                lb = re.sub(r"\(justify [^)]*\)", f"(justify {side} bottom)" if head == "label" else f"(justify {side})", lb, count=1)
                 new.append(lb)
-                kind = head.replace("_", " ") + ("" if net in labels | globals_ else " (new net)")
+                kind = head.replace("_", " ") + ("" if net in labels | hier | globals_ else " (new net)")
             print(f"{ref}.{num} -> {net}  [{kind}]")
         how = "from its library" if from_lib else f"copied from {like}"
-        print(f"added {ref} ({lib_id}, {how}) at ({x:g}, {y:g})")
+        print(f"added {ref} ({lib_id}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
     # insert before the sheet_instances / embedded_fonts tail, or before the final parenthesis
     tail = re.search(r"\n\t\((?:sheet_instances|embedded_fonts)\b", t)
     k = tail.start() if tail else t.rstrip().rfind(")")

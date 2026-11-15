@@ -64,3 +64,16 @@ def _have_freerouting() -> bool:
 
 
 needs_freerouting = pytest.mark.skipif(not _have_freerouting(), reason="Freerouting not found")
+
+# KiCad's demo projects, from a distribution package (kicad-demos) or the Flatpak
+DEMOS = next((p for p in (Path("/usr/share/kicad/demos"),
+                          Path("/var/lib/flatpak/app/org.kicad.KiCad/current/active/files/share/kicad/demos"),
+                          Path.home() / ".local/share/flatpak/app/org.kicad.KiCad/current/active/files/share/kicad/demos")
+              if p.is_dir()), None)
+needs_demos = pytest.mark.skipif(DEMOS is None, reason="KiCad's demo projects not installed")
+
+
+def demo_copy(tmp_path: Path, name: str) -> Path:
+    dst = tmp_path / name
+    shutil.copytree(DEMOS / name, dst)
+    return dst
