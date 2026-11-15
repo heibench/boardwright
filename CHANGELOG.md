@@ -39,6 +39,8 @@ the command line).
 
 ### Fixed
 
+- `existing update` wrote a new footprint's `sheetname` as the sheet's name
+  (`pic_sockets`); KiCad writes the sheet path (`/pic_sockets/`).
 - `sch add` found a cached symbol only if `(symbol "LIB:NAME"` fit in the
   first 40 characters of its entry, so a long name such as
   `My_Connector_Library:1217861-1_Tab` was refused as not cached.

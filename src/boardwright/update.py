@@ -60,14 +60,14 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
     comps = {}
     for s, e in blocks(text, ("comp",)):
         c = text[s:e]
-        sp = re.search(r'\(sheetpath\s*\(names "(?:[^"\\]|\\.)*"\)\s*\(tstamps "([^"]*)"\)', c)
+        sp = re.search(r'\(sheetpath\s*\(names "((?:[^"\\]|\\.)*)"\)\s*\(tstamps "([^"]*)"\)', c)
         ts = re.search(r'\n\s*\(tstamps "([^"]*)"', c[sp.end():] if sp else c)   # one uuid per unit; the board links the first
         if not sp or not ts:
             continue
         props = dict(re.findall(r'\(property\s*\(name "((?:[^"\\]|\\.)*)"\)(?:\s*\(value "((?:[^"\\]|\\.)*)"\))?', c))
-        comps[sp.group(1) + ts.group(1)] = {
+        comps[sp.group(2) + ts.group(1)] = {
             "ref": _str(c, "ref"), "value": _str(c, "value") or "", "footprint": _str(c, "footprint") or "",
-            "sheetname": props.get("Sheetname", ""), "sheetfile": props.get("Sheetfile", ""),
+            "sheetname": re.sub(r"\\(.)", r"\1", sp.group(1)), "sheetfile": props.get("Sheetfile", ""),
             "skip": "exclude_from_board" in props,
         }
     pins = {}
