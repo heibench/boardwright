@@ -8,7 +8,8 @@
     boardwright existing <project dir> verify        # review + no DRC finding that is not in the baseline
     boardwright existing <project dir> stage SNAPSHOT.kicad_pcb   # check a copy of the board (e.g. the one open in KiCad)
     boardwright existing <project dir> verify --staged
-    boardwright existing <project dir> apply         # MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
+    boardwright existing <project dir> apply [--force]   # MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
+    boardwright existing <project dir> free REF [near REF.PAD | near X,Y]   # clear spots for a part, for MOVE
     boardwright existing <project dir> reroute NET [NET ...]
     boardwright existing <project dir> update [NETLIST.net]   # the schematic's parts and nets onto the board
 
@@ -182,6 +183,32 @@ def verify(d: Path, staged: bool = False) -> int:
     return 0 if ok else 1
 
 
+def free(d: Path, args: list[str]) -> int:
+    """Clear spots for a part: its own pads and courtyard against everything else."""
+    from .placement import Clearance
+    if not args:
+        raise Usage("free REF [near REF.PAD | near X,Y]")
+    ref, near = args[0], None
+    b = Board(find(d))
+    if len(args) == 3 and args[1] == "near":
+        if "," in args[2]:
+            near = tuple(float(v) for v in args[2].split(","))
+        else:
+            near = (b.pad(args[2]).x, b.pad(args[2]).y)
+    elif len(args) != 1:
+        raise Usage("free REF [near REF.PAD | near X,Y]")
+    c = Clearance(b)
+    if ref not in c.fps:
+        raise Usage(f"no footprint {ref}")
+    spots = c.free(ref, near)
+    if not spots:
+        print(f"no clear spot for {ref} on the board")
+        return 1
+    for x, y, r in spots:
+        print(f'"{ref}": ({x:g}, {y:g}, {r}),')
+    return 0
+
+
 def stage(d: Path, snapshot: Path) -> int:
     """Set a board file up for KiCad's checks as if it were the project's board.
 
@@ -213,16 +240,28 @@ def stage(d: Path, snapshot: Path) -> int:
     return 0
 
 
-def apply(d: Path) -> int:
+def apply(d: Path, force: bool = False) -> int:
     pcb, m = find(d), spec(d)
     moves = getattr(m, "MOVE", {})
     if moves:
         from kicad_tools.schema.pcb import PCB
+
+        from .placement import Clearance
+        original = pcb.read_text()
         p = PCB.load(str(pcb))
         for ref, (x, y, rot) in moves.items():
             if not p.update_footprint_position(ref, x, y, rot):
                 raise Usage(f"no footprint {ref}")
         p.save(str(pcb))
+        clear = Clearance(Board(pcb))
+        found = [c for ref in moves for c in clear.clashes(ref)]
+        for c in found:
+            print("CLASH", c)
+        if found and not force:
+            pcb.write_text(original)
+            print(f"nothing written: a moved part touches other copper or courtyards. "
+                  f"`boardwright existing {d} free REF [near REF.PAD]` lists clear spots; --force applies anyway")
+            return 1
         print(f"moved {len(moves)} footprint(s)")
     rip = set(getattr(m, "RIPUP", []))
     if rip:
@@ -374,10 +413,11 @@ def cli(argv: list[str]) -> int:
     if len(argv) < 3:
         raise Usage(__doc__)
     d, step, rest = Path(argv[1]).resolve(), argv[2], argv[3:]
-    if step not in ("info", "pads", "nets", "review", "baseline", "verify", "stage", "apply", "reroute", "update"):
+    if step not in ("info", "pads", "nets", "review", "baseline", "verify", "stage", "apply", "reroute", "update", "free"):
         raise Usage(f"unknown step {step!r}\n{__doc__}")
     return ({"info": lambda: info(d), "pads": lambda: pads(d, rest), "nets": lambda: nets(d, rest[0] if rest else "*"),
               "review": lambda: 1 if do_review(d) else 0, "baseline": lambda: baseline(d),
               "verify": lambda: verify(d, "--staged" in rest), "stage": lambda: stage(d, Path(rest[0]).resolve()),
-              "apply": lambda: apply(d), "reroute": lambda: reroute(d, rest),
+              "apply": lambda: apply(d, "--force" in rest), "reroute": lambda: reroute(d, rest),
+              "free": lambda: free(d, rest),
               "update": lambda: update_board(d, find(d), rest[0] if rest else None)}[step]())

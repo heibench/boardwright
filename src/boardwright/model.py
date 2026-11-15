@@ -29,6 +29,8 @@ class Pad:
     angle: float
     thru: bool
     layers: list[str]
+    shape: str = "rect"     # KiCad's pad shape: rect, circle, oval, roundrect, ...
+    rratio: float = 0.0     # roundrect corner radius as a fraction of the shorter side
 
     @property
     def reach(self) -> float:
@@ -146,7 +148,8 @@ class Board:
                 y = fy - px * math.sin(r) + py * math.cos(r)
                 out.append(Pad(fp.reference, str(p.number), p.net_name or "", round(x, 4), round(y, 4),
                                fp.layer, p.size[0], p.size[1], (p.rotation or 0),
-                               (p.type or "").startswith(("thru", "np_thru")), list(p.layers or [])))
+                               (p.type or "").startswith(("thru", "np_thru")), list(p.layers or []),
+                               p.shape or "rect", p.roundrect_rratio or 0.0))
         return out
 
     @cached_property
