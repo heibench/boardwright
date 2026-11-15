@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `live status` names the open board by its full path, and `live apply`
+  prints that path before it edits, so two copies of a board with the
+  same file name can be told apart (#17).
+
 ## [0.3.1] - 2026-11-15
 
 ### Fixed

@@ -65,6 +65,14 @@ def board_of(k):
         raise EnvironmentFault(f"KiCad is running but no board is open in the PCB editor ({type(e).__name__}: {e})") from e
 
 
+def board_path(b) -> str:
+    """The open board's full path, so a user can see which copy is about to change."""
+    try:
+        return str(Path(b.get_project().path) / b.name)
+    except Exception:
+        return b.name
+
+
 def snapshot(b, out: Path) -> Path:
     """Write the live board (unsaved edits included) to a file our tools can read."""
     out.mkdir(parents=True, exist_ok=True)
@@ -191,7 +199,7 @@ def main(argv: list[str]) -> int:
     if cmd == "status":
         print("KiCad", k.get_version())
         b = board_of(k)
-        print("board:", b.name, "| copper layers:", b.get_copper_layer_count())
+        print("board:", board_path(b), "| copper layers:", b.get_copper_layer_count())
         print(f"  {len(b.get_footprints())} footprints, {len(b.get_tracks())} tracks, {len(b.get_vias())} vias, "
               f"{len(b.get_zones())} zones, {len(b.get_nets())} nets")
         sel = b.get_selection()
@@ -249,6 +257,7 @@ def main(argv: list[str]) -> int:
         from . import edits
         f = snapshot(b, _out_default(b))
         doc = edit_list(args[0], f)
+        print("editing", board_path(b))
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         apply(k, b, doc, "--save" in flags)
         return 0
