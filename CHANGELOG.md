@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
 ### Added
 
 - A `MOVE` entry can place the part's reference and value text:
@@ -56,11 +58,12 @@ the command line).
   renaming a part in the schematic orphaned its placed footprint (#26). The
   example boards are linked. `existing update` adds the link when it matches
   a footprint by reference, like KiCad's re-link.
-- `existing update` wrote a new footprint's `sheetname` as the sheet's name
-  (`pic_sockets`); KiCad writes the sheet path (`/pic_sockets/`).
 - `sch add` found a cached symbol only if `(symbol "LIB:NAME"` fit in the
   first 40 characters of its entry, so a long name such as
   `My_Connector_Library:1217861-1_Tab` was refused as not cached.
+- The STM32F103 examples (`stm32f103_min`, `stm32f103_4l`) take 100 nF on
+  VDDA, as ST AN2586 Rev 8 section 2.2 asks; they had 10 nF, written from
+  memory (#6). Every example's reference document has now been read.
 - `live status` names the open board by its full path, and `live apply`
   prints that path before it edits, so two copies of a board with the
   same file name can be told apart (#17).
@@ -144,7 +147,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/heibench/boardwright/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/heibench/boardwright/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/heibench/boardwright/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/heibench/boardwright/compare/v0.1.0...v0.2.0
