@@ -33,8 +33,9 @@ is right when the difference is the change you meant and nothing else.
 sheet: the symbol cache entry, its units and each part's lib_id are renamed
 (`--body keep`, the default, keeps the drawing), or the cache entry is replaced
 from the new library (`--body library`). The new symbol is found through the
-project's sym-lib-table, then KiCad's stock libraries. Its pin numbers must be
-the same set as the cached symbol's, or nothing is written.
+project's sym-lib-table, then KiCad's global one, then KiCad's stock libraries.
+Its pin numbers must be the same set as the cached symbol's, or nothing is
+written.
 
 Hierarchy: parts on sub-sheets are listed and can be `set`. On a sheet that is
 used more than once, one symbol stands for a part in each use: `parts` says
@@ -328,7 +329,7 @@ def _library_symbol(d: Path, lib_id: str) -> str:
     nick, name = lib_id.split(":", 1)
     lib = _lib_file(d, nick)
     if lib is None or not lib.exists():
-        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'} or KiCad's stock libraries")
+        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'}, KiCad's global table or its stock libraries")
     try:
         syms = _symbol_blocks(lib.read_text())
     except OSError as e:
@@ -499,20 +500,49 @@ def add(d: Path, spec_path: str) -> int:
 
 # ---- repoint -------------------------------------------------------------
 
+def _expand(uri: str, d: Path) -> str | None:
+    """A library table URI with KiCad's path variables filled in; None if one is unknown."""
+    names = {**env.path_variables(), "KIPRJMOD": str(d)}
+    for _ in range(5):                                   # variables may name other variables
+        uri = re.sub(r"\$\{([^}]*)\}", lambda m: names.get(m.group(1), m.group(0)), uri)
+    if re.search(r"\$\{KICAD\d*_SYMBOL_DIR\}", uri):
+        try:
+            uri = re.sub(r"\$\{KICAD\d*_SYMBOL_DIR\}", str(env.libraries()[0]), uri)
+        except SystemExit:
+            return None
+    return None if "${" in uri else uri
+
+
+def _in_table(table: Path, nick: str, d: Path, depth: int = 0) -> tuple[bool, Path | None]:
+    """Whether a sym-lib-table (or a table nested in it, as KiCad allows) names
+    `nick`, and the file it points at (None when a path variable is unknown)."""
+    try:
+        text = table.read_text()
+    except OSError:
+        return False, None
+    rows = re.findall(r'\(lib \(name "([^"]*)"\)\s*\(type "([^"]*)"\)\s*\(uri "([^"]*)"\)', text)
+    for name, kind, uri in rows:
+        if name == nick and kind != "Table":
+            p = _expand(uri, d)
+            return True, Path(p) if p else None
+    for _name, kind, uri in rows:
+        if kind == "Table" and depth < 4:
+            p = _expand(uri, d)
+            found = _in_table(Path(p), nick, d, depth + 1) if p else (False, None)
+            if found[0]:
+                return found
+    return False, None
+
+
 def _lib_file(d: Path, nick: str) -> Path | None:
     """The .kicad_sym a library nickname names: the project's sym-lib-table first,
-    then KiCad's stock library folder."""
-    table = d / "sym-lib-table"
-    if table.exists():
-        for name, uri in re.findall(r'\(lib \(name "([^"]*)"\).*?\(uri "([^"]*)"\)', table.read_text()):
-            if name == nick:
-                p = uri.replace("${KIPRJMOD}", str(d))
-                if "${" in p:
-                    try:
-                        p = re.sub(r"\$\{KICAD\d*_SYMBOL_DIR\}", str(env.libraries()[0]), p)
-                    except SystemExit:
-                        return None
-                return Path(p)
+    then KiCad's global one (its path variables filled in), then KiCad's stock
+    library folder. The first table that names it decides, as in KiCad."""
+    cfg = env.kicad_config()
+    for table in (d / "sym-lib-table", *([cfg / "sym-lib-table"] if cfg else [])):
+        found, path = _in_table(table, nick, d)
+        if found:
+            return path
     try:
         stock = env.libraries()[0] / f"{nick}.kicad_sym"
     except SystemExit:
@@ -568,7 +598,7 @@ def repoint(d: Path, old: str, new: str, body: str = "keep") -> int:
     old_name = old.split(":", 1)[1]
     lib = _lib_file(d, nick)
     if lib is None or not lib.exists():
-        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'} or KiCad's stock libraries")
+        raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'}, KiCad's global table or its stock libraries")
     try:
         syms = _symbol_blocks(lib.read_text())
     except OSError as e:

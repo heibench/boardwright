@@ -4,6 +4,8 @@ Every location can be set explicitly; otherwise the usual install places are
 searched. Settings:
 
     KICAD_SYMBOL_DIR, KICAD_FOOTPRINT_DIR   stock libraries (also KICAD10_*, KICAD9_*)
+    KICAD_CONFIG_HOME                       KiCad's settings folder (its global library
+                                            tables and path variables), as KiCad reads it
     NETSPEC_KICAD_CLI                       the KiCad command line (shared with netspec)
     BOARDWRIGHT_FREEROUTING                 the autorouter, e.g. "java -jar freerouting.jar"
 """
@@ -49,6 +51,52 @@ def _library(dir_: str) -> Path:
             f"KiCad's {dir_} library was not found. Install KiCad's libraries or set KICAD_{name}_DIR."
         )
     return cands[0]
+
+
+def _version_dirs(base: Path) -> list[Path]:
+    """base itself if it holds the settings, else its version folders, newest first."""
+    if (base / "kicad_common.json").exists() or (base / "sym-lib-table").exists():
+        return [base]
+    vers = [p for p in base.glob("*.*") if p.is_dir() and p.name.replace(".", "").isdigit()]
+    return sorted(vers, key=lambda p: tuple(int(x) for x in p.name.split(".")), reverse=True)
+
+
+def kicad_config() -> Path | None:
+    """KiCad's settings folder for its newest version on this machine: the global
+    library tables and the path variables set in Preferences. None if there is none."""
+    home = Path.home()
+    if os.environ.get("KICAD_CONFIG_HOME"):
+        bases = [Path(os.environ["KICAD_CONFIG_HOME"])]
+    else:
+        bases = [Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config") / "kicad",
+                 home / ".var/app/org.kicad.KiCad/config/kicad",
+                 home / "Library/Preferences/kicad"]
+        if os.environ.get("APPDATA"):
+            bases.append(Path(os.environ["APPDATA"]) / "kicad")
+    found = [d for base in bases for d in _version_dirs(base)
+             if (d / "sym-lib-table").exists() or (d / "kicad_common.json").exists()]
+    if not found:
+        return None
+
+    def version(p: Path) -> tuple[int, ...]:
+        return tuple(int(x) for x in p.name.split(".")) if p.name.replace(".", "").isdigit() else (0,)
+    return max(found, key=version)              # several installs (native 9, Flatpak 10): the newest
+
+
+def path_variables() -> dict[str, str]:
+    """KiCad's path variables: those set in Preferences > Configure Paths, with the
+    process environment taking precedence, as in KiCad."""
+    import json
+
+    out: dict[str, str] = {}
+    cfg = kicad_config()
+    if cfg is not None and (cfg / "kicad_common.json").exists():
+        try:
+            out.update((json.loads((cfg / "kicad_common.json").read_text()).get("environment") or {}).get("vars") or {})
+        except (OSError, ValueError):
+            pass
+    out.update(os.environ)
+    return out
 
 
 def libraries() -> tuple[Path, Path]:

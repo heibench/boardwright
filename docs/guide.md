@@ -159,10 +159,11 @@ nickname, or a `<project>-rescue` library left by an older KiCad. `--body keep`
 (the default) renames the cached symbol, its units and each part's link and
 keeps the drawing; `--body library` replaces the cached symbol with the one in
 the new library (an `extends` symbol is merged with its parent, as KiCad does).
-The new symbol is looked up in the project's `sym-lib-table`, then KiCad's stock
-libraries. Its pin numbers must be the same set as the cached symbol's, or the
-edit is refused (exit 1) and nothing is written. A part carrying a `lib_name`
-override is refused too.
+The new symbol is looked up in the project's `sym-lib-table`, then KiCad's global
+one (with the path variables set in Preferences > Configure Paths, and any
+table nested in it), then KiCad's stock libraries. Its pin numbers must be the
+same set as the cached symbol's, or the edit is refused (exit 1) and nothing
+is written. A part carrying a `lib_name` override is refused too.
 
 On a sheet used more than once in a hierarchy, one symbol is a part in each
 use: `parts` says which, `set` changes all of them and says so, `remove`

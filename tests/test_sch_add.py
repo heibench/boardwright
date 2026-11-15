@@ -150,3 +150,43 @@ def test_a_power_symbol_points_away_from_its_part(src_rot, value_y, away, rot, v
     assert f"\n\t\t(at 50 60 {rot})" in b
     vx, vy = map(float, re.search(r'\(property "Value" "\+3V3"\s+\(at ([-\d.]+) ([-\d.]+)', b).groups())
     assert vy == pytest.approx(60 + value_dy) and vx == pytest.approx(50 + (3.81 if away == 0 else 0))
+
+
+def _global_lib(own_kicad_settings, proj, tmp_path, nested=False):
+    """Move 'Mine' out of the project into a folder named by a KiCad path variable,
+    listed in the global table (or in a table nested in it)."""
+    import json
+
+    shelf = tmp_path / "shelf"
+    shelf.mkdir()
+    (proj / "libs" / "Mine.kicad_sym").rename(shelf / "Mine.kicad_sym")
+    t = (proj / "sym-lib-table").read_text()
+    (proj / "sym-lib-table").write_text(re.sub(r'\n  \(lib \(name "Mine"\)[^\n]*', "", t))
+    (own_kicad_settings / "kicad_common.json").write_text(json.dumps({"environment": {"vars": {"MY_SHELF": str(shelf)}}}))
+    row = '(lib (name "Mine")(type "KiCad")(uri "${MY_SHELF}/Mine.kicad_sym")(options "")(descr ""))'
+    if nested:
+        (shelf / "inner-table").write_text(f"(sym_lib_table\n  (version 7)\n  {row}\n)\n")
+        row = '(lib (name "Shelf")(type "Table")(uri "${MY_SHELF}/inner-table")(options "")(descr ""))'
+    (own_kicad_settings / "sym-lib-table").write_text(f"(sym_lib_table\n  (version 7)\n  {row}\n)\n")
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_a_library_in_the_global_table_is_found(own_kicad_settings, proj, tmp_path, nested):
+    _global_lib(own_kicad_settings, proj, tmp_path, nested)
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 0
+    assert '(lib_id "Mine:R_new")' in (proj / SCH).read_text()
+
+
+def test_the_project_table_decides_before_the_global_one(own_kicad_settings, proj, tmp_path):
+    """A nickname both tables name is the project's, even when its file is missing."""
+    _global_lib(own_kicad_settings, proj, tmp_path)
+    t = (proj / "sym-lib-table").read_text()
+    (proj / "sym-lib-table").write_text(t.replace("\n)", '\n  (lib (name "Mine")(type "KiCad")(uri "${KIPRJMOD}/gone.kicad_sym")(options "")(descr ""))\n)', 1))
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 64
+
+
+def test_an_unknown_path_variable_is_a_usage_error(own_kicad_settings, proj, tmp_path):
+    _global_lib(own_kicad_settings, proj, tmp_path)
+    (own_kicad_settings / "kicad_common.json").write_text("{}")
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 64
+

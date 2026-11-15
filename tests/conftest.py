@@ -11,6 +11,15 @@ def board(name: str) -> Path:
     return BOARDS / name / f"{name}.kicad_pcb"
 
 
+@pytest.fixture(autouse=True)
+def own_kicad_settings(tmp_path_factory, monkeypatch) -> Path:
+    """An empty KiCad settings folder per test, so this machine's global library
+    table and path variables never decide a test."""
+    d = tmp_path_factory.mktemp("kicad_config")
+    monkeypatch.setenv("KICAD_CONFIG_HOME", str(d))
+    return d
+
+
 @pytest.fixture
 def ldo_copy(tmp_path) -> Path:
     """A writable copy of the LDO example project."""
