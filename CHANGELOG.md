@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `boardwright sch DIR repoint OLD_LIB:OLD_NAME NEW_LIB:NEW_NAME [--body keep|library]`
+  points every part that uses one library symbol at another, across all
+  sheets, and refuses when the pin numbers differ (#8).
+
 ## [0.2.0] - 2026-11-14
 
 ### Changed

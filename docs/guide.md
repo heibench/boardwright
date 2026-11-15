@@ -136,6 +136,7 @@ with KiCad; its README says where to copy them from.
     boardwright sch <project dir> set REF Field=Value ...      # Value, Footprint, any property; dnp/in_bom/on_board
     boardwright sch <project dir> add SPEC.py                  # ADD = [(ref, like, value, footprint, {pin: net})]
     boardwright sch <project dir> remove REF ...
+    boardwright sch <project dir> repoint OLD_LIB:OLD_NAME NEW_LIB:NEW_NAME [--body keep|library]
     boardwright sch ercdiff OLD.json NEW.json
 
 Edits replace one block of the file and leave the rest byte-identical; the
@@ -148,6 +149,17 @@ after, and the difference must be the change you meant and nothing else.
 `ercdiff` shows what an edit added to the ERC findings. After a schematic
 change the board has to be updated from it in KiCad (parity will say so until
 it is).
+
+`repoint` changes which library symbol parts link to, for every part using
+`OLD_LIB:OLD_NAME` on every sheet: a library renamed or vendored under a new
+nickname, or a `<project>-rescue` library left by an older KiCad. `--body keep`
+(the default) renames the cached symbol, its units and each part's link and
+keeps the drawing; `--body library` replaces the cached symbol with the one in
+the new library (an `extends` symbol is merged with its parent, as KiCad does).
+The new symbol is looked up in the project's `sym-lib-table`, then KiCad's stock
+libraries. Its pin numbers must be the same set as the cached symbol's, or the
+edit is refused (exit 1) and nothing is written. A part carrying a `lib_name`
+override is refused too.
 
 On a sheet used more than once in a hierarchy, one symbol is a part in each
 use: `parts` says which, `set` changes all of them and says so, `remove`
