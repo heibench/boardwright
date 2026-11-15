@@ -13,7 +13,7 @@
       },
       "defaults": {},
       "rule_severities": {
-        "lib_footprint_mismatch": "ignore"
+        "lib_footprint_mismatch": "warning"
       }
     }
   },

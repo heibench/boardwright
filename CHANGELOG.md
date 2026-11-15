@@ -20,6 +20,14 @@ the command line).
   any single piece. Parallel channels are not added together, so a pad fed
   through thermal spokes measures as one spoke (#5).
 
+### Fixed
+
+- A footprint's own zones (an RF module's antenna keep-out) were left in the
+  library's coordinates when kicad-tools created the board, so they sat beside
+  the part and KiCad reported the footprint as differing from its library.
+  They are now placed with the footprint, on either side and at any rotation.
+  The ESP32-C3 example no longer ignores that check (#6).
+
 ## [0.2.0] - 2026-11-14
 
 ### Changed

@@ -42,14 +42,13 @@
 - No current or thermal sizing of copper.
 - No part sourcing. Konnect's approach: the JLC parts feed in local SQLite
   and rule-based footprint-to-package matching.
-- KiCad reports the ESP32 module footprint as differing from its library copy
-  after kicad-tools writes it. Unexplained; ignored on that board (05).
 - Boards 01-05 pass with the current tool's checks but were last generated
   before the staging refactor. 03 was regenerated in a throwaway copy
   afterwards and came out DRC-clean and equivalent.
 
 ## Closed
 
+- ESP32 footprint warning: the module's keep-out zone was left beside the part -> `board.place_footprint_zones` (05, #6).
 - Pour necks not measured by the current check -> `review.neck` (#5).
 - Pours invisible in renders -> copper plots (03).
 - Legal-but-split power polygons -> review (03).
