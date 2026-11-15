@@ -98,8 +98,8 @@ Do these in order before changing anything. `P` is the project directory.
 
 What this tool does badly, so say so rather than try: re-routing in dense
 areas, anything that needs existing tracks moved aside, length-tuned pairs,
-adding a symbol the sheet does not already use, and carrying a schematic
-change through to the board (that step is done in KiCad).
+multi-unit symbols, and placing and routing the parts a schematic change adds
+(`existing update` puts them beside the board, on their nets).
 
 ## Existing boards
 
@@ -107,6 +107,7 @@ change through to the board (that step is done in KiCad).
     boardwright existing <project dir> review | baseline | verify
     boardwright existing <project dir> apply
     boardwright existing <project dir> reroute NET [NET ...]
+    boardwright existing <project dir> update [NETLIST.net]
 
 The project keeps its own schematic, libraries and rules. An optional
 `boardwright.py` beside the board holds `REVIEW`, `TRACKS`, `VIAS`, `ZONES`,
@@ -126,6 +127,19 @@ place: commit before `apply` or `reroute`.
   byte-identical to before. A net the router cannot finish gets its original
   routing back. New tracks are held to the project's own minimum width.
 - `apply` is repeatable: exact duplicates are dropped.
+- `update` does what KiCad's Update PCB from Schematic does, from KiCad's own
+  netlist (`kicad-cli sch export netlist --format kicadsexpr`, made for you
+  unless you pass one). Footprints are matched to symbols by their path, or by
+  reference where a footprint has none (boards made by kicad-tools). Each
+  matched footprint takes the symbol's reference and value, and each pad its
+  pin's net; a symbol with no footprint on the board gets one from the
+  library (project, global, then stock `fp-lib-table`), beside the board
+  outline, for you to place. A footprint swapped in the schematic, a symbol
+  with no footprint or a footprint not found stops the update with nothing
+  written (exit 1); footprints whose symbol is gone are listed and left.
+  Tracks and zones are untouched: DRC shows what a changed net leaves
+  unconnected. KiCad's DRC with `--schematic-parity` is the check. Boards
+  saved by KiCad 10 only.
 
 `examples/existing/` holds specs for three of the demo projects that ship
 with KiCad; its README says where to copy them from.
@@ -150,8 +164,8 @@ fields come from the library. Single-unit symbols only, and not power symbols.
 The check is KiCad's own connectivity: `netspec snap` before, `netspec diff`
 after, and the difference must be the change you meant and nothing else.
 `ercdiff` shows what an edit added to the ERC findings. After a schematic
-change the board has to be updated from it in KiCad (parity will say so until
-it is).
+change, `boardwright existing <project dir> update` carries it to the board;
+DRC parity says whether anything is left.
 
 `repoint` changes which library symbol parts link to, for every part using
 `OLD_LIB:OLD_NAME` on every sheet: a library renamed or vendored under a new

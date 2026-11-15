@@ -9,6 +9,12 @@ the command line).
 
 ### Added
 
+- `existing update`: carry schematic changes to the board, as KiCad's
+  Update PCB from Schematic does, from KiCad's own netlist (the last part of
+  #3). New parts land beside the board on their nets; references, values
+  and pad nets follow the schematic; a footprint swap, a missing footprint
+  or a symbol without one stops it with nothing written. Checked by KiCad's
+  DRC schematic parity.
 - `sch add` adds on a sub-sheet used once: `SHEET = "file.kicad_sch"` in
   the spec (part of #3). Parts take the sheet's hierarchy path; sheet-pin nets
   get hierarchical labels; power symbols are copied from whichever sheet has
