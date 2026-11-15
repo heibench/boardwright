@@ -184,6 +184,44 @@ def verify(d: Path, staged: bool = False) -> int:
     return 0 if ok else 1
 
 
+def _turn(a: float) -> str:
+    """An angle as KiCad writes it: in (-180, 180], no trailing zeros."""
+    a = (a + 180) % 360 - 180
+    return f"{180 if a == -180 else round(a, 6):g}"
+
+
+def move_footprint(t: str, ref: str, x: float, y: float, rot: float, origin: tuple[float, float]) -> str:
+    """The board file with footprint `ref` at board-relative (x, y), rotated rot
+    degrees, editing only that footprint's block: its (at ...), the absolute
+    angles KiCad keeps on its pads and texts, and its own zones, which KiCad
+    stores board-absolute and which are carried from the old frame to the new."""
+    from .update import _footprints, _prop
+    for s, e in _footprints(t):
+        fp = t[s:e]
+        if _prop(fp, "Reference") != ref:
+            continue
+        m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
+        fx, fy, r0 = float(m.group(1)), float(m.group(2)), float(m.group(3) or 0)
+        nx, ny, delta = round(x + origin[0], 4), round(y + origin[1], 4), rot - r0
+        head = f"\n\t\t(at {nx:g} {ny:g}" + (f" {_turn(rot)})" if _turn(rot) != "0" else ")")
+        fp = fp[:m.start()] + head + fp[m.end():]
+        if delta % 360:
+            # pads and texts: (at x y angle) in the footprint's frame, angle absolute
+            fp = re.sub(r'(\n\t\t(?:\(pad "[^"]*"[^\n]*|\(property "[^"]*" "(?:[^"\\]|\\.)*"|\(fp_text [^\n]*)\s*\(at )([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)',
+                        lambda mm: f"{mm.group(1)}{mm.group(2)} {mm.group(3)} {_turn(float(mm.group(4) or 0) + delta)})", fp)
+        a0, a1 = math.radians(r0), math.radians(rot)
+
+        def carry(mm):
+            dx, dy = float(mm.group(1)) - fx, float(mm.group(2)) - fy
+            lx, ly = dx * math.cos(a0) - dy * math.sin(a0), dx * math.sin(a0) + dy * math.cos(a0)
+            px, py = nx + lx * math.cos(a1) + ly * math.sin(a1), ny - lx * math.sin(a1) + ly * math.cos(a1)
+            return f"(xy {round(px, 6):g} {round(py, 6):g})"
+        for zs, ze in reversed(copper.blocks(fp, ("zone",))):
+            fp = fp[:zs] + re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", carry, fp[zs:ze]) + fp[ze:]
+        return t[:s] + fp + t[e:]
+    raise Usage(f"no footprint {ref}")
+
+
 def place_field(t: str, ref: str, name: str, at: tuple, origin: tuple[float, float]) -> str:
     """The board file with footprint `ref`'s Reference or Value text at board-relative
     (x, y[, angle]). KiCad keeps a field's position in its footprint's own frame
@@ -268,25 +306,17 @@ def apply(d: Path, force: bool = False) -> int:
     pcb, m = find(d), spec(d)
     moves = getattr(m, "MOVE", {})
     if moves:
-        from kicad_tools.schema.pcb import PCB
-
         from .placement import Clearance
         original = pcb.read_text()
-        p = PCB.load(str(pcb))
+        t, origin = original, Board(pcb).origin
         for ref, mv in moves.items():
-            if not p.update_footprint_position(ref, *mv[:3]):
-                raise Usage(f"no footprint {ref}")
-        p.save(str(pcb))
-        fields = {ref: mv[3] for ref, mv in moves.items() if len(mv) > 3}
-        if fields:
-            t, origin = pcb.read_text(), Board(pcb).origin
-            for ref, f in fields.items():
-                for key, at in f.items():
-                    name = {"ref": "Reference", "value": "Value"}.get(key)
-                    if name is None:
-                        raise Usage(f"MOVE {ref}: unknown field {key!r} (ref or value)")
-                    t = place_field(t, ref, name, at, origin)
-            pcb.write_text(t)
+            t = move_footprint(t, ref, *mv[:3], origin)
+            for key, at in (mv[3] if len(mv) > 3 else {}).items():
+                name = {"ref": "Reference", "value": "Value"}.get(key)
+                if name is None:
+                    raise Usage(f"MOVE {ref}: unknown field {key!r} (ref or value)")
+                t = place_field(t, ref, name, at, origin)
+        pcb.write_text(t)
         clear = Clearance(Board(pcb))
         found = [c for ref in moves for c in clear.clashes(ref)]
         for c in found:

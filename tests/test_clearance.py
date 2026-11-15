@@ -134,3 +134,64 @@ def test_kicad_draws_each_moved_reference_over_the_pad_aimed_at(stm, tmp_path):
             for j in v["items"] if j is not i}
     for ref, (tref, num) in FIELD_TARGETS.items():
         assert any(r == ref and f"pad {num} " in d.lower() and f" of {tref}" in d for r, d in hits), (ref, hits)
+
+
+MOVES = {"R7": (12, 40, 0), "R5": (20, 31, 45), "C7": (13, 36, 0), "C3": (17, 37, 90), "J4": (11, 57, 270)}
+
+
+def test_a_move_edits_only_the_moved_footprints(stm):
+    """MOVE used to save through kicad-tools, which rewrote the whole file (a
+    four-part move: +198 / -5507 lines, nothing lost). Now only the moved
+    footprints' blocks change, and they land where kicad-tools would put them."""
+    from kicad_tools.schema.pcb import PCB
+
+    from boardwright import update
+
+    pcb = stm / f"{NAME}.kicad_pcb"
+    old = pcb.read_text()
+    _spec(stm, f"MOVE = {MOVES!r}\n")
+    assert main(["existing", str(stm), "apply", "--force"]) == 0
+    new = pcb.read_text()
+    blocks = {update._prop(new[s:e], "Reference"): (s, e) for s, e in update._footprints(new)}
+    moved = sorted((blocks[r] for r in MOVES), reverse=True)
+    rest_new, rest_old = new, old
+    for s, e in moved:                                    # cut the moved blocks out of both files
+        rest_new = rest_new[:s] + rest_new[e:]
+    oblocks = {update._prop(old[s:e], "Reference"): (s, e) for s, e in update._footprints(old)}
+    for s, e in sorted((oblocks[r] for r in MOVES), reverse=True):
+        rest_old = rest_old[:s] + rest_old[e:]
+    assert rest_new == rest_old                           # everything else byte-identical
+    ref = stm / "kt.kicad_pcb"
+    p = PCB.load(str(BOARDS / NAME / f"{NAME}.kicad_pcb"))
+    for r, mv in MOVES.items():
+        p.update_footprint_position(r, *mv)
+    p.save(str(ref))
+    want = {(q.ref, q.num): (round(q.x, 3), round(q.y, 3), round(q.angle % 360, 3)) for q in Board(ref).pads}
+    got = {(q.ref, q.num): (round(q.x, 3), round(q.y, 3), round(q.angle % 360, 3)) for q in Board(pcb).pads}
+    assert got == want
+
+
+def test_a_moved_module_carries_its_own_zone(tmp_path):
+    """The ESP32-C3 module's antenna keep-out is a footprint zone, stored
+    board-absolute: moved and turned, it lands where kicad-tools puts it."""
+    from kicad_tools.schema.pcb import PCB
+
+    from boardwright.existing import move_footprint
+
+    src = BOARDS / "esp32c3_min" / "esp32c3_min.kicad_pcb"
+    mine, theirs = tmp_path / "mine.kicad_pcb", tmp_path / "theirs.kicad_pcb"
+    o = Board(src).origin
+    mine.write_text(move_footprint(move_footprint(src.read_text(), "U1", 15, 20, 90, o), "U1", 14, 22, 180, o))
+    p = PCB.load(str(src))
+    p.update_footprint_position("U1", 15, 20, 90)            # turned twice, so the second starts rotated
+    p.update_footprint_position("U1", 14, 22, 180)
+    p.save(str(theirs))
+    def zones(f):                                         # U1's own zone points (the model reads board zones only)
+        import re
+
+        from boardwright import copper, update
+        t = f.read_text()
+        fp = next(t[s:e] for s, e in update._footprints(t) if update._prop(t[s:e], "Reference") == "U1")
+        return [(round(float(x), 3), round(float(y), 3)) for s, e in copper.blocks(fp, ("zone",))
+                for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", fp[s:e])]
+    assert zones(src) and zones(mine) == zones(theirs) and zones(mine) != zones(src)
