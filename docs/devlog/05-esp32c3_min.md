@@ -63,3 +63,21 @@ connector-to-resistor paths are matched within 2.8 mm.
   ground edge under the module and is unverified.
 - USB runs 40 mm over a bottom layer that is otherwise the ground pour.
 - Not built.
+
+## Fourth pass: the footprint warning explained
+
+Item 3 was a real defect. kicad-tools 0.29 creates the board with each
+footprint's own zones still in the library's coordinates, then shifts them by
+each later move, so the module's antenna keep-out sat 136.5 mm left and 83 mm
+up of where KiCad puts it. The board was saved only by its own `KEEPOUTS`.
+
+Found by changing one thing at a time and asking KiCad's DRC (the
+`lib_footprint_mismatch` check switched back on): restoring the keep-out's
+layer list left the warning; moving only the zone to the library outline plus
+the footprint position cleared it. On the back side the outline is mirrored top
+to bottom; with that, KiCad accepts the module at 0, 90 and 180 degrees on top
+and 0 and 90 on the bottom.
+
+`board.place_footprint_zones` now places those zones after every placement,
+the example's override is gone, and its full gate is 0 violations, 0
+unconnected, 0 parity issues with the check on.

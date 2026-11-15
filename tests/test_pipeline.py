@@ -45,3 +45,29 @@ def test_place_with_a_custom_library(tmp_path):
     assert main(["place", str(d)]) == 0
     assert (d / "out" / "preview.svg").exists() or (d / "out" / "preview.png").exists()
     assert "Custom:MYLDO-3.3" in (d / "customlib_test.kicad_sch").read_text()
+
+
+@pytest.mark.kicad
+@needs_libs
+@needs_kicad
+@pytest.mark.parametrize("spec", ['(MX, MY, 90)', '(MX, MY, 90, "B")'])
+def test_module_keepout_matches_its_library_copy(tmp_path, spec):
+    """KiCad's own check that a placed footprint (zones included) equals its library copy."""
+    import json
+    import shutil
+    import subprocess
+
+    from conftest import ROOT
+
+    from boardwright import env
+
+    d = tmp_path / "esp32c3_min"
+    shutil.copytree(ROOT / "examples" / "boards" / "esp32c3_min", d)
+    b = d / "board.py"
+    b.write_text(b.read_text().replace('"U1": (MX, MY, 0),', f'"U1": {spec},'))
+    assert main(["place", str(d)]) == 0
+    report = tmp_path / "drc.json"
+    subprocess.run([*env.kicad_cli(), "pcb", "drc", "--format", "json", "--severity-all", "-o", str(report),
+                    str(d / "esp32c3_min.kicad_pcb")], check=True, capture_output=True)
+    types = [v["type"] for v in json.loads(report.read_text())["violations"]]
+    assert "lib_footprint_mismatch" not in types

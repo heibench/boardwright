@@ -118,9 +118,6 @@ TRACKS = [
 RULES = {"min_through_hole_diameter": 0.2,     # the module footprint's own thermal vias are 0.2 mm
          # a through-hole GND pin is tied to the pour on both layers; one spoke per layer is enough
          "min_resolved_spokes": 1}
-# KiCad reports the module footprint as differing from its library copy after
-# kicad-tools writes it; pad, line and property counts match. Unexplained: see docs/devlog/05.
-SEVERITIES = {"lib_footprint_mismatch": "ignore"}
 FR_PASSES = 100
 FR_BOTTOM_COST = 20         # keep the autorouter on top; the bottom is the ground plane
 CLASSES = {"Default": (0.2, 0.25, 0.6, 0.3), "Power": (0.2, 0.4, 0.6, 0.3, ["VBUS", V, G])}
