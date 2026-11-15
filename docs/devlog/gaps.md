@@ -2,13 +2,12 @@
 
 ## Open
 
-- **Live KiCad: reading and editing work; `boardwright.live`'s own apply is behind.**
-  Against KiCad 10.0.8 the open board and the selection have been read,
-  nets and parts selected, zones refilled, and an edit list with all four
-  operations applied as one undo step and confirmed by reading the board
-  back. `boardwright.live apply` was rewritten to execute edit lists and has not
-  itself been run against KiCad since. The API gives no access to the
-  interactive router.
+- **Live KiCad saves without refilling.** `live apply --save` writes the
+  board as it is; a part moved into a pour keeps stale fill over its pads
+  until `live refill`. The API gives no access to the interactive router.
+- **Text is placed by hand.** `existing free` finds room for a part's copper
+  and courtyard, not for its silkscreen; a `MOVE` can place the reference and
+  value, but where is your call (11).
 - **Freerouting is the weak link.** Not repeatable on dense boards; ignores
   polygons; necks tracks; its log names nets as unrouted that are routed; on
   an existing dense board it could not route a 3.4 mm net. Worth trying:
@@ -18,14 +17,15 @@
   (single-unit only), on the root or a sheet used once, connected by label or
   power symbol (09). It does not wire point to point or add sheet pins.
   `existing update` carries a change to the board but does not swap
-  footprints, remove footprints whose symbol is gone, or place what it adds.
+  footprints or remove footprints whose symbol is gone; what it adds lands
+  beside the board for `free` and `MOVE`.
 - **The pad-to-pad router is new and narrow.** It routed two nets on the
   StickHub demo (one that Freerouting could not), applied live and DRC-clean
   against the baseline, and five of six layer-changing nets on a 6-layer demo
-  by its own clearance measure (10). Only the first two were judged by KiCad.
-  Rules in a `.kicad_dru` file are not read. No push-aside, no pairs, no length tuning; multi-pad nets are
-  routed as the pairs you list. Not yet used on a generated board or with
-  vias in anger.
+  by its own clearance measure (10), and the four connections of the 4-layer
+  rehearsal with vias, judged clean by KiCad (11). Rules in a `.kicad_dru`
+  file are not read. No push-aside, no pairs, no length tuning; multi-pad
+  nets are routed as the pairs you list.
 - **Alternatives to Freerouting were not tried.** Its job mode and the
   Topola router both need installing or configuring, which is a decision
   about the machine, not this tool.
@@ -47,6 +47,13 @@
 
 ## Closed
 
+- Live apply, selection, refill, move, rip-up and save not run against KiCad -> all run on KiCad 10.0.8 (#4).
+- Parts moved onto other copper without a word -> `apply`'s clash check, `existing free` (11, #24).
+- Stacked vias from routes sharing a pad -> routes reuse their net's through copper (11, #23).
+- No way to move a footprint's text -> `MOVE` text placement (11, #25).
+- Generated boards unlinked from their symbols -> `gen` and `update` link them (11, #26).
+- `MOVE` rewrote the board file -> moved blocks edited in place (11, #32).
+- Schematic adds only by copying, root sheet only, no way to the board -> library symbols, global tables, sub-sheets, `existing update` (#3).
 - ESP32 footprint warning: the module's keep-out zone was left beside the part -> `board.place_footprint_zones` (05, #6).
 - Pour necks not measured by the current check -> `review.neck` (#5).
 - Pours invisible in renders -> copper plots (03).

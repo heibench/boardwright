@@ -53,6 +53,7 @@ nav:
       - 08 Custom library: devlog/08-customlib_test.md
       - 09 Existing schematic: devlog/09-existing-schematic.md
       - 10 Hardening: devlog/10-hardening.md
+      - 11 Rehearsal, 4 layers: devlog/11-rehearsal-stm32f103_4l.md
       - Known gaps: devlog/gaps.md
       - Vendor references: devlog/references.md
   - Changelog: changelog.md
