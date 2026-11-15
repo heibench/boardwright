@@ -126,6 +126,12 @@ def ldo(tmp_path):
     return dst
 
 
+def _unlink(ldo):
+    """The LDO example as boardwright generated it before footprints were linked to symbols."""
+    pcb = ldo / "ldo_breakout.kicad_pcb"
+    pcb.write_text(re.sub(r"\n\t\t\((?:path|sheetname|sheetfile) [^\n]*\)", "", pcb.read_text()))
+
+
 def _gate(ldo, tmp_path, name):
     from boardwright import env
 
@@ -203,6 +209,7 @@ NET = Path(__file__).parent / "data" / "ldo_r50.net"   # KiCad 10.0.8's netlist 
 def test_update_from_a_netlist_without_kicad(ldo, capsys):
     """The LDO example's footprints carry no symbol path (kicad-tools does not
     write one), so they are matched by reference, as KiCad does."""
+    _unlink(ldo)
     board = ldo / "ldo_breakout.kicad_pcb"
     old = board.read_text()
     assert main(["existing", str(ldo), "update", str(NET)]) == 0
@@ -213,7 +220,11 @@ def test_update_from_a_netlist_without_kicad(ldo, capsys):
     assert len(added) == 1 and '(net "VIN")' in added[0] and '(net "LED_A")' in added[0]
     x = float(re.search(r"\n\t\t\(at ([-\d.]+) ", added[0]).group(1))
     assert x > update._outline(old)[2]                   # beside the board, not on it
-    rest = new.replace(added[0], "", 1).split("\n")
+    # each footprint matched by reference is linked to its symbol, as KiCad's re-link does
+    assert out.count("linked to its symbol") == 7
+    assert new.replace(added[0], "", 1).count("\n\t\t(path ") == 7
+    rest = [ln for ln in new.replace(added[0], "", 1).split("\n")
+            if not ln.startswith(("\t\t(path ", "\t\t(sheetname ", "\t\t(sheetfile "))]
     changed = [(a, b) for a, b in zip(old.split("\n"), rest) if a != b]
     assert len(rest) == len(old.split("\n")) and changed == [('\t\t(property "Value" "10u"', '\t\t(property "Value" "22u"')]
     assert main(["existing", str(ldo), "update", str(NET)]) == 0       # a second run changes nothing
@@ -235,3 +246,35 @@ def test_what_cannot_be_done_writes_nothing(ldo, tmp_path, capsys, ref, footprin
     assert main(["existing", str(ldo), "update", str(f)]) == 1
     assert says in capsys.readouterr().out
     assert board.read_text() == old
+
+
+def test_a_linked_footprint_follows_a_renamed_symbol(ldo, tmp_path, capsys):
+    """Linked to its symbol (as gen now does), R1 renamed R12 in the schematic is
+    renamed on the board, not orphaned beside a new R12."""
+    _unlink(ldo)
+    from boardwright import board
+
+    assert board.link_symbols(ldo / "ldo_breakout.kicad_pcb", ldo / "ldo_breakout.kicad_sch") == 7
+    text = NET.read_text()
+    text = text.replace('(ref "R1")', '(ref "R12")')            # the component and its two pins
+    f = tmp_path / "renamed.net"
+    f.write_text(text)
+    assert main(["existing", str(ldo), "update", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "R12: Reference R1 -> R12" in out
+    assert "R12: added" not in out and "left on the board" not in out
+
+
+def test_link_symbols_links_a_generated_board_once(ldo):
+    _unlink(ldo)
+    from boardwright import board, sch
+
+    pcb, sch_file = ldo / "ldo_breakout.kicad_pcb", ldo / "ldo_breakout.kicad_sch"
+    assert board.link_symbols(pcb, sch_file) == 7
+    linked = pcb.read_text()
+    s = sch.Sheet(sch_file)
+    r1 = next(s.text[a:b] for a, b in s.instances() if sch.prop(s.text[a:b], "Reference") == "R1")
+    uid = re.search(r'\n\t\t\(uuid "([^"]*)"\)', r1).group(1)
+    fp = next(linked[a:b] for a, b in update._footprints(linked) if update._prop(linked[a:b], "Reference") == "R1")
+    assert f'(path "/{uid}")\n\t\t(sheetname "/")\n\t\t(sheetfile "ldo_breakout.kicad_sch")' in fp
+    assert board.link_symbols(pcb, sch_file) == 0 and pcb.read_text() == linked

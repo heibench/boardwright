@@ -92,6 +92,14 @@ def _set_prop(block: str, name: str, val: str) -> str:
     return re.sub(r'(\n\t\t\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda m: f'{m.group(1)}"{_esc(val)}"', block, count=1)
 
 
+def link(fp: str, path: str, sheetname: str, sheetfile: str) -> str:
+    """A board footprint linked to its symbol: path, sheetname and sheetfile after
+    its last property, where KiCad writes them."""
+    props = [(s, e) for s, e in blocks(fp, ("property",)) if fp[s:s + 13] == "\n\t\t(property "]
+    k = props[-1][1] if props else fp.index("\n", fp.index("\n\t\t(at "))
+    return fp[:k] + f'\n\t\t(path "{path}")\n\t\t(sheetname "{_esc(sheetname)}")\n\t\t(sheetfile "{_esc(sheetfile)}")' + fp[k:]
+
+
 def _pads(fp: str) -> list[tuple[int, int, str, str | None]]:
     """(start, end, number, net) of each pad of a footprint block."""
     out = []
@@ -224,6 +232,9 @@ def update(d: Path, pcb: Path, netlist: str | None = None) -> int:
             blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic; swap it in KiCad")
             continue
         new = fp
+        if span not in by_path.values():                 # matched by reference: link it, as KiCad's re-link does
+            new = link(new, path, c["sheetname"], c["sheetfile"])
+            notes.append(f"{c['ref']}: linked to its symbol")
         for name in ("Reference", "Value"):
             have, val = _prop(new, name), c["ref" if name == "Reference" else "value"]
             if have is not None and have != val:

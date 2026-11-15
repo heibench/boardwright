@@ -147,6 +147,9 @@
 				)
 			)
 		)
+		(path "/f3b99144-287d-5a18-ac4f-7a0f38270fac")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -503,6 +506,9 @@
 				)
 			)
 		)
+		(path "/a9dbb052-6e25-5cf8-a5c7-4534f67bff87")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -649,6 +655,9 @@
 				)
 			)
 		)
+		(path "/2d5f84a7-0d25-5eeb-b869-43a13f68311b")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -795,6 +804,9 @@
 				)
 			)
 		)
+		(path "/0bc81658-8079-54b6-8320-157783045539")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1040,6 +1052,9 @@
 				)
 			)
 		)
+		(path "/98ae55f3-7fcd-5c18-92bc-207fb1c27c62")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1186,6 +1201,9 @@
 				)
 			)
 		)
+		(path "/5ca721fd-c20b-5bc5-852e-91c5b5e5193c")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1568,6 +1586,9 @@
 				)
 			)
 		)
+		(path "/f250e0e6-0792-5811-9d20-59b43ba1c5b2")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1714,6 +1735,9 @@
 				)
 			)
 		)
+		(path "/308b2e7d-eb0f-5fd8-bd5c-9877fc5c565a")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2123,6 +2147,9 @@
 				)
 			)
 		)
+		(path "/8b0d9dbc-dfd2-5802-be06-5a13f1b68c65")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2312,6 +2339,9 @@
 				)
 			)
 		)
+		(path "/fbf85b8d-efad-5749-9790-09b91c892f42")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2647,6 +2677,9 @@
 				)
 			)
 		)
+		(path "/af53f848-348b-58cb-887b-c5b08c3d81ac")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2793,6 +2826,9 @@
 				)
 			)
 		)
+		(path "/72ba09fc-7d39-55f1-8d97-48b098173904")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2939,6 +2975,9 @@
 				)
 			)
 		)
+		(path "/60eeb7d7-bf90-51ad-bebc-12bc61244763")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3085,6 +3124,9 @@
 				)
 			)
 		)
+		(path "/a1df8163-91c9-5eb4-a766-24cd843af6eb")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3231,6 +3273,9 @@
 				)
 			)
 		)
+		(path "/16d25447-8d8f-5c57-848d-4834a9329f29")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3426,6 +3471,9 @@
 				)
 			)
 		)
+		(path "/e7f09a67-fd85-54fb-8c60-a26d08801ba5")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3766,6 +3814,9 @@
 				)
 			)
 		)
+		(path "/87541e9c-3c8f-551d-9a2e-d211e314f525")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3903,6 +3954,9 @@
 				)
 			)
 		)
+		(path "/ac68741c-5423-5582-8822-5d5b9b54163d")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4190,6 +4244,9 @@
 				)
 			)
 		)
+		(path "/33f2c6ac-7a1c-5c23-92c1-e2bf92fc2a41")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5067,6 +5124,9 @@
 				)
 			)
 		)
+		(path "/40300464-ceb6-5c4c-978e-3280d28ce99d")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5213,6 +5273,9 @@
 				)
 			)
 		)
+		(path "/14bafbb0-652e-5a64-a9ad-fcf0506660af")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5359,6 +5422,9 @@
 				)
 			)
 		)
+		(path "/ce469b02-0c06-5ee4-8f4e-8f7b5ba21504")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5505,6 +5571,9 @@
 				)
 			)
 		)
+		(path "/67b74288-5c99-50cc-ac22-7fff87089c6c")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5650,6 +5719,9 @@
 				)
 			)
 		)
+		(path "/48aa4eb9-27e6-51c6-ba2f-e8fc1b780de9")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5813,6 +5885,9 @@
 				)
 			)
 		)
+		(path "/953b7b5f-6819-548c-871a-b4e9f9a05ae2")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6040,6 +6115,9 @@
 				)
 			)
 		)
+		(path "/ba52b676-8fb7-5893-9458-64b527f1cec0")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6327,6 +6405,9 @@
 				)
 			)
 		)
+		(path "/d364c17b-04e6-58db-8f36-9e2a5e9b4eaa")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6476,6 +6557,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/cdf208af-86ea-5df7-a01e-a5e5ac0c7287")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6626,6 +6710,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/e3e055ba-584f-5dae-bc30-2e199f2d17c3")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6776,6 +6863,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/97f68671-4beb-5879-bec1-93a4aa666383")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6926,6 +7016,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/50dfb518-cbac-5cdf-af31-45a5bde2b5e3")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7076,6 +7169,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/e8a7e7fa-3bc6-54cf-a256-a41f1980df42")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7226,6 +7322,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/ac72fd3f-a321-5937-8d91-02a71171f0da")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7376,6 +7475,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/3849444c-6063-5254-8eae-0bdfa8a4d24c")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7526,6 +7628,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/8649815b-6e54-5175-bd45-1c9a33653e00")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7676,6 +7781,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/fa4ba441-6588-56cf-8588-fe39787d49b5")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7826,6 +7934,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/524dc044-2a8a-5510-9aa6-b6dfedb7476b")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7976,6 +8087,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/b8f7ce2b-6d52-540f-8b80-0b903328e6c6")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -8126,6 +8240,9 @@
 				(justify mirror)
 			)
 		)
+		(path "/6ff90429-689f-5e06-97d8-bf0bbb6a5c26")
+		(sheetname "/")
+		(sheetfile "rp2040_min.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line

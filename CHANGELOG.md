@@ -39,6 +39,11 @@ the command line).
 
 ### Fixed
 
+- Generated boards now link each footprint to its symbol (`path`,
+  `sheetname`, `sheetfile`), as KiCad does; kicad-tools wrote no link, so
+  renaming a part in the schematic orphaned its placed footprint (#26). The
+  example boards are linked. `existing update` adds the link when it matches
+  a footprint by reference, like KiCad's re-link.
 - `existing update` wrote a new footprint's `sheetname` as the sheet's name
   (`pic_sockets`); KiCad writes the sheet path (`/pic_sockets/`).
 - `sch add` found a cached symbol only if `(symbol "LIB:NAME"` fit in the

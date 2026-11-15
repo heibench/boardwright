@@ -147,6 +147,9 @@
 				)
 			)
 		)
+		(path "/51dff2c6-2e34-5242-9794-1536a8b11ad6")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -342,6 +345,9 @@
 				)
 			)
 		)
+		(path "/cc88c865-7cba-5109-8a09-70341f8133fe")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -569,6 +575,9 @@
 				)
 			)
 		)
+		(path "/16c8d81a-175f-58ff-85b5-197783b8950f")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -715,6 +724,9 @@
 				)
 			)
 		)
+		(path "/e1031cc4-e71f-5aa8-a348-9f36cff4934a")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -902,6 +914,9 @@
 				)
 			)
 		)
+		(path "/23d50fd9-b780-544b-aab4-8b459fd5b148")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1164,6 +1179,9 @@
 				)
 			)
 		)
+		(path "/f4be4daa-82f8-5c9c-89b3-50c7460dbadc")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1310,6 +1328,9 @@
 				)
 			)
 		)
+		(path "/c9e272b4-1d3e-576e-ae0c-bbce63f36ad9")
+		(sheetname "/")
+		(sheetfile "ldo_breakout.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line

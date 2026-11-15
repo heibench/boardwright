@@ -147,6 +147,9 @@
 				)
 			)
 		)
+		(path "/1fb7f36d-0c46-5e26-b877-ab756605cb95")
+		(sheetname "/")
+		(sheetfile "customlib_test.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -293,6 +296,9 @@
 				)
 			)
 		)
+		(path "/cb4d48df-d8f8-565c-a7b6-ec6a8aff19a8")
+		(sheetname "/")
+		(sheetfile "customlib_test.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -520,6 +526,9 @@
 				)
 			)
 		)
+		(path "/2e729d9d-0f7e-50d6-8cb0-60cf5ab3e855")
+		(sheetname "/")
+		(sheetfile "customlib_test.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -902,6 +911,9 @@
 				)
 			)
 		)
+		(path "/6cf0359a-8d47-5c48-9abd-b358b7011c70")
+		(sheetname "/")
+		(sheetfile "customlib_test.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1048,6 +1060,9 @@
 				)
 			)
 		)
+		(path "/29dd4c1b-569c-54ba-84ac-1897d098882a")
+		(sheetname "/")
+		(sheetfile "customlib_test.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
