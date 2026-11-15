@@ -54,6 +54,7 @@ def test_the_netlist_keeps_net_names_as_the_board_writes_them(tmp_path):
     assert list(comps) == ["/aaaa/u1"]
     assert comps["/aaaa/u1"]["ref"] == "U2" and comps["/aaaa/u1"]["skip"] is True
     assert comps["/aaaa/u1"]["value"] == '74HC00 "quad"'       # read as the text it stands for
+    assert comps["/aaaa/u1"]["sheetname"] == "/sub/"          # the sheet path, as KiCad writes it on the board
     assert pins == {("U2", "3"): "/VPP{slash}MCLR"}
 
 
