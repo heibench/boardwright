@@ -28,6 +28,9 @@ the command line).
 
 ### Fixed
 
+- `sch add` found a cached symbol only if `(symbol "LIB:NAME"` fit in the
+  first 40 characters of its entry, so a long name such as
+  `My_Connector_Library:1217861-1_Tab` was refused as not cached.
 - `live status` names the open board by its full path, and `live apply`
   prints that path before it edits, so two copies of a board with the
   same file name can be told apart (#17).
