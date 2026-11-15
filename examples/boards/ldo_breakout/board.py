@@ -12,8 +12,14 @@ CIRCUIT = c = Circuit("LDO breakout")
 c.add("J1", "Connector_Generic:Conn_01x02", "VIN", HDR2, {1: "VIN", 2: "GND"})
 c.add("U1", "Regulator_Linear:AMS1117-3.3", "AMS1117-3.3", "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
       {1: "GND", 2: "+3V3", 3: "VIN"})
+# Input capacitor: a design choice; the AMS1117 datasheet's Figure 1 shows none
+# (its 10 uF is the adjust-pin bypass of the adjustable part).
 c.add("C1", "Device:C", "10u", C0805, {1: "VIN", 2: "GND"})
-c.add("C2", "Device:C", "22u", C0805, {1: "+3V3", 2: "GND"})
+# Output: "22 uF solid tantalum on the output will ensure stability for all
+# operating conditions" (AMS1117 datasheet, Stability). The regulator needs the
+# output capacitor's series resistance, which a ceramic part does not give.
+c.add("C2", "Device:C_Polarized", "22u tantalum", "Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B",
+      {1: "+3V3", 2: "GND"})
 c.add("R1", "Device:R", "1k", "Resistor_SMD:R_0805_2012Metric", {1: "+3V3", 2: "LED_A"})
 c.add("D1", "Device:LED", "green", "LED_SMD:LED_0805_2012Metric", {1: "GND", 2: "LED_A"})
 c.add("J2", "Connector_Generic:Conn_01x02", "3V3", HDR2, {1: "+3V3", 2: "GND"})

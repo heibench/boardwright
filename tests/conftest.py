@@ -15,7 +15,8 @@ def board(name: str) -> Path:
 def ldo_copy(tmp_path) -> Path:
     """A writable copy of the LDO example project."""
     dst = tmp_path / "ldo_breakout"
-    shutil.copytree(BOARDS / "ldo_breakout", dst)
+    # gate reports a local run left behind are not part of the example
+    shutil.copytree(BOARDS / "ldo_breakout", dst, ignore=shutil.ignore_patterns("out", "boardwright_out", ".libmerge"))
     return dst
 
 
