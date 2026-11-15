@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing apply` saved a `MOVE` through kicad-tools, which rewrote the whole
+  board file (a four-part move: +198 / -5507 lines, nothing lost). A move now
+  edits only the moved footprints' blocks: position, the absolute angles of
+  their pads and texts, and their own zones (#32).
+
 ## [0.4.0] - 2026-11-15
 
 ### Added
