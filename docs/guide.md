@@ -167,10 +167,14 @@ is written. A part carrying a `lib_name` override is refused too.
 
 On a sheet used more than once in a hierarchy, one symbol is a part in each
 use: `parts` says which, `set` changes all of them and says so, `remove`
-refuses.
+refuses, and so does `add`. `SHEET = "file.kicad_sch"` in the spec adds to a
+sub-sheet used once: the new parts take its hierarchy path from a part already
+on it, a sheet pin's net gets a hierarchical label, a power net a copy of its
+power symbol from whichever sheet has one, and a net local to another sheet is
+refused (exit 1), since only a sheet pin reaches it.
 
-Limits: `add` needs a part with the same symbol already present, works on
-the root sheet, and draws only pin stubs. Nothing is moved or re-wired. A
+Limits: `add` places single-unit symbols on a sheet used once, and draws only
+pin stubs. Nothing is moved or re-wired. A
 schematic open in KiCad has to be closed and reopened to show the change.
 
 ## Live KiCad (the board that is open on screen)

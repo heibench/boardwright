@@ -9,6 +9,11 @@ the command line).
 
 ### Added
 
+- `sch add` adds on a sub-sheet used once: `SHEET = "file.kicad_sch"` in
+  the spec (part of #3). Parts take the sheet's hierarchy path; sheet-pin nets
+  get hierarchical labels; power symbols are copied from whichever sheet has
+  one; a net local to another sheet is refused. References are checked across
+  every sheet, not only the root.
 - `sch add` and `sch repoint` find a library in KiCad's global
   `sym-lib-table` too, after the project's: its path variables (Preferences >
   Configure Paths, or the environment) are filled in and tables nested in it
