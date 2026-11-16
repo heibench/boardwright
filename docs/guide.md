@@ -125,7 +125,11 @@ place: commit before `apply` or `reroute`.
 - The gate for an existing board is **"review passes and DRC shows nothing
   that is not in the baseline"**, not "DRC is zero". Run the DRC into
   `boardwright_out/drc.json`, `baseline` once, then `verify` after every
-  change.
+  change. A finding matches the baseline by its type and descriptions, less
+  the track length KiCad writes into them, so a track that only got longer
+  or shorter is not new. A clearance's `actual` figure is kept: a finding
+  whose clearance changed is reported as new. Every new finding fails
+  `verify`; it does not tell the nets the edit touched from the rest.
 - `reroute` rips up only the named nets, gives Freerouting everything else as
   fixed copper (curved tracks included, which kicad-tools' export omits), and
   afterwards keeps only the named nets' new copper: every other net is

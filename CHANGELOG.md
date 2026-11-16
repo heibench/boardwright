@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing verify` reported a baseline DRC finding as new when only a
+  track's length had changed: KiCad writes `length X mm` into the item's
+  description, and findings were matched on the full text. The length is now
+  left out of the match (#44).
+
 ## [0.5.1] - 2026-11-15
 
 ### Fixed
