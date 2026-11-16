@@ -37,6 +37,11 @@
   layers needs the bottom layer for its escape. The honest fix is four layers.
 - **The completion pass is slow.** It is capped at 12 open connections and 90
   seconds; before the cap it ground for seven minutes on a board with 19 open.
+- **`existing verify` does not know what the edit touched.** A new DRC
+  finding on a net the edit never named fails `verify` the same as one on
+  its own nets; a refill can move findings around a large board. `apply`,
+  `reroute`, `update` and a staged KiCad edit do not record the nets and
+  references they changed, so there is nothing to split on (#44).
 - One flat schematic sheet, label-per-pin, for generated boards.
 - No current or thermal sizing of copper.
 - No part sourcing. Konnect's approach: the JLC parts feed in local SQLite

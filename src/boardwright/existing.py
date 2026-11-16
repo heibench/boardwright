@@ -118,13 +118,21 @@ def nets(d: Path, pattern: str) -> int:
     return 0
 
 
+def _key(text: str) -> str:
+    """A DRC description without the track length KiCad puts in it
+    ("Track [+3V3] on F.Cu, length 0.2858 mm"), which an edit or a refill
+    changes without changing the finding (#44). The unit is whichever the DRC
+    ran with: mm, mils or in (KiCad's eda_units.cpp labels)."""
+    return re.sub(r", length [-\d.]+ (?:mm|mils|in)\b", "", text or "")
+
+
 def _findings(report: Path) -> list[tuple]:
     j = json.loads(report.read_text())
     out = []
     for v in j.get("violations", []) + j.get("unconnected_items", []) + j.get("schematic_parity", []):
         if v.get("severity") == "exclusion":
             continue
-        out.append((v.get("type"), v.get("description"), tuple(sorted(i.get("description", "") for i in v.get("items", [])))))
+        out.append((v.get("type"), _key(v.get("description")), tuple(sorted(_key(i.get("description", "")) for i in v.get("items", [])))))
     return out
 
 
