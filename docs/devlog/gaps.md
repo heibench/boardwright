@@ -16,9 +16,9 @@
   parts and adds a part, copied from one on the sheet or taken from a library
   (single-unit only), on the root or a sheet used once, connected by label or
   power symbol (09). It does not wire point to point or add sheet pins.
-  `existing update` carries a change to the board but does not swap
-  footprints or remove footprints whose symbol is gone; what it adds lands
-  beside the board for `free` and `MOVE`.
+  `existing update` carries a change to the board and swaps a footprint
+  only for one with the same pads; what it adds lands beside the board for
+  `free` and `MOVE`, and footprints whose symbol is gone wait for `REMOVE`.
 - **The pad-to-pad router is new and narrow.** It routed two nets on the
   StickHub demo (one that Freerouting could not), applied live and DRC-clean
   against the baseline, and five of six layer-changing nets on a 6-layer demo
@@ -47,6 +47,7 @@
 
 ## Closed
 
+- No way to re-point a placed footprint's library link, or take a footprint off the board -> `update` swaps footprints with the same pads, `REMOVE` (12, #37, #38).
 - Live apply, selection, refill, move, rip-up and save not run against KiCad -> all run on KiCad 10.0.8 (#4).
 - Parts moved onto other copper without a word -> `apply`'s clash check, `existing free` (11, #24).
 - Stacked vias from routes sharing a pad -> routes reuse their net's through copper (11, #23).

@@ -9,6 +9,12 @@ the command line).
 
 ### Added
 
+- `existing update` swaps a footprint the schematic changed, when the new
+  library footprint's pads are the same as the board's (number, type, shape,
+  position, angle, size, drill, layers). `--body keep` (the default) changes
+  the library link alone; `--body library` also takes the drawing from the
+  library. A swap to a footprint whose pads differ is still refused, now with
+  the differences listed (#37).
 - `REMOVE = ["G***", "LIB:NAME"]` in `existing apply` takes footprints off the
   board, by reference or library name. One with a pad on a net or a schematic
   symbol is refused unless `--force` (#38).

@@ -11,7 +11,7 @@
     boardwright existing <project dir> apply [--force]   # REMOVE, MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
     boardwright existing <project dir> free REF [near REF.PAD | near X,Y]   # clear spots for a part, for MOVE
     boardwright existing <project dir> reroute NET [NET ...]
-    boardwright existing <project dir> update [NETLIST.net]   # the schematic's parts and nets onto the board
+    boardwright existing <project dir> update [NETLIST.net] [--body keep|library]   # the schematic's parts and nets onto the board
 
 The project keeps its own schematic, libraries and rules; nothing is
 regenerated. An optional `boardwright.py` beside the board holds the same names a
@@ -534,4 +534,17 @@ def cli(argv: list[str]) -> int:
               "verify": lambda: verify(d, "--staged" in rest), "stage": lambda: stage(d, Path(rest[0]).resolve()),
               "apply": lambda: apply(d, "--force" in rest), "reroute": lambda: reroute(d, rest),
               "free": lambda: free(d, rest),
-              "update": lambda: update_board(d, find(d), rest[0] if rest else None)}[step]())
+              "update": lambda: _update(d, rest)}[step]())
+
+
+def _update(d: Path, rest: list[str]) -> int:
+    body = "keep"
+    if "--body" in rest:
+        i = rest.index("--body")
+        if i + 1 >= len(rest) or rest[i + 1] not in ("keep", "library"):
+            raise Usage("update [NETLIST.net] [--body keep|library]")
+        body = rest[i + 1]
+        rest = rest[:i] + rest[i + 2:]
+    if len(rest) > 1:
+        raise Usage("update [NETLIST.net] [--body keep|library]")
+    return update_board(d, find(d), rest[0] if rest else None, body)
