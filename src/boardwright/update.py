@@ -1,7 +1,7 @@
 """Bring a board in line with its schematic, as KiCad's Update PCB from Schematic
 does, from KiCad's own netlist.
 
-    boardwright existing <project dir> update [NETLIST.net]
+    boardwright existing <project dir> update [NETLIST.net] [--body keep|library]
 
 The netlist is KiCad's own (`kicad-cli sch export netlist --format kicadsexpr`),
 made here unless one is given. Footprints are matched to symbols by their path, as
@@ -15,9 +15,15 @@ KiCad matches them. For each symbol:
   place;
 - marked "exclude from board": skipped.
 
-Not done, and listed instead: a footprint changed in the schematic (swap it in
-KiCad), a symbol with no footprint or a footprint not found (nothing is written
-then), and footprints whose symbol is gone (left on the board). Tracks and
+A footprint changed in the schematic is swapped when the new library footprint's
+pads are the board footprint's (number, type, shape, position, angle, size,
+drill, layers): the link alone (--body keep, the default), or the drawing too
+(--body library); the footprint's place, fields, pads and nets stay.
+
+Not done, and listed instead: a footprint changed to one whose pads differ
+(swap it in KiCad), a symbol with no footprint or a footprint not found
+(nothing is written then), and footprints whose symbol is gone (left on the
+board; `existing apply`'s REMOVE takes them off). Tracks and
 zones are not touched: DRC shows what a changed net leaves unconnected or
 shorted. Each change replaces only its own block, as everywhere in boardwright.
 
@@ -28,6 +34,7 @@ carry their net by name).
 
 from __future__ import annotations
 
+import math
 import re
 import subprocess
 import uuid
@@ -127,6 +134,151 @@ def _with_pad_nets(fp: str, want: dict) -> str:
     return fp
 
 
+def _flip_layers(s: str) -> str:
+    return re.sub(r'"([FB])\.', lambda m: '"' + ("B" if m.group(1) == "F" else "F") + ".", s)
+
+
+def _num(v: str) -> str:
+    return f"{round(float(v), 4) + 0:g}"
+
+
+def _pad_shapes(fp: str, back: bool, rot: float) -> dict[str, list[tuple]]:
+    """Each pad of a footprint as its library defines it: number -> [(type,
+    shape, x, y, angle, size, drill, layers, primitives)]. A board footprint
+    (rot is its angle) keeps its pads at their library position, in its own
+    frame, with the angle absolute; on the back the y axis and the layers are
+    mirrored and the angle turns the other way. Measured on KiCad 10.0.8's demo
+    boards: 581 of 589 placed footprints match their stock library this way, the
+    other 8 differ in size, shape or layers. A library footprint is read with
+    back=False, rot=0."""
+    out: dict[str, list[tuple]] = {}
+    for s, e, num, _net in _pads(fp):
+        p = fp[s:e]
+        typ, shape = re.match(r'\s*\(pad "(?:[^"\\]|\\.)*" (\S+) (\S+)', p).groups()
+        at = re.search(r"\n\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", p)
+        x, y, a = float(at.group(1)), float(at.group(2)), float(at.group(3) or 0)
+        layers = re.search(r"\(layers ([^)]*)\)", p).group(1)
+        prim = blocks(p, ("primitives",))
+        prim = re.sub(r"\s+", " ", p[prim[0][0]:prim[0][1]]).strip() if prim else ""
+        drill = re.search(r"\(drill ((?:[^()]|\([^()]*\))*)\)", p)
+        drill = re.sub(r"\s+", " ", drill.group(1)).strip() if drill else ""
+        if back:
+            y, layers = -y, _flip_layers(layers)
+            prim = re.sub(r"\((start|end|mid|center|xy) ([-\d.]+) ([-\d.]+)\)", lambda m: f"({m.group(1)} {m.group(2)} {-float(m.group(3)):g})", prim)
+            drill = re.sub(r"\(offset ([-\d.]+) ([-\d.]+)\)", lambda m: f"(offset {m.group(1)} {-float(m.group(2)):g})", drill)
+        a = rot - a if back else a - rot
+        prim = re.sub(r"-?\d+(?:\.\d+)?", lambda m: _num(m.group(0)), prim)
+        size = " ".join(_num(v) for v in re.search(r"\(size ([^)]*)\)", p).group(1).split())
+        out.setdefault(num, []).append((typ, shape, _num(x), _num(y), _num(a % 360 % 360), size, drill, layers, prim))
+    return {k: sorted(v) for k, v in out.items()}
+
+
+_FIELDS = ("type", "shape", "x", "y", "angle", "size", "drill", "layers", "custom shape")
+
+
+def pad_differences(fp: str, mod: str) -> list[str]:
+    """How the pads of board footprint `fp` differ from library footprint `mod`;
+    empty when every pad is the same in number, type, shape, position, angle,
+    size, drill, layers and custom shape."""
+    at = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
+    back = re.search(r'\n\t\t\(layer "B\.Cu"\)', fp) is not None
+    have, want = _pad_shapes(fp, back, float(at.group(3) or 0)), _pad_shapes(mod, False, 0)
+    out = []
+    for num in sorted(set(have) | set(want)):
+        if num not in want:
+            out.append(f"pad {num} is not in the library footprint")
+        elif num not in have:
+            out.append(f"pad {num} is not on the board")
+        elif have[num] != want[num]:
+            if len(have[num]) != len(want[num]):
+                out.append(f"pad {num}: {len(have[num])} on the board, {len(want[num])} in the library")
+                continue
+            for h, w in zip(have[num], want[num]):
+                for field, hv, wv in zip(_FIELDS, h, w):
+                    if hv != wv:
+                        out.append(f"pad {num} {field}: {hv or '(none)'} on the board, {wv or '(none)'} in the library")
+                        break
+                else:
+                    continue
+                break
+    return out
+
+
+ART = ("fp_line", "fp_arc", "fp_circle", "fp_rect", "fp_poly", "fp_curve", "fp_text", "fp_text_box", "model", "zone")
+
+
+def _art(fp: str, depth: int) -> list[tuple[int, int]]:
+    """The drawings, texts, 3D models and zones of a footprint (not its fields or pads)."""
+    head = "\n" + "\t" * depth + "("
+    return [(s, e) for s, e in blocks(fp, ART) if fp[s:s + len(head)] == head]
+
+
+def _upright(a: float) -> float:
+    a %= 360
+    return a - 180 if 90 < a <= 270 else a
+
+
+def _placed(item: str, back: bool, x0: float, y0: float, rot: float) -> str:
+    """A library footprint's drawing item as KiCad writes it in a footprint placed
+    at (x0, y0), turned rot degrees, on the back if `back`. Drawings stay in the
+    footprint's own frame (mirrored in y on the back, where an arc's ends swap
+    to keep its direction and text is mirrored); a text's angle is absolute and
+    kept upright; zones are board-absolute; 3D models are copied as they are.
+    Checked against the drawings of the footprints on KiCad's demo boards."""
+    kind = re.match(r"\s*\((\S+)", item).group(1)
+    if kind == "model":
+        return item
+    if back:
+        item = _flip_layers(item)
+        item = re.sub(r"\((start|end|mid|center|xy|at) ([-\d.]+) ([-\d.]+)",
+                      lambda m: f"({m.group(1)} {m.group(2)} {-float(m.group(3)):g}", item)
+        if kind == "fp_arc":
+            st = re.search(r"\(start ([-\d.]+ [-\d.]+)\)", item)
+            en = re.search(r"\(end ([-\d.]+ [-\d.]+)\)", item)
+            item = (item[:st.start()] + f"(start {en.group(1)})" + item[st.end():en.start()] + f"(end {st.group(1)})" + item[en.end():]
+                    if st.start() < en.start() else item)
+        if kind in ("fp_text", "fp_text_box"):
+            if "(justify" in item:
+                item = re.sub(r"\(justify ([^)]*)\)", lambda m: f"(justify {m.group(1)} mirror)", item, count=1)
+            else:
+                f = blocks(item, ("font",))[0]
+                item = item[:f[1]] + " (justify mirror)" + item[f[1]:]
+    if kind in ("fp_text", "fp_text_box"):
+        def turn(m):
+            a = float(m.group(3) or 0)
+            return f"(at {m.group(1)} {m.group(2)} {_upright(rot - a if back else rot + a):g})"
+        item = re.sub(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", turn, item, count=1)
+    if kind == "zone":
+        c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        item = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)",
+                      lambda m: (lambda lx, ly: f"(xy {round(x0 + lx * c + ly * s_, 6):g} {round(y0 - lx * s_ + ly * c, 6):g})")(
+                          float(m.group(1)), float(m.group(2))), item)
+    return re.sub(r'\(uuid "[^"]*"\)', lambda m: f'(uuid "{uuid.uuid4()}")', item)
+
+
+def swap(fp: str, lib_id: str, mod: str, body: str) -> str:
+    """Board footprint `fp` linked to library footprint `lib_id` (text `mod`),
+    whose pads are the same (see pad_differences). Position, side, fields, pads
+    and their nets stay. body="keep" changes the link alone and keeps the drawing;
+    body="library" also replaces the drawings, texts, 3D models and zones with
+    the library's."""
+    fp = re.sub(r'^\n\t\(footprint "(?:[^"\\]|\\.)*"', lambda m: f'\n\t(footprint "{_esc(lib_id)}"', fp, count=1)
+    if body == "keep":
+        return fp
+    at = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
+    back = re.search(r'\n\t\t\(layer "B\.Cu"\)', fp) is not None
+    x0, y0, rot = float(at.group(1)), float(at.group(2)), float(at.group(3) or 0)
+    new = []
+    for s, e in _art(mod.strip(), 1):
+        item = _placed(mod.strip()[s:e], back, x0, y0, rot)
+        new.append("\n" + "\n".join("\t" + ln if ln else ln for ln in item.lstrip("\n").split("\n")))
+    old = _art(fp, 2)
+    k = old[0][0] if old else _pads(fp)[0][0] if _pads(fp) else fp.rstrip().rfind("\n")
+    for s, e in reversed(old):
+        fp = fp[:s] + fp[e:]
+    return fp[:k] + "".join(new) + fp[k:]
+
+
 def _extent(mod: str) -> tuple[float, float, float, float]:
     xs, ys = [0.0], [0.0]
     for x, y in re.findall(r"\((?:at|start|end|xy|center|mid) ([-\d.]+) ([-\d.]+)", mod):
@@ -192,7 +344,17 @@ def _netlist(d: Path, pcb: Path, given: str | None) -> Path:
     return nl
 
 
-def update(d: Path, pcb: Path, netlist: str | None = None) -> int:
+def _library_footprint(d: Path, lib_id: str) -> tuple[Path | None, str]:
+    """The .kicad_mod file of footprint LIB:NAME, or None and why it was not found."""
+    nick, _, name = lib_id.partition(":")
+    lib = sch.fp_dir(d, nick)
+    mod = lib / f"{name}.kicad_mod" if lib else None
+    if mod is None or not mod.exists():
+        return None, (f"library {nick} not in any fp-lib-table or the stock folder" if lib is None else str(mod))
+    return mod, ""
+
+
+def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -> int:
     t = t0 = pcb.read_text()
     if re.search(r'\n\t\(net 0 ""\)', t):
         raise SystemExit(f"{pcb.name} numbers its nets (saved by KiCad 9 or older); open and save it in KiCad 10 first")
@@ -216,22 +378,31 @@ def update(d: Path, pcb: Path, netlist: str | None = None) -> int:
             if not c["footprint"]:
                 blockers.append(f"{c['ref']}: no footprint in the schematic")
                 continue
-            nick, _, name = c["footprint"].partition(":")
-            lib = sch.fp_dir(d, nick)
-            mod = lib / f"{name}.kicad_mod" if lib else None
-            if mod is None or not mod.exists():
-                blockers.append(f"{c['ref']}: footprint {c['footprint']} not found "
-                                f"({'library ' + nick + ' not in any fp-lib-table or the stock folder' if lib is None else mod})")
+            mod, why = _library_footprint(d, c["footprint"])
+            if mod is None:
+                blockers.append(f"{c['ref']}: footprint {c['footprint']} not found ({why})")
                 continue
             adds.append((path, c, mod, want))
             continue
         s, e = span
         used.add(span)
         fp, lib_id = t[s:e], re.match(r'\n\t\(footprint "((?:[^"\\]|\\.)*)"', t[s:e]).group(1)
-        if c["footprint"] and c["footprint"] != lib_id:
-            blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic; swap it in KiCad")
-            continue
         new = fp
+        if c["footprint"] and c["footprint"] != lib_id:      # the schematic names another footprint
+            mod, why = _library_footprint(d, c["footprint"])
+            if mod is None:
+                blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic, "
+                                f"which is not found ({why})")
+                continue
+            text = mod.read_text()
+            diff = pad_differences(fp, text)
+            if diff:
+                blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic, "
+                                f"and their pads differ ({'; '.join(diff[:3])}{'; ...' if len(diff) > 3 else ''}); swap it in KiCad")
+                continue
+            new = swap(fp, c["footprint"], text, body)
+            notes.append(f"{c['ref']}: footprint {lib_id} -> {c['footprint']} (pads match; "
+                         f"{'drawing kept' if body == 'keep' else 'drawing from the library'})")
         if span not in by_path.values():                 # matched by reference: link it, as KiCad's re-link does
             new = link(new, path, c["sheetname"], c["sheetfile"])
             notes.append(f"{c['ref']}: linked to its symbol")

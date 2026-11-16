@@ -35,6 +35,7 @@ the board. One file per board:
 | 09 | `existing/schtest` | the StickHub demo's schematic | an existing schematic: change a value, add two parts | netlist diff is exactly the edit |
 | 10 | `existing/hier` and two read-only demos | KiCad's hierarchical, 6-layer and 9-layer demos | shared sub-sheets, routing with vias and inner layers, per-net rules | see entry |
 | 11 | `stm32f103_4l` as an existing board | 06, without its spec | the whole existing-board loop on four layers: schematic edit, update, place, route, text | PASS vs baseline |
+| 12 | KiCad's pic_programmer and coldfire demos | a fleet of existing boards with dead library links | re-pointing a placed footprint, removing a board-only one | PASS, judged by KiCad's DRC |
 
 "Gate PASS" means: ERC 0, DRC 0 at every severity with schematic parity,
 KiCad's netlist equals the declared circuit, the `REVIEW` checks pass, fab

@@ -198,3 +198,28 @@ def test_a_long_library_name_is_found_in_the_cache(proj, tmp_path):
     (proj / "sym-lib-table").write_text(t.replace('(name "Mine")', f'(name "{long_nick}")'))
     row = ("R50", f"{long_nick}:R_new", "1k", "Resistor_SMD:R_0805_2012Metric", {1: "+3V3", 2: "GND"})
     assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+
+
+@pytest.mark.parametrize("kind,table,var,lib", [
+    ("SYMBOL", "sym-lib-table", "KICAD10_SYMBOL_DIR", "Device.kicad_sym"),
+    ("FOOTPRINT", "fp-lib-table", "KICAD10_FOOTPRINT_DIR", "Resistor_SMD.pretty"),
+])
+def test_a_project_row_naming_the_stock_folder_is_found(tmp_path, monkeypatch, kind, table, var, lib):
+    """KiCad's demo projects list stock libraries in their own tables as
+    ${KICAD10_FOOTPRINT_DIR}/X.pretty. The variable is KiCad's built-in, not set
+    in its settings, so it means the stock folder that was found."""
+    from boardwright import env
+
+    stock = tmp_path / "stock"
+    (stock / lib).mkdir(parents=True)
+    for v in ("KICAD_SYMBOL_DIR", "KICAD_FOOTPRINT_DIR", "KICAD10_SYMBOL_DIR", "KICAD10_FOOTPRINT_DIR",
+              "KICAD9_SYMBOL_DIR", "KICAD9_FOOTPRINT_DIR"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setattr(env, "_library_candidates", lambda dir_: [])   # only the folder named below exists
+    monkeypatch.setenv(f"KICAD_{kind}_DIR", str(stock))
+    d = tmp_path / "proj"
+    d.mkdir()
+    nick = lib.split(".")[0]
+    (d / table).write_text(f'({table.replace("-", "_")}\n  (version 7)\n'
+                           f'  (lib (name "{nick}")(type "KiCad")(uri "${{{var}}}/{lib}")(options "")(descr ""))\n)\n')
+    assert sch._in_table(d / table, nick, d, kind=kind) == (True, stock / lib)

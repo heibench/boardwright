@@ -8,10 +8,10 @@
     boardwright existing <project dir> verify        # review + no DRC finding that is not in the baseline
     boardwright existing <project dir> stage SNAPSHOT.kicad_pcb   # check a copy of the board (e.g. the one open in KiCad)
     boardwright existing <project dir> verify --staged
-    boardwright existing <project dir> apply [--force]   # MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
+    boardwright existing <project dir> apply [--force]   # REMOVE, MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
     boardwright existing <project dir> free REF [near REF.PAD | near X,Y]   # clear spots for a part, for MOVE
     boardwright existing <project dir> reroute NET [NET ...]
-    boardwright existing <project dir> update [NETLIST.net]   # the schematic's parts and nets onto the board
+    boardwright existing <project dir> update [NETLIST.net] [--body keep|library]   # the schematic's parts and nets onto the board
 
 The project keeps its own schematic, libraries and rules; nothing is
 regenerated. An optional `boardwright.py` beside the board holds the same names a
@@ -20,6 +20,7 @@ PLANES, FR_BOTTOM_COST, FR_PASSES) plus
 
     MOVE  = {"C12": (41.2, 18.0, 90)}       # ref -> x, y, rot[, {"ref": (x, y[, angle]), "value": ...}]
     RIPUP = ["/USB_D+", "/USB_D-"]          # nets whose tracks and vias are removed first
+    REMOVE = ["G***", "Logos:OldArt"]       # footprints to take off the board, by reference or LIB:NAME
 
 Coordinates are the board-relative mm that `pads` prints. Outputs go to
 <project dir>/boardwright_out/. The board file is edited in place: commit first.
@@ -302,8 +303,57 @@ def stage(d: Path, snapshot: Path) -> int:
     return 0
 
 
+def remove_footprints(t: str, names: list[str], force: bool = False) -> tuple[str, list[str], list[str]]:
+    """The board file without the footprints matching `names` (a reference or
+    LIB:NAME each), the removed footprints, and the refusals: a footprint with a
+    pad on a net or a link to a schematic symbol is kept unless `force`.
+    Each footprint is cut as its own block and its uuid dropped from any group."""
+    from .update import _footprints, _pads, _prop
+    hits, gone, refused = [], [], []
+    for s, e in _footprints(t):
+        fp = t[s:e]
+        ref, lib_id = _prop(fp, "Reference"), re.match(r'\n\t\(footprint "((?:[^"\\]|\\.)*)"', fp).group(1)
+        if ref in names or lib_id in names:
+            hits.append((s, e, ref, lib_id))
+    for name in names:
+        if not any(name in (ref, lib_id) for *_se, ref, lib_id in hits):
+            raise Usage(f"REMOVE {name!r}: no footprint with that reference or LIB:NAME on the board")
+    for s, e, ref, lib_id in hits:
+        fp = t[s:e]
+        nets_ = sorted({n for *_x, n in _pads(fp) if n})
+        why = ([f"pads on {', '.join(nets_)}"] if nets_ else []) + \
+              (["linked to a schematic symbol"] if re.search(r'\n\t\t\(path "', fp) else [])
+        if why and not force:
+            refused.append(f"{ref} ({lib_id}): {', '.join(why)}")
+        gone.append(f"{ref} ({lib_id})" + (f", {', '.join(why)}" if why else ""))
+    if refused:
+        return t, [], refused
+    for s, e, *_x in sorted(hits, reverse=True):
+        uid = re.search(r'\n\t\t\(uuid "([^"]*)"\)', t[s:e])
+        t = t[:s] + t[e:]
+        if uid:
+            t = re.sub(r'[ \t]*"%s"' % re.escape(uid.group(1)), "", t)
+    return t, gone, []
+
+
 def apply(d: Path, force: bool = False) -> int:
     pcb, m = find(d), spec(d)
+    rm = list(getattr(m, "REMOVE", []))
+    if rm:
+        original = pcb.read_text()
+        t, gone, refused = remove_footprints(original, rm, force)
+        for r in refused:
+            print("REFUSED", r)
+        if refused:
+            print("nothing written: REMOVE takes a footprint with a pad on a net or a schematic symbol only with --force")
+            return 1
+        if t.count("(") != t.count(")"):
+            raise SystemExit("the removal would unbalance the board file; nothing written")
+        if pcb.read_text() != original:
+            raise SystemExit(f"{pcb.name} changed on disk since it was read; nothing written")
+        pcb.write_text(t)
+        for g in gone:
+            print("removed", g)
     moves = getattr(m, "MOVE", {})
     if moves:
         from .placement import Clearance
@@ -484,4 +534,17 @@ def cli(argv: list[str]) -> int:
               "verify": lambda: verify(d, "--staged" in rest), "stage": lambda: stage(d, Path(rest[0]).resolve()),
               "apply": lambda: apply(d, "--force" in rest), "reroute": lambda: reroute(d, rest),
               "free": lambda: free(d, rest),
-              "update": lambda: update_board(d, find(d), rest[0] if rest else None)}[step]())
+              "update": lambda: _update(d, rest)}[step]())
+
+
+def _update(d: Path, rest: list[str]) -> int:
+    body = "keep"
+    if "--body" in rest:
+        i = rest.index("--body")
+        if i + 1 >= len(rest) or rest[i + 1] not in ("keep", "library"):
+            raise Usage("update [NETLIST.net] [--body keep|library]")
+        body = rest[i + 1]
+        rest = rest[:i] + rest[i + 2:]
+    if len(rest) > 1:
+        raise Usage("update [NETLIST.net] [--body keep|library]")
+    return update_board(d, find(d), rest[0] if rest else None, body)

@@ -108,11 +108,12 @@ multi-unit symbols, and placing and routing the parts a schematic change adds
     boardwright existing <project dir> apply [--force]
     boardwright existing <project dir> free REF [near REF.PAD | near X,Y]
     boardwright existing <project dir> reroute NET [NET ...]
-    boardwright existing <project dir> update [NETLIST.net]
+    boardwright existing <project dir> update [NETLIST.net] [--body keep|library]
 
 The project keeps its own schematic, libraries and rules. An optional
 `boardwright.py` beside the board holds `REVIEW`, `TRACKS`, `VIAS`, `ZONES`,
-`KEEPOUTS`, `TEXT`, plus `MOVE = {ref: (x, y, rot)}` and `RIPUP = [nets]`. A
+`KEEPOUTS`, `TEXT`, plus `MOVE = {ref: (x, y, rot)}`, `RIPUP = [nets]` and
+`REMOVE = [ref or LIB:NAME]`. A
 `MOVE` entry may carry a fourth item placing the part's text, in the same
 board-relative mm: `{"ref": (x, y[, angle]), "value": (x, y[, angle])}`; the
 angle stays as it was unless given.
@@ -130,7 +131,15 @@ place: commit before `apply` or `reroute`.
   afterwards keeps only the named nets' new copper: every other net is
   byte-identical to before. A net the router cannot finish gets its original
   routing back. New tracks are held to the project's own minimum width.
-- `apply` is repeatable: exact duplicates are dropped.
+- `apply` is repeatable: exact duplicates are dropped. A `REMOVE` entry is the
+  exception: once its footprint is gone it names nothing, which is refused
+  (exit 64), so take it out of the spec.
+- `REMOVE` takes footprints off the board, each matched by reference or by
+  `LIB:NAME`: logo art placed on the board alone is the usual case. Each
+  footprint's block is cut whole (its own zones with it) and its uuid dropped
+  from any group. A footprint with a pad on a net, or linked to a schematic
+  symbol, is refused and nothing is written (exit 1); `--force` removes it
+  anyway, and DRC shows what that leaves unconnected. It runs before `MOVE`.
 - `apply` checks every part `MOVE` moves before it keeps the move: its pads
   against other nets' tracks, vias and pads (the net classes' clearance), and
   against the board edge (the project's copper-to-edge clearance), and its
@@ -148,9 +157,18 @@ place: commit before `apply` or `reroute`.
   matched footprint takes the symbol's reference and value, and each pad its
   pin's net; a symbol with no footprint on the board gets one from the
   library (project, global, then stock `fp-lib-table`), beside the board
-  outline, for you to place. A footprint swapped in the schematic, a symbol
-  with no footprint or a footprint not found stops the update with nothing
-  written (exit 1); footprints whose symbol is gone are listed and left.
+  outline, for you to place. A footprint changed in the schematic is swapped
+  when the new library footprint has the board footprint's pads: the same
+  numbers, and each the same type, shape, position, angle, size, drill and
+  layers, read as KiCad places them (mirrored on the back). `--body keep`, the
+  default, changes the link alone, so DRC may report
+  `lib_footprint_mismatch` for the old drawing; `--body library` also replaces
+  the drawings, texts, 3D models and zones with the library's. The footprint's
+  place, fields, pads and nets stay either way. A swap to a footprint whose
+  pads differ, a symbol with no footprint or a footprint not found stops the
+  update with nothing written (exit 1), the first differences listed;
+  footprints whose symbol is gone are listed and left (`REMOVE` takes them
+  off).
   Tracks and zones are untouched: DRC shows what a changed net leaves
   unconnected. KiCad's DRC with `--schematic-parity` is the check. Boards
   saved by KiCad 10 only.

@@ -7,6 +7,25 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `existing update` swaps a footprint the schematic changed, when the new
+  library footprint's pads are the same as the board's (number, type, shape,
+  position, angle, size, drill, layers). `--body keep` (the default) changes
+  the library link alone; `--body library` also takes the drawing from the
+  library. A swap to a footprint whose pads differ is still refused, now with
+  the differences listed (#37).
+- `REMOVE = ["G***", "LIB:NAME"]` in `existing apply` takes footprints off the
+  board, by reference or library name. One with a pad on a net or a schematic
+  symbol is refused unless `--force` (#38).
+
+### Fixed
+
+- A library a project's own table names through `${KICAD10_FOOTPRINT_DIR}` or
+  `${KICAD10_SYMBOL_DIR}` (as KiCad's demo projects do) was reported as not
+  found by `existing update`, `sch add` and `sch repoint` unless the variable
+  was set in the environment. It now means the stock folder that was found.
+
 ## [0.4.1] - 2026-11-15
 
 ### Fixed

@@ -169,12 +169,13 @@ def test_kicad_finds_no_parity_issue_after_an_update(ldo, tmp_path):
 
 @pytest.mark.kicad
 @needs_kicad
-def test_a_swapped_footprint_is_refused_and_nothing_written(ldo, capsys):
-    assert main(["sch", str(ldo), "set", "R1", "Footprint=Resistor_SMD:R_0603_1608Metric"]) == 0
+def test_a_swap_to_other_pads_is_refused_and_nothing_written(ldo, capsys):
+    """R1 pointed at the project's LED 0805, whose pads sit 0.025 mm further out."""
+    assert main(["sch", str(ldo), "set", "R1", "Footprint=LED_SMD:LED_0805_2012Metric"]) == 0
     board = ldo / "ldo_breakout.kicad_pcb"
     old = board.read_text()
     assert main(["existing", str(ldo), "update"]) == 1
-    assert "swap it in KiCad" in capsys.readouterr().out
+    assert "pad 1 x: -0.9125 on the board, -0.9375 in the library" in capsys.readouterr().out
     assert board.read_text() == old
 
 
@@ -232,7 +233,7 @@ def test_update_from_a_netlist_without_kicad(ldo, capsys):
 
 
 @pytest.mark.parametrize("ref,footprint,says", [
-    ("R1", "Resistor_SMD:R_1206_3216Metric", "swap it in KiCad"),      # on the board with another footprint
+    ("R1", "Resistor_SMD:R_1206_3216Metric", "which is not found"),    # a swap to a footprint not in the library
     ("R50", "Resistor_SMD:R_0402_1005Metric", "not found"),            # not in the project's library
 ])
 def test_what_cannot_be_done_writes_nothing(ldo, tmp_path, capsys, ref, footprint, says):
@@ -278,3 +279,111 @@ def test_link_symbols_links_a_generated_board_once(ldo):
     fp = next(linked[a:b] for a, b in update._footprints(linked) if update._prop(linked[a:b], "Reference") == "R1")
     assert f'(path "/{uid}")\n\t\t(sheetname "/")\n\t\t(sheetfile "ldo_breakout.kicad_sch")' in fp
     assert board.link_symbols(pcb, sch_file) == 0 and pcb.read_text() == linked
+
+
+def _own_copy(ldo, name="R_0805", size=None):
+    """The project's 0805 resistor footprint again, as Mine:<name>: the pads are
+    the same unless `size` changes pad 1's."""
+    lib = ldo / "libs" / "Mine.pretty"
+    lib.mkdir()
+    mod = (ldo / "libs" / "Resistor_SMD.pretty" / "R_0805_2012Metric.kicad_mod").read_text()
+    if size:
+        i = mod.index('(pad "1"')
+        mod = mod[:i] + re.sub(r"\(size [^)]*\)", f"(size {size})", mod[i:], count=1)
+    (lib / f"{name}.kicad_mod").write_text(mod)
+    table = ldo / "fp-lib-table"
+    table.write_text(table.read_text().rstrip()[:-1] +
+                     '  (lib (name "Mine")(type "KiCad")(uri "${KIPRJMOD}/libs/Mine.pretty")(options "")(descr ""))\n)\n')
+
+
+def _netlist_with(tmp_path, ref, footprint):
+    text = NET.read_text()
+    i = text.index(f'(ref "{ref}")')
+    text = text[:i] + re.sub(r'\(footprint "[^"]*"\)', f'(footprint "{footprint}")', text[i:], count=1)
+    f = tmp_path / "swap.net"
+    f.write_text(text)
+    return f
+
+
+def test_a_footprint_with_the_same_pads_is_swapped_and_its_drawing_kept(ldo, tmp_path, capsys):
+    """#37: the schematic points R1 at another footprint with the same pads. The
+    board's footprint is re-pointed, and nothing else in its block changes."""
+    _unlink(ldo)
+    _own_copy(ldo)
+    board = ldo / "ldo_breakout.kicad_pcb"
+    old = board.read_text()
+    assert main(["existing", str(ldo), "update", str(_netlist_with(tmp_path, "R1", "Mine:R_0805"))]) == 0
+    out = capsys.readouterr().out
+    assert "R1: footprint Resistor_SMD:R_0805_2012Metric -> Mine:R_0805 (pads match; drawing kept)" in out
+    assert "C1: Value 10u -> 22u" in out
+    new = board.read_text()
+    fps = {update._prop(new[s:e], "Reference"): new[s:e] for s, e in update._footprints(new)}
+    assert fps["R1"].startswith('\n\t(footprint "Mine:R_0805"\n')
+    # beside R50, which the netlist adds, the board differs from before in R1's
+    # link, C1's value and the symbol links alone
+    rest = [ln for ln in new.replace(fps["R50"], "", 1).split("\n") if not ln.startswith(("\t\t(path ", "\t\t(sheetname ", "\t\t(sheetfile "))]
+    changed = [(a, b) for a, b in zip(old.split("\n"), rest) if a != b]
+    assert len(rest) == len(old.split("\n")) and changed == [
+        ('\t(footprint "Resistor_SMD:R_0805_2012Metric"', '\t(footprint "Mine:R_0805"'),
+        ('\t\t(property "Value" "10u"', '\t\t(property "Value" "22u"')]
+
+
+def test_the_library_drawing_replaces_the_boards(ldo, tmp_path, capsys):
+    """--body library: the drawing comes from the new library footprint; the pads,
+    their nets, the fields and the footprint's place stay."""
+    _unlink(ldo)
+    _own_copy(ldo)
+    lib = ldo / "libs" / "Mine.pretty" / "R_0805.kicad_mod"
+    lib.write_text(lib.read_text().replace('(layer "F.CrtYd")', '(layer "F.CrtYd")\n\t\t(uuid "aaaaaaaa-0000-0000-0000-000000000000")'))
+    lib.write_text(lib.read_text().replace("(start -0.227064 -0.735)", "(start -1.7 -0.95)", 1))
+    board = ldo / "ldo_breakout.kicad_pcb"
+    old = board.read_text()
+    r1 = lambda t: next(t[s:e] for s, e in update._footprints(t) if update._prop(t[s:e], "Reference") == "R1")
+    before = r1(old)
+    assert main(["existing", str(ldo), "update", str(_netlist_with(tmp_path, "R1", "Mine:R_0805")), "--body", "library"]) == 0
+    assert "(pads match; drawing from the library)" in capsys.readouterr().out
+    after = r1(board.read_text())
+    assert "(start -1.7 -0.95)" in after and "(start -1.7 -0.95)" not in before     # the library's drawing
+    assert "aaaaaaaa-0000" not in after                                             # with uuids of its own
+    pads = lambda fp: [fp[s:e] for s, e, _n, _net in update._pads(fp)]
+    assert pads(after) == pads(before)                                              # pads, nets and uuids as they were
+    for line in ("\n\t\t(at ", '\n\t\t(property "Reference"', '\n\t\t(property "Value"', "\n\t\t(uuid "):
+        assert re.search(re.escape(line) + "[^\n]*", after).group(0) == re.search(re.escape(line) + "[^\n]*", before).group(0)
+    assert update.pad_differences(after, lib.read_text()) == []
+    assert after.count("(") == after.count(")")
+
+
+def test_a_footprint_whose_pads_differ_is_refused(ldo, tmp_path, capsys):
+    _unlink(ldo)
+    _own_copy(ldo, size="1.2 1.4")
+    board = ldo / "ldo_breakout.kicad_pcb"
+    old = board.read_text()
+    assert main(["existing", str(ldo), "update", str(_netlist_with(tmp_path, "R1", "Mine:R_0805"))]) == 1
+    out = capsys.readouterr().out
+    assert "and their pads differ (pad 1 size: 1.025 1.4 on the board, 1.2 1.4 in the library)" in out
+    assert "nothing written" in out and board.read_text() == old
+
+
+def test_an_unknown_body_is_a_usage_error(ldo):
+    assert main(["existing", str(ldo), "update", "--body", "art"]) == 64
+
+
+@needs_demos
+def test_the_pad_check_reads_a_turned_part_on_the_back_as_kicad_placed_it():
+    """C112 on KiCad's coldfire demo: on the back, turned 180 degrees. KiCad
+    mirrors its pads' y and layers and turns their angles the other way."""
+    from conftest import DEMOS
+
+    from boardwright import sch
+
+    t = (DEMOS / "kit-dev-coldfire-xilinx_5213" / "kit-dev-coldfire-xilinx_5213.kicad_pcb").read_text()
+    fps = [t[s:e] for s, e in update._footprints(t) if '\n\t\t(layer "B.Cu")' in t[s:e]]
+    fp = next(f for f in fps if update._prop(f, "Reference") == "C112")
+    assert "\n\t\t(at 129.921 91.44 180)" in fp
+    lib = sch.fp_dir(Path("."), "Capacitor_SMD")
+    if lib is None:
+        pytest.skip("KiCad's stock footprints not installed")
+    mod = (lib / "C_0805_2012Metric.kicad_mod").read_text()
+    assert update.pad_differences(fp, mod) == []
+    moved = re.sub(r'(\(pad "2" smd roundrect\s*\(at [-\d.]+) ([-\d.]+)', r"\1 0.1", fp, count=1)
+    assert update.pad_differences(moved, mod) == ["pad 2 y: -0.1 on the board, 0 in the library"]
