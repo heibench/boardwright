@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- A library a project's own table names through `${KICAD10_FOOTPRINT_DIR}` or
+  `${KICAD10_SYMBOL_DIR}` (as KiCad's demo projects do) was reported as not
+  found by `existing update`, `sch add` and `sch repoint` unless the variable
+  was set in the environment. It now means the stock folder that was found.
+
 ## [0.4.1] - 2026-11-15
 
 ### Fixed

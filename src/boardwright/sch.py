@@ -593,12 +593,12 @@ def _in_table(table: Path, nick: str, d: Path, depth: int = 0, kind: str = "SYMB
     except OSError:
         return False, None
     rows = re.findall(r'\(lib \(name "([^"]*)"\)\s*\(type "([^"]*)"\)\s*\(uri "([^"]*)"\)', text)
-    for name, kind, uri in rows:
-        if name == nick and kind != "Table":
+    for name, typ, uri in rows:
+        if name == nick and typ != "Table":
             p = _expand(uri, d, kind)
             return True, Path(p) if p else None
-    for _name, kind, uri in rows:
-        if kind == "Table" and depth < 4:
+    for _name, typ, uri in rows:
+        if typ == "Table" and depth < 4:
             p = _expand(uri, d, kind)
             found = _in_table(Path(p), nick, d, depth + 1, kind) if p else (False, None)
             if found[0]:
