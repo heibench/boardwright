@@ -51,6 +51,14 @@ upright, and 3D models are copied as they are.
   and 270, a header at 270) with `--body library`: 0 violations, as on the
   untouched board. One back-side line left unmirrored by hand made KiCad
   report `lib_footprint_mismatch` on that part, so the clean result is a check.
+- Found afterwards (#41): none of the parts above has a footprint zone. On
+  KiCad's Pico, whose antenna keep-out is one, `--body library` still left
+  `lib_footprint_mismatch`. Every coordinate was written with Python's `:g`,
+  which keeps six significant digits: the keep-out's 149.119895 became
+  149.12. A Pico added the way `update` adds parts mismatched as well, at
+  0 degrees. With 1 nm kept, a Pico added, one turned 180 degrees by `MOVE`
+  to y = 157.1375, and an old copy swapped with `--body library` at 180
+  degrees came out at 0 violations.
 - pic_programmer with a grouped logo footprint over U4: `REMOVE` took away the
   logo's three findings (library not found, missing courtyard, silkscreen
   over copper) and nothing else changed; the group lost only the logo's uuid.

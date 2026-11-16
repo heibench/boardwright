@@ -188,7 +188,7 @@ def verify(d: Path, staged: bool = False) -> int:
 def _turn(a: float) -> str:
     """An angle as KiCad writes it: in (-180, 180], no trailing zeros."""
     a = (a + 180) % 360 - 180
-    return f"{180 if a == -180 else round(a, 6):g}"
+    return "180" if a == -180 else copper.num(a)
 
 
 def move_footprint(t: str, ref: str, x: float, y: float, rot: float, origin: tuple[float, float]) -> str:
@@ -204,7 +204,7 @@ def move_footprint(t: str, ref: str, x: float, y: float, rot: float, origin: tup
         m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
         fx, fy, r0 = float(m.group(1)), float(m.group(2)), float(m.group(3) or 0)
         nx, ny, delta = round(x + origin[0], 4), round(y + origin[1], 4), rot - r0
-        head = f"\n\t\t(at {nx:g} {ny:g}" + (f" {_turn(rot)})" if _turn(rot) != "0" else ")")
+        head = f"\n\t\t(at {copper.num(nx)} {copper.num(ny)}" + (f" {_turn(rot)})" if _turn(rot) != "0" else ")")
         fp = fp[:m.start()] + head + fp[m.end():]
         if delta % 360:
             # pads and texts: (at x y angle) in the footprint's frame, angle absolute
@@ -216,7 +216,7 @@ def move_footprint(t: str, ref: str, x: float, y: float, rot: float, origin: tup
             dx, dy = float(mm.group(1)) - fx, float(mm.group(2)) - fy
             lx, ly = dx * math.cos(a0) - dy * math.sin(a0), dx * math.sin(a0) + dy * math.cos(a0)
             px, py = nx + lx * math.cos(a1) + ly * math.sin(a1), ny - lx * math.sin(a1) + ly * math.cos(a1)
-            return f"(xy {round(px, 6):g} {round(py, 6):g})"
+            return f"(xy {copper.num(px)} {copper.num(py)})"
         for zs, ze in reversed(copper.blocks(fp, ("zone",))):
             fp = fp[:zs] + re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", carry, fp[zs:ze]) + fp[ze:]
         return t[:s] + fp + t[e:]
@@ -241,7 +241,7 @@ def place_field(t: str, ref: str, name: str, at: tuple, origin: tuple[float, flo
         if pm is None:
             raise Usage(f"{ref} has no {name} text to move")
         ang = at[2] if len(at) > 2 else float(pm.group(2) or 0)
-        fp = fp[:pm.start()] + pm.group(1) + f"(at {round(lx, 4):g} {round(ly, 4):g} {ang:g})" + fp[pm.end():]
+        fp = fp[:pm.start()] + pm.group(1) + f"(at {copper.num(round(lx, 4))} {copper.num(round(ly, 4))} {copper.num(ang)})" + fp[pm.end():]
         return t[:s] + fp + t[e:]
     raise Usage(f"no footprint {ref}")
 
@@ -268,7 +268,7 @@ def free(d: Path, args: list[str]) -> int:
         print(f"no clear spot for {ref} on the board")
         return 1
     for x, y, r in spots:
-        print(f'"{ref}": ({x:g}, {y:g}, {r}),')
+        print(f'"{ref}": ({copper.num(x)}, {copper.num(y)}, {r}),')
     return 0
 
 

@@ -387,3 +387,21 @@ def test_the_pad_check_reads_a_turned_part_on_the_back_as_kicad_placed_it():
     assert update.pad_differences(fp, mod) == []
     moved = re.sub(r'(\(pad "2" smd roundrect\s*\(at [-\d.]+) ([-\d.]+)', r"\1 0.1", fp, count=1)
     assert update.pad_differences(moved, mod) == ["pad 2 y: -0.1 on the board, 0 in the library"]
+
+
+def test_coordinates_keep_kicads_precision():
+    """#41: Python's :g keeps six significant digits, so a footprint zone point
+    at 149.119895 was written as 149.12 and KiCad reported the footprint as not
+    matching its library. Lengths keep KiCad's 1 nm."""
+    from boardwright.copper import num
+
+    assert [num(v) for v in (149.119895, 157.1375, 2.0, -0.0, -1e-9, 1234.5678)] == \
+        ["149.119895", "157.1375", "2", "0", "0", "1234.5678"]
+    sym = {"ref": "U7", "value": "THING", "sheetname": "sub", "sheetfile": "sub.kicad_sch"}
+    fp = update.new_footprint(MOD, "Lib:Thing", sym, "/aaaa/u1", 130.69, 157.1375, {})
+    assert "\n\t\t(at 130.69 157.1375)" in fp
+    assert "(xy 127.69 154.1375) (xy 133.69 154.1375) (xy 133.69 160.1375)" in fp
+    # turned half way round and rebuilt from the library: the zone lands to the nanometre
+    turned = fp.replace("\n\t\t(at 130.69 157.1375)", "\n\t\t(at 130.69 157.1375 180)")
+    rebuilt = update.swap(turned, "Lib:Thing", MOD, "library")
+    assert "(xy 133.69 160.1375) (xy 127.69 160.1375) (xy 127.69 154.1375)" in rebuilt

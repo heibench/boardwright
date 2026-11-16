@@ -12,6 +12,14 @@ import uuid
 from pathlib import Path
 
 
+def num(v: float) -> str:
+    """A length or angle as KiCad writes it: at most 6 decimals (1 nm), no
+    trailing zeros. Python's :g keeps 6 significant digits instead, which
+    rounds 149.119895 to 149.12 and 157.1375 to 157.138 (#41)."""
+    s = f"{round(float(v), 6):.6f}".rstrip("0").rstrip(".")
+    return "0" if s in ("-0", "") else s
+
+
 def origin(pcb) -> tuple[float, float]:
     """File coordinates of the board-relative (0, 0), as kicad-tools defines it.
 

@@ -195,3 +195,13 @@ def test_a_moved_module_carries_its_own_zone(tmp_path):
         return [(round(float(x), 3), round(float(y), 3)) for s, e in copper.blocks(fp, ("zone",))
                 for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", fp[s:e])]
     assert zones(src) and zones(mine) == zones(theirs) and zones(mine) != zones(src)
+
+
+def test_a_move_keeps_every_digit_of_the_position(tmp_path):
+    """#41: :g wrote y = 157.1375 as 157.138."""
+    from boardwright.existing import move_footprint
+
+    src = BOARDS / "esp32c3_min" / "esp32c3_min.kicad_pcb"
+    o = Board(src).origin
+    t = move_footprint(src.read_text(), "U1", 130.69 - o[0], 157.1375 - o[1], 90, o)
+    assert "\n\t\t(at 130.69 157.1375 90)" in t

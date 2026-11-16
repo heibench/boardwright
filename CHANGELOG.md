@@ -7,6 +7,16 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- Coordinates boardwright wrote were rounded to six significant digits, so
+  any figure of 100 mm or more lost its fourth decimal and beyond: a
+  footprint zone point at 149.119895 became 149.12. KiCad then reported
+  `lib_footprint_mismatch` on a footprint `existing update` had added or
+  swapped with `--body library` (KiCad's Raspberry Pi Pico, with its antenna
+  keep-out, was one). `MOVE` wrote a position such as 157.1375 as 157.138.
+  Board and schematic coordinates now keep KiCad's 1 nm (#41).
+
 ## [0.5.0] - 2026-11-15
 
 ### Added
