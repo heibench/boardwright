@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `REMOVE = ["G***", "LIB:NAME"]` in `existing apply` takes footprints off the
+  board, by reference or library name. One with a pad on a net or a schematic
+  symbol is refused unless `--force` (#38).
+
 ### Fixed
 
 - A library a project's own table names through `${KICAD10_FOOTPRINT_DIR}` or

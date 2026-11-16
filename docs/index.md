@@ -59,7 +59,7 @@ whether each pour is still one piece, and current capacity per IPC-2221.
 ```sh
 boardwright existing MYPROJ info              # layers, nets, pours, preview; any size of board
 boardwright existing MYPROJ review            # the same review, against a spec beside the board
-boardwright existing MYPROJ apply             # MOVE, RIPUP, ROUTES, TRACKS, VIAS, ZONES from the spec
+boardwright existing MYPROJ apply             # REMOVE, MOVE, RIPUP, ROUTES, TRACKS, VIAS, ZONES from the spec
 boardwright existing MYPROJ reroute /SDA      # re-route named nets; every other net stays byte-identical
 boardwright existing MYPROJ verify            # review + no DRC finding that is not in the baseline
 boardwright sch MYPROJ set R12 Value=4k7      # one block of the schematic replaced, the rest untouched
