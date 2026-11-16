@@ -2,9 +2,7 @@
 
 ## Open
 
-- **Live KiCad saves without refilling.** `live apply --save` writes the
-  board as it is; a part moved into a pour keeps stale fill over its pads
-  until `live refill`. The API gives no access to the interactive router.
+- **The live API gives no access to the interactive router.**
 - **Text is placed by hand.** `existing free` finds room for a part's copper
   and courtyard, not for its silkscreen; a `MOVE` can place the reference and
   value, but where is your call (11).
@@ -52,6 +50,7 @@
 
 ## Closed
 
+- `live apply --save` saved without refilling, leaving stale fill over a part moved into a pour -> it refills first when the edit changed copper, waiting at most 30 s on a busy KiCad (#45).
 - No way to re-point a placed footprint's library link, or take a footprint off the board -> `update` swaps footprints with the same pads, `REMOVE` (12, #37, #38).
 - Live apply, selection, refill, move, rip-up and save not run against KiCad -> all run on KiCad 10.0.8 (#4).
 - Parts moved onto other copper without a word -> `apply`'s clash check, `existing free` (11, #24).

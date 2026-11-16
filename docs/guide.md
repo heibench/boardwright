@@ -242,7 +242,11 @@ anything in KiCad, so preview and review run on what is on screen.
 `selection` reports what is selected in board-relative coordinates; `select`
 selects items so you can see what a finding refers to. `apply` makes one
 commit (one Ctrl+Z) from `MOVE`, `RIPUP`, `VIAS`, `TRACKS` and does not save
-unless told to.
+unless told to. `apply --save` refills the zones before saving when the edit
+moved, removed or added anything, so a part moved into a pour is not saved
+under stale fill. While KiCad is busy (a refill or a check running) it is
+asked again every 0.5 s for up to 30 s, kicad-python 0.8.0's own refill
+defaults; past that the command stops with exit 4.
 
 `boardwright selection SELECTION_FILE BOARD.kicad_pcb` describes KiCad's text
 for a set of selected or copied items (footprints, loose pads, tracks, vias)
@@ -261,7 +265,8 @@ KiCad and did what they say. An edit list holding all four operations,
 executed by a separate client, was applied and read back correctly. `live
 apply` has since been rewritten to execute edit lists and has not been run
 against KiCad in that form; `live selection` and `refill` have never been
-run against KiCad. `boardwright selection` was checked against two real
+run against KiCad. The refill before `apply --save` and the bounded busy wait
+are tested against a fake KiCad only. `boardwright selection` was checked against two real
 selections copied from KiCad 10.0.8. Limits found: the PCB editor must be open (the project manager
 alone answers nothing); with the schematic editor open as well, KiCad refuses
 a grouped commit from kicad-python 0.8.0, so the edit lands as separate undo

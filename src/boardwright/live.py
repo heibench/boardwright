@@ -12,7 +12,10 @@ and change it inside one undo step.
 SPEC.py uses the names an existing-board boardwright.py uses: MOVE, RIPUP, TRACKS,
 VIAS, REVIEW. `apply` turns it into an edit list (boardwright/edits.py), or takes
 one as EDITS.json, and runs it as ONE commit: one Ctrl+Z in KiCad undoes all
-of it. It does not save unless --save is given; look at it first.
+of it. It does not save unless --save is given; look at it first. With
+--save, an edit that changed copper refills the zones before the save.
+A KiCad that stays busy (refilling, checking) is waited on for at most
+BUSY_WAIT_S, then reported as an environment fault (exit 4).
 
 Coordinates are the board-relative mm that `pads` and `selection` print.
 
@@ -29,6 +32,7 @@ result is read back; no access to the interactive router exists in the API.
 from __future__ import annotations
 
 import importlib.util
+import time
 import types
 from pathlib import Path
 
@@ -63,6 +67,40 @@ def board_of(k):
         return k.get_board()
     except Exception as e:
         raise EnvironmentFault(f"KiCad is running but no board is open in the PCB editor ({type(e).__name__}: {e})") from e
+
+
+# kicad-python 0.8.0's Board.refill_zones defaults (kipy/board.py:1417-1418).
+# Its blocking loop never counts its sleeps, so a KiCad that stays busy hangs
+# it forever, and a transport timeout escapes it; we poll ourselves.
+BUSY_WAIT_S, BUSY_POLL_S = 30.0, 0.5
+
+
+def _when_idle(call, what: str, wait: float = BUSY_WAIT_S, poll: float = BUSY_POLL_S,
+               clock=time.monotonic, sleep=time.sleep):
+    """call(), retried while KiCad answers busy or does not answer, for at most `wait` seconds."""
+    from kipy.errors import ApiError
+    from kipy.errors import ConnectionError as NoReply
+    from kipy.proto.common import ApiStatusCode
+    deadline = clock() + wait
+    while True:
+        try:
+            return call()
+        except ApiError as e:
+            if e.code != ApiStatusCode.AS_BUSY:
+                raise
+            last = e
+        except NoReply as e:
+            last = e
+        if clock() >= deadline:
+            raise EnvironmentFault(f"KiCad was still busy or not answering after {wait:g} s of {what} "
+                                   f"({type(last).__name__}: {last})") from last
+        sleep(poll)
+
+
+def refill(k, b) -> None:
+    """Refill every zone and wait, bounded, until KiCad answers again."""
+    _when_idle(lambda: b.refill_zones(block=False), "starting the zone refill")
+    _when_idle(k.ping, "refilling zones")
 
 
 def board_path(b) -> str:
@@ -170,7 +208,10 @@ def apply(k, b, doc: dict, save: bool) -> None:
         b.push_commit(commit, msg)
     print(msg + ("  (one undo step in KiCad)" if commit is not None else "  (several undo steps)"))
     if save:
-        b.save()
+        if moved + gone + made:
+            refill(k, b)
+            print("zones refilled")
+        _when_idle(b.save, "saving")
         print("saved")
     else:
         print("not saved: look at it in KiCad, undo if wrong, save it yourself or rerun with --save")
@@ -207,13 +248,13 @@ def main(argv: list[str]) -> int:
         return 0
     b = board_of(k)
     if cmd == "refill":
-        b.refill_zones()
+        refill(k, b)
         print("zones refilled")
         return 0
     if cmd in ("snapshot", "review"):
         out = Path(args[0]) if cmd == "snapshot" and args else _out_default(b)
         if "--refill" in flags or cmd == "review":
-            b.refill_zones()
+            refill(k, b)
         f = snapshot(b, out)
         from .preview import write
         write(f, out / "live_preview.png")
