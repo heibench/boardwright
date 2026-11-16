@@ -62,6 +62,7 @@ from pathlib import Path
 
 from . import env
 from .copper import blocks
+from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
 
 GRID = 1.27
@@ -219,17 +220,17 @@ def _retarget(block: str, x: float, y: float, tidy: bool = True) -> str:
     """Move a cloned symbol to (x, y), unrotated and unmirrored, fields carried along."""
     m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: [-\d.]+)?\)", block)
     ox, oy = float(m.group(1)), float(m.group(2))
-    block = block[:m.start()] + f"\n\t\t(at {x:g} {y:g} 0)" + block[m.end():]
+    block = block[:m.start()] + f"\n\t\t(at {mm_(x)} {mm_(y)} 0)" + block[m.end():]
     block = re.sub(r"\n\t\t\(mirror [xy]\)", "", block, count=1)
     def shift(mm):
         name = re.match(r'\(property "([^"]*)"', mm.group(1)).group(1)
         if not tidy:                                # a power symbol keeps its own field layout
-            return f"{mm.group(1)}(at {float(mm.group(2)) - ox + x:g} {float(mm.group(3)) - oy + y:g} {mm.group(4) or '0'})"
+            return f"{mm.group(1)}(at {mm_(float(mm.group(2)) - ox + x)} {mm_(float(mm.group(3)) - oy + y)} {mm.group(4) or '0'})"
         if name == "Reference":                     # the copy is unrotated: put its two visible fields beside it
-            return f"{mm.group(1)}(at {x + 2.54:g} {y - 1.27:g} 0)"
+            return f"{mm.group(1)}(at {mm_(x + 2.54)} {mm_(y - 1.27)} 0)"
         if name == "Value":
-            return f"{mm.group(1)}(at {x + 2.54:g} {y + 1.27:g} 0)"
-        return f"{mm.group(1)}(at {float(mm.group(2)) - ox + x:g} {float(mm.group(3)) - oy + y:g} {mm.group(4) or '0'})"
+            return f"{mm.group(1)}(at {mm_(x + 2.54)} {mm_(y + 1.27)} 0)"
+        return f"{mm.group(1)}(at {mm_(float(mm.group(2)) - ox + x)} {mm_(float(mm.group(3)) - oy + y)} {mm.group(4) or '0'})"
     if tidy:
         block = re.sub(r'(\(property "(?:Reference|Value)" "(?:[^"\\]|\\.)*"[\s\S]*?)\(justify [^)]*\)', r"\1(justify left)", block, count=2)
     return re.sub(r'(\(property "[^"]*" "(?:[^"\\]|\\.)*"\s+)\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', shift, block)
@@ -251,13 +252,13 @@ def _place_power(src: str, ex: float, ey: float, away: float, pin: tuple[float, 
     r = (away - qa) % 360
     px, py = _rot(qx, -qy, r)
     x, y = round(ex - px, 4), round(ey - py, 4)
-    b = src[:m.start()] + f"\n\t\t(at {x:g} {y:g} {r:g})" + src[m.end():]
+    b = src[:m.start()] + f"\n\t\t(at {mm_(x)} {mm_(y)} {mm_(r)})" + src[m.end():]
     b = re.sub(r"\n\t\t\(mirror [xy]\)", "", b, count=1)
 
     def move(mm):
         dx, dy = _rot(float(mm.group(2)) - ox, float(mm.group(3)) - oy, -r0)
         dx, dy = _rot(dx, dy, r)
-        return f"{mm.group(1)}(at {x + dx:g} {y + dy:g} {mm.group(4) or '0'})"
+        return f"{mm.group(1)}(at {mm_(x + dx)} {mm_(y + dy)} {mm.group(4) or '0'})"
     return re.sub(r'(\(property "[^"]*" "(?:[^"\\]|\\.)*"\s+)\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', move, b)
 
 
@@ -370,7 +371,7 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     head, tail = t[:p0.start()], t[i0.start():]
     head = re.sub(r'\(lib_id "[^"]*"\)', f'(lib_id "{lib_id}")', head, count=1)
     head = re.sub(r"\n\t\t\(lib_name \"[^\"]*\"\)", "", head)
-    head = re.sub(r"\n\t\t\(at [-\d.]+ [-\d.]+(?: [-\d.]+)?\)", f"\n\t\t(at {x:g} {y:g} 0)", head, count=1)
+    head = re.sub(r"\n\t\t\(at [-\d.]+ [-\d.]+(?: [-\d.]+)?\)", f"\n\t\t(at {mm_(x)} {mm_(y)} 0)", head, count=1)
     head = re.sub(r"\(unit \d+\)", "(unit 1)", head, count=1)
     for flag in ("exclude_from_sim", "in_bom", "on_board"):
         m = re.search(r"\n\t\t\(%s (yes|no)\)" % flag, body)
@@ -384,7 +385,7 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
         if re.match(r'\s*\(property "ki_', p):
             continue
         fields.append(re.sub(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)",
-                             lambda m: f"(at {x + float(m.group(1)):g} {y - float(m.group(2)):g} {m.group(3) or '0'})",
+                             lambda m: f"(at {mm_(x + float(m.group(1)))} {mm_(y - float(m.group(2)))} {m.group(3) or '0'})",
                              p, count=1))
     pins = [_fresh(re.sub(r'\(pin "[^"]*"', f'(pin "{n}"', pin_tpl, count=1)) for n in _pin_numbers(body)]
     return _retarget(head + "".join(fields) + "".join(pins) + tail, x, y, tidy=False)   # the library placed the fields
@@ -525,7 +526,7 @@ def add(d: Path, spec_path: str) -> int:
             ex, ey = round(sx + dx * 2 * GRID, 4), round(sy + dy * 2 * GRID, 4)
             w = _fresh(wire_t)
             w = re.sub(r"\(pts\s+\(xy [-\d.]+ [-\d.]+\)\s+\(xy [-\d.]+ [-\d.]+\)\s*\)",
-                       f"(pts\n\t\t\t(xy {sx:g} {sy:g}) (xy {ex:g} {ey:g})\n\t\t)", w, count=1)
+                       f"(pts\n\t\t\t(xy {mm_(sx)} {mm_(sy)}) (xy {mm_(ex)} {mm_(ey)})\n\t\t)", w, count=1)
             new.append(w)
             rot = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}[(dx, dy)]
             if net in power:
@@ -551,7 +552,7 @@ def add(d: Path, spec_path: str) -> int:
                     head, tpl = "global_label", glabel_t
                 lb = _fresh(tpl)
                 lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{net}"', lb, count=1)
-                lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {ex:g} {ey:g} {rot})", lb, count=1)
+                lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {mm_(ex)} {mm_(ey)} {rot})", lb, count=1)
                 side = "right" if rot in (180, 270) else "left"
                 lb = re.sub(r"\(justify [^)]*\)", f"(justify {side} bottom)" if head == "label" else f"(justify {side})", lb, count=1)
                 new.append(lb)

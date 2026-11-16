@@ -42,6 +42,7 @@ from pathlib import Path
 
 from . import env, sch
 from .copper import blocks
+from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
 
 
@@ -139,7 +140,7 @@ def _flip_layers(s: str) -> str:
 
 
 def _num(v: str) -> str:
-    return f"{round(float(v), 4) + 0:g}"
+    return mm_(round(float(v), 4))
 
 
 def _pad_shapes(fp: str, back: bool, rot: float) -> dict[str, list[tuple]]:
@@ -164,8 +165,8 @@ def _pad_shapes(fp: str, back: bool, rot: float) -> dict[str, list[tuple]]:
         drill = re.sub(r"\s+", " ", drill.group(1)).strip() if drill else ""
         if back:
             y, layers = -y, _flip_layers(layers)
-            prim = re.sub(r"\((start|end|mid|center|xy) ([-\d.]+) ([-\d.]+)\)", lambda m: f"({m.group(1)} {m.group(2)} {-float(m.group(3)):g})", prim)
-            drill = re.sub(r"\(offset ([-\d.]+) ([-\d.]+)\)", lambda m: f"(offset {m.group(1)} {-float(m.group(2)):g})", drill)
+            prim = re.sub(r"\((start|end|mid|center|xy) ([-\d.]+) ([-\d.]+)\)", lambda m: f"({m.group(1)} {m.group(2)} {mm_(-float(m.group(3)))})", prim)
+            drill = re.sub(r"\(offset ([-\d.]+) ([-\d.]+)\)", lambda m: f"(offset {m.group(1)} {mm_(-float(m.group(2)))})", drill)
         a = rot - a if back else a - rot
         prim = re.sub(r"-?\d+(?:\.\d+)?", lambda m: _num(m.group(0)), prim)
         size = " ".join(_num(v) for v in re.search(r"\(size ([^)]*)\)", p).group(1).split())
@@ -231,7 +232,7 @@ def _placed(item: str, back: bool, x0: float, y0: float, rot: float) -> str:
     if back:
         item = _flip_layers(item)
         item = re.sub(r"\((start|end|mid|center|xy|at) ([-\d.]+) ([-\d.]+)",
-                      lambda m: f"({m.group(1)} {m.group(2)} {-float(m.group(3)):g}", item)
+                      lambda m: f"({m.group(1)} {m.group(2)} {mm_(-float(m.group(3)))}", item)
         if kind == "fp_arc":
             st = re.search(r"\(start ([-\d.]+ [-\d.]+)\)", item)
             en = re.search(r"\(end ([-\d.]+ [-\d.]+)\)", item)
@@ -246,12 +247,12 @@ def _placed(item: str, back: bool, x0: float, y0: float, rot: float) -> str:
     if kind in ("fp_text", "fp_text_box"):
         def turn(m):
             a = float(m.group(3) or 0)
-            return f"(at {m.group(1)} {m.group(2)} {_upright(rot - a if back else rot + a):g})"
+            return f"(at {m.group(1)} {m.group(2)} {mm_(_upright(rot - a if back else rot + a))})"
         item = re.sub(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", turn, item, count=1)
     if kind == "zone":
         c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
         item = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)",
-                      lambda m: (lambda lx, ly: f"(xy {round(x0 + lx * c + ly * s_, 6):g} {round(y0 - lx * s_ + ly * c, 6):g})")(
+                      lambda m: (lambda lx, ly: f"(xy {mm_(x0 + lx * c + ly * s_)} {mm_(y0 - lx * s_ + ly * c)})")(
                           float(m.group(1)), float(m.group(2))), item)
     return re.sub(r'\(uuid "[^"]*"\)', lambda m: f'(uuid "{uuid.uuid4()}")', item)
 
@@ -297,8 +298,8 @@ def new_footprint(mod: str, lib_id: str, sym: dict, path: str, x: float, y: floa
     t = re.sub(r'^\(footprint "(?:[^"\\]|\\.)*"', f'(footprint "{_esc(lib_id)}"', t, count=1)
     t = re.sub(r"\n\t\((?:version|generator|generator_version) [^\n]*\)", "", t)
     t = re.sub(r'\(uuid "[^"]*"\)', lambda m: f'(uuid "{uuid.uuid4()}")', t)
-    t = re.sub(r'(\n\t\(layer "[^"]*"\))', lambda m: f'{m.group(1)}\n\t(uuid "{uuid.uuid4()}")\n\t(at {x:g} {y:g})', t, count=1)
-    if f"(at {x:g} {y:g})" not in t:
+    t = re.sub(r'(\n\t\(layer "[^"]*"\))', lambda m: f'{m.group(1)}\n\t(uuid "{uuid.uuid4()}")\n\t(at {mm_(x)} {mm_(y)})', t, count=1)
+    if f"(at {mm_(x)} {mm_(y)})" not in t:
         raise SystemExit(f"{lib_id}: no (layer ...) line to place it after")
     for name, val in (("Reference", sym["ref"]), ("Value", sym["value"])):
         t = re.sub(r'(\n\t\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda m: f'{m.group(1)}"{_esc(val)}"', t, count=1)
@@ -307,7 +308,7 @@ def new_footprint(mod: str, lib_id: str, sym: dict, path: str, x: float, y: floa
     link = f'\n\t(path "{path}")\n\t(sheetname "{_esc(sym["sheetname"])}")\n\t(sheetfile "{_esc(sym["sheetfile"])}")'
     t = t[:k] + link + t[k:]
     for s, e in reversed(blocks(t, ("zone",))):              # footprint zones are stored board-absolute
-        z = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", lambda m: f"(xy {float(m.group(1)) + x:g} {float(m.group(2)) + y:g})", t[s:e])
+        z = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", lambda m: f"(xy {mm_(float(m.group(1)) + x)} {mm_(float(m.group(2)) + y)})", t[s:e])
         t = t[:s] + z + t[e:]
     t = _with_pad_nets(t, nets)
     return "\n\t" + "\n".join(("\t" + ln) if i and ln else ln for i, ln in enumerate(t.split("\n")))
