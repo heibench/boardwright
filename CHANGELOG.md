@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-15
+
 ### Fixed
 
 - Coordinates boardwright wrote were rounded to six significant digits, so
@@ -187,7 +189,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/heibench/boardwright/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/heibench/boardwright/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/heibench/boardwright/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/heibench/boardwright/compare/v0.3.1...v0.4.0
