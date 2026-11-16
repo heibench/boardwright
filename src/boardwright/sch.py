@@ -579,7 +579,7 @@ def _expand(uri: str, d: Path, kind: str = "SYMBOL") -> str | None:
     stock = r"\$\{KICAD\d*_%s_DIR\}" % kind
     if re.search(stock, uri):
         try:
-            uri = re.sub(stock, str(env.libraries()[0 if kind == "SYMBOL" else 1]), uri)
+            uri = re.sub(stock, str(env._library("symbols" if kind == "SYMBOL" else "footprints")), uri)
         except SystemExit:
             return None
     return None if "${" in uri else uri

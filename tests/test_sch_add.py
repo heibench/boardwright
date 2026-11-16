@@ -208,9 +208,14 @@ def test_a_project_row_naming_the_stock_folder_is_found(tmp_path, monkeypatch, k
     """KiCad's demo projects list stock libraries in their own tables as
     ${KICAD10_FOOTPRINT_DIR}/X.pretty. The variable is KiCad's built-in, not set
     in its settings, so it means the stock folder that was found."""
+    from boardwright import env
+
     stock = tmp_path / "stock"
     (stock / lib).mkdir(parents=True)
-    monkeypatch.delenv(var, raising=False)
+    for v in ("KICAD_SYMBOL_DIR", "KICAD_FOOTPRINT_DIR", "KICAD10_SYMBOL_DIR", "KICAD10_FOOTPRINT_DIR",
+              "KICAD9_SYMBOL_DIR", "KICAD9_FOOTPRINT_DIR"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setattr(env, "_library_candidates", lambda dir_: [])   # only the folder named below exists
     monkeypatch.setenv(f"KICAD_{kind}_DIR", str(stock))
     d = tmp_path / "proj"
     d.mkdir()
