@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
 ### Added
 
 - `live --board FILE` picks the running KiCad that has FILE open. A second
@@ -218,7 +220,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/heibench/boardwright/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/heibench/boardwright/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/heibench/boardwright/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/heibench/boardwright/compare/v0.4.0...v0.4.1
