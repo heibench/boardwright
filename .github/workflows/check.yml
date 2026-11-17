@@ -52,6 +52,7 @@ jobs:
     env:
       BOARDWRIGHT_FREEROUTING: java -Djava.awt.headless=true -jar ${{ github.workspace }}/.ci/freerouting.jar
       FREEROUTING_SHA256: f6f51bb02245e8e717f9359bd260cc9c5c0b1bc0acc8b7cb2cd5b8ffeb5de3c7
+      KICAD_DEB: 10.0.8~ubuntu24.04.1   # the PPA's build CI installed on 2026-11-17
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
@@ -60,13 +61,39 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
-      - name: Install KiCad 10
-        # The PPA answered 503 for one package in 3 of 6 runs on 2026-11-17 and
-        # every re-run passed, so apt retries a failed download a few times.
+      # KiCad's packages come from the kicad-10.0-releases PPA, which answered
+      # 503 on 2026-11-17 in runs 44137380840, 44147233321, 44151274245 and
+      # 44154397602, the last for about 5 minutes despite apt's retries. They
+      # are downloaded once per KiCad version and cached; a cached run never asks
+      # the PPA. Bump KICAD_DEB when the PPA moves on (it keeps only the latest).
+      - name: Restore KiCad packages
+        id: kicad-debs
+        uses: actions/cache/restore@v4
+        with:
+          path: .ci/kicad-debs
+          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04
+      - name: Download KiCad packages
+        if: steps.kicad-debs.outputs.cache-hit != 'true'
         run: |
           sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
           sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends kicad kicad-symbols kicad-footprints kicad-demos xvfb librsvg2-bin
+          sudo apt-get clean
+          sudo apt-get -o Acquire::Retries=5 install -y --download-only --no-install-recommends \
+            kicad="$KICAD_DEB" kicad-symbols="$KICAD_DEB" kicad-footprints="$KICAD_DEB" kicad-demos="$KICAD_DEB"
+          mkdir -p .ci/kicad-debs   # only these four come from the PPA; their dependencies come from Ubuntu
+          cp /var/cache/apt/archives/kicad_*.deb /var/cache/apt/archives/kicad-symbols_*.deb \
+             /var/cache/apt/archives/kicad-footprints_*.deb /var/cache/apt/archives/kicad-demos_*.deb .ci/kicad-debs/
+      - name: Save KiCad packages
+        if: steps.kicad-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .ci/kicad-debs
+          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04
+      - name: Install KiCad 10
+        run: |
+          ls .ci/kicad-debs/
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends ./.ci/kicad-debs/*.deb xvfb librsvg2-bin
           kicad-cli version
       - name: Fetch Freerouting 2.5.0
         run: |
