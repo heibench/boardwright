@@ -19,6 +19,13 @@ the command line).
   track's length had changed: KiCad writes `length X mm` into the item's
   description, and findings were matched on the full text. The length is now
   left out of the match (#44).
+- `live apply --save` saved the board without refilling zones, so a part
+  moved into a pour kept stale fill over its pads until `live refill`. It now
+  refills before saving when the edit moved, removed or added copper (#45).
+- `live refill`, `live review` and `live snapshot --refill` could hang
+  forever on a KiCad that stayed busy: kicad-python 0.8.0's
+  `Board.refill_zones` never counts its polls. boardwright now polls itself,
+  every 0.5 s for at most 30 s, and then stops with exit 4 (#45).
 
 ## [0.5.1] - 2026-11-15
 
