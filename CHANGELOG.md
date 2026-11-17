@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+
+- boardwright no longer depends on kicad-netspec; it finds kicad-cli itself,
+  on PATH, in Flatpak or in KiCad's install places, or as set in
+  `BOARDWRIGHT_KICAD_CLI`.
+
 ### Fixed
 
 - `existing verify` reported a baseline DRC finding as new when only a

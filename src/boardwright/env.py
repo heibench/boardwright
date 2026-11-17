@@ -6,7 +6,7 @@ searched. Settings:
     KICAD_SYMBOL_DIR, KICAD_FOOTPRINT_DIR   stock libraries (also KICAD10_*, KICAD9_*)
     KICAD_CONFIG_HOME                       KiCad's settings folder (its global library
                                             tables and path variables), as KiCad reads it
-    NETSPEC_KICAD_CLI                       the KiCad command line (shared with netspec)
+    BOARDWRIGHT_KICAD_CLI                   the KiCad command line, e.g. "flatpak run --command=kicad-cli org.kicad.KiCad"
     BOARDWRIGHT_FREEROUTING                 the autorouter, e.g. "java -jar freerouting.jar"
 """
 
@@ -16,6 +16,7 @@ import glob
 import os
 import shlex
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -118,14 +119,67 @@ def use_libraries(sym: Path | None = None, fp: Path | None = None) -> None:
     registry._global_registry = None
 
 
-def kicad_cli() -> list[str]:
-    """The command prefix that runs kicad-cli (found the way netspec finds it)."""
-    from kicad_netspec.oracle.discovery import KiCadNotFound, find_kicad_cli
+# kicad-cli discovery, ported from netspec 0.9.0 (heibench/netspec, Apache-2.0),
+# its oracle/discovery.py, keeping its search order and its rule that a
+# command named by the variable is used or refused, never fallen back from.
+_KICAD_CLI_VAR = "BOARDWRIGHT_KICAD_CLI"
+_MACOS_KICAD_CLI = (
+    "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
+    "/Applications/KiCad/kicad-cli",
+)
+_WINDOWS_KICAD_CLI = (
+    r"C:\Program Files\KiCad\*\bin\kicad-cli.exe",
+    r"C:\Program Files (x86)\KiCad\*\bin\kicad-cli.exe",
+)
 
+
+def _kicad_cli_candidates() -> list[tuple[list[str], str]]:
+    out: list[tuple[list[str], str]] = []
+    value = os.environ.get(_KICAD_CLI_VAR)
+    if value:
+        # a file named whole ("C:\Program Files\KiCad\...") is one command; anything else is split as a shell would
+        out.append(([value] if Path(value).is_file() else shlex.split(value), "env"))
+    on_path = shutil.which("kicad-cli")
+    if on_path:
+        out.append(([on_path], "path"))
+    if shutil.which("flatpak"):
+        out.append((["flatpak", "run", "--command=kicad-cli", "org.kicad.KiCad"], "flatpak"))
+    out.extend(([c], "macos") for c in _MACOS_KICAD_CLI if Path(c).exists())
+    for pattern in _WINDOWS_KICAD_CLI:
+        root, _, tail = pattern.partition("*")
+        base = Path(root)
+        if base.is_dir():
+            out.extend(([str(m)], "windows") for m in sorted(base.glob("*" + tail.replace("\\", "/")), reverse=True))
+    return out
+
+
+def _kicad_cli_works(argv: list[str]) -> bool:
     try:
-        return list(find_kicad_cli().argv)
-    except KiCadNotFound as e:
-        raise EnvironmentFault(str(e)) from None
+        done = subprocess.run([*argv, "--version"], capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 0 and bool(done.stdout.strip())
+
+
+def kicad_cli() -> list[str]:
+    """The command prefix that runs kicad-cli, first working one of: BOARDWRIGHT_KICAD_CLI,
+    PATH, Flatpak, the macOS bundle, a Windows install. A command named by the variable
+    is not fallen back from: it was set to choose that engine."""
+    tried: list[str] = []
+    for argv, origin in _kicad_cli_candidates():
+        if _kicad_cli_works(argv):
+            return argv
+        if origin == "env":
+            raise EnvironmentFault(
+                f"{_KICAD_CLI_VAR} names a kicad-cli that does not work: {' '.join(argv)}\n"
+                "It was set to choose a specific engine, so boardwright will not fall back "
+                "to another one. Correct it, or unset it to let discovery choose."
+            )
+        tried.append(f"{origin}: {' '.join(argv)}")
+    raise EnvironmentFault(
+        f"no working kicad-cli found. Set {_KICAD_CLI_VAR}=/path/to/kicad-cli, or install KiCad. Tried:\n  "
+        + "\n  ".join(tried)
+    )
 
 
 def freerouting() -> list[str]:

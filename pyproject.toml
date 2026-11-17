@@ -22,7 +22,6 @@ classifiers = [
 ]
 dependencies = [
     "kicad-tools==0.29.0",
-    "kicad-netspec==0.9.0",
     "numpy>=1.24",
     "shapely>=2.0",
 ]

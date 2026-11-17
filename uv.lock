@@ -48,7 +48,6 @@ name = "boardwright"
 version = "0.5.1"
 source = { editable = "." }
 dependencies = [
-    { name = "kicad-netspec" },
     { name = "kicad-tools" },
     { name = "numpy" },
     { name = "shapely" },
@@ -70,7 +69,6 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "kicad-netspec", specifier = "==0.9.0" },
     { name = "kicad-python", marker = "extra == 'live'", specifier = "==0.8.0" },
     { name = "kicad-tools", specifier = "==0.29.0" },
     { name = "numpy", specifier = ">=1.24" },
@@ -395,15 +393,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/19/74/a633ee74eb36c44aa6d1095e7cc5569bebf04342ee146178e2d36600708b/jsonschema_specifications-2025.9.1.tar.gz", hash = "sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d", size = 32855, upload-time = "2025-09-08T01:34:59.186Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl", hash = "sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe", size = 18437, upload-time = "2025-09-08T01:34:57.871Z" },
-]
-
-[[package]]
-name = "kicad-netspec"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/54/31/c7a83954abbe831275cb82cfee0e38050bacdaf2e2f8e54fd3c3005097cc/kicad_netspec-0.9.0.tar.gz", hash = "sha256:5c643543c50d21aa81be31f83649986a4f6176ba48664d1c889c951442d602ab", size = 139710, upload-time = "2026-09-06T04:44:31.991Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/5a/3a35b4dd6fcdaff388a2952d2b78949a2ae13fbc322b14aff5be968fd048/kicad_netspec-0.9.0-py3-none-any.whl", hash = "sha256:5ff2ae49cebe01c1cdf210dbbbe72b01487abdb7824429df93716da09a6cda21", size = 71307, upload-time = "2026-09-06T04:44:30.786Z" },
 ]
 
 [[package]]
