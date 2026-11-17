@@ -61,10 +61,12 @@ jobs:
           distribution: temurin
           java-version: "25"
       - name: Install KiCad 10
+        # The PPA answered 503 for one package in 3 of 6 runs on 2026-11-17 and
+        # every re-run passed, so apt retries a failed download a few times.
         run: |
           sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints kicad-demos xvfb librsvg2-bin
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends kicad kicad-symbols kicad-footprints kicad-demos xvfb librsvg2-bin
           kicad-cli version
       - name: Fetch Freerouting 2.5.0
         run: |
