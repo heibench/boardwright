@@ -8,6 +8,7 @@ searched. Settings:
                                             tables and path variables), as KiCad reads it
     BOARDWRIGHT_KICAD_CLI                   the KiCad command line, e.g. "flatpak run --command=kicad-cli org.kicad.KiCad"
     BOARDWRIGHT_FREEROUTING                 the autorouter, e.g. "java -jar freerouting.jar"
+    KICAD_API_SOCKET                        a running KiCad's API socket, asked first by `live --board`
 """
 
 from __future__ import annotations
@@ -180,6 +181,37 @@ def kicad_cli() -> list[str]:
         f"no working kicad-cli found. Set {_KICAD_CLI_VAR}=/path/to/kicad-cli, or install KiCad. Tried:\n  "
         + "\n  ".join(tried)
     )
+
+
+# KiCad's API socket folders, as kicad-python 0.8.0 looks for api.sock
+# (kipy/kicad.py, _default_socket_path). A second KiCad instance names its
+# socket api-<pid>.sock; inside Flatpak the pid is namespaced, so the name
+# says nothing about which instance it is.
+def _native_socket_dir() -> Path:
+    if sys.platform == "win32":
+        import tempfile
+        return Path(tempfile.gettempdir()) / "kicad"
+    return Path("/tmp/kicad")
+
+
+def kicad_api_sockets() -> list[Path]:
+    """Every KiCad API socket that may answer: KICAD_API_SOCKET if set, then
+    api.sock and api-*.sock in the Flatpak and the native socket folders."""
+    out: list[Path] = []
+    value = os.environ.get("KICAD_API_SOCKET")
+    if value:
+        out.append(Path(value.removeprefix("ipc://")))
+    for d in (Path.home() / ".var/app/org.kicad.KiCad/cache/tmp/kicad", _native_socket_dir()):
+        if d.is_dir():
+            out += [d / "api.sock"] if (d / "api.sock").exists() else []
+            out += sorted(d.glob("api-*.sock"))
+    seen: set[Path] = set()
+    unique = []
+    for p in out:
+        if p.resolve() not in seen:
+            seen.add(p.resolve())
+            unique.append(p)
+    return unique
 
 
 def freerouting() -> list[str]:

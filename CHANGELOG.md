@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `live --board FILE` picks the running KiCad that has FILE open. A second
+  KiCad gets `api-<pid>.sock`, and kicad-python's default socket reached a
+  board-less project manager instead of the editor. Every socket in KiCad's
+  Flatpak and native socket folders is asked; none with the board is exit 4,
+  more than one is exit 1. Connecting retries KiCad's "not ready" reply for up
+  to 30 s (#62).
+
 ### Changed
 
 - boardwright no longer depends on kicad-netspec; it finds kicad-cli itself,

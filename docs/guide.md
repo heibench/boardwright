@@ -232,6 +232,7 @@ schematic open in KiCad has to be closed and reopened to show the change.
     boardwright live status | snapshot | review [SPEC.py] | selection
     boardwright live select NET|REF ... | refill
     boardwright live apply SPEC.py|EDITS.json [--dry-run] [--save]
+    boardwright live --board FILE.kicad_pcb VERB ...
     boardwright edits SPEC.py BOARD.kicad_pcb OUT.json [PROJECT.kicad_pro]
 
 Needs `pip install "boardwright[live]"` and KiCad 10 running with the PCB
@@ -247,6 +248,17 @@ moved, removed or added anything, so a part moved into a pour is not saved
 under stale fill. While KiCad is busy (a refill or a check running) it is
 asked again every 0.5 s for up to 30 s, kicad-python 0.8.0's own refill
 defaults; past that the command stops with exit 4.
+
+With several KiCads running, give `--board FILE` (or `--board=FILE`) to any
+verb. Without it, `live` uses kicad-python's default socket, `api.sock`, and
+the first KiCad holds that one: a second instance gets `api-<pid>.sock`. If
+the first is a project manager, `live` reaches a KiCad with no board.
+`--board` asks every `api.sock` and `api-*.sock` in the Flatpak and native
+socket folders (and `KICAD_API_SOCKET` first, if set) for its open board, and
+uses the one whose path resolves to FILE. A socket that does not answer, or a
+project manager, is skipped. No match is exit 4, listing each socket and what
+it had open; two matches is exit 1. A KiCad that answers "not ready" while it
+loads is asked again for up to the same 30 s.
 
 `boardwright selection SELECTION_FILE BOARD.kicad_pcb` describes KiCad's text
 for a set of selected or copied items (footprints, loose pads, tracks, vias)

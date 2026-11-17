@@ -23,6 +23,11 @@ Needs KiCad running with the PCB editor open and Preferences > Plugins >
 "Enable KiCad API" on. The socket is found the way kicad-python finds it;
 set KICAD_API_SOCKET to override. `apply --dry-run` needs no connection.
 
+--board FILE (any verb) picks the KiCad that has FILE open: a second KiCad
+gets api-<pid>.sock, so the default socket may be one without the board.
+Every socket in KiCad's socket folders is asked (env.kicad_api_sockets);
+none with FILE open is exit 4, more than one is exit 1.
+
 Known traps (learned from other IPC API clients):
 items are built as typed objects, never parsed from strings (KiCad reports
 success and creates nothing); deleting returns no per-item result, so the
@@ -36,7 +41,7 @@ import time
 import types
 from pathlib import Path
 
-from .errors import EnvironmentFault, Usage
+from .errors import EnvironmentFault, Outcome, Usage
 from .model import Board
 
 
@@ -49,17 +54,85 @@ def _load(path: str | None):
     return m
 
 
-def connect():
+def _open(socket, timeout_ms: int):
     from kipy import KiCad
+    return KiCad(socket_path=None if socket is None else f"ipc://{socket}", timeout_ms=timeout_ms)
+
+
+def _ready(k):
+    """k, once it answers a ping. KiCad replies "not ready" while it is still
+    loading, so that reply (and busy) is asked again for the same bound as the
+    busy wait; a socket that does not answer at all is not waited on."""
+    from kipy.proto.common import ApiStatusCode
+    clock, sleep = _clock
+    _when_idle(k.ping, "waiting for KiCad to be ready", codes=(ApiStatusCode.AS_NOT_READY, ApiStatusCode.AS_BUSY),
+               no_reply=False, clock=clock, sleep=sleep)
+    return k
+
+
+def connect(socket=None, timeout_ms: int = 5000):
     try:
-        k = KiCad(timeout_ms=5000)
-        k.ping()
+        return _ready(_open(socket, timeout_ms))
+    except EnvironmentFault:
+        raise
     except Exception as e:
         hint = ("The socket exists but this process may not open it."
                 if isinstance(e, PermissionError) or "ermission" in str(e) else
                 "Is KiCad running with the PCB editor open and Preferences > Plugins > Enable KiCad API switched on?")
         raise EnvironmentFault(f"cannot reach KiCad ({type(e).__name__}: {e}). {hint}") from e
-    return k
+
+
+# kicad-python 0.8.0's own request timeout (kipy/kicad.py, KiCad.__init__).
+# Asking a socket nobody listens on fails at once; this bounds a hung one.
+PROBE_TIMEOUT_MS = 2000
+
+
+def find_board(board: str, sockets=None, opener=None):
+    """(KiCad, document) for the one running KiCad that has `board` open, asking
+    every socket env.kicad_api_sockets() lists. The open board's path is the
+    document's project.path joined with its board_filename (kicad-python 0.8.0
+    DocumentSpecifier; kipy.board.Board.name and Project.path read the same)."""
+    from kipy.errors import ApiError
+    from kipy.proto.common import ApiStatusCode
+    from kipy.proto.common.types import DocumentType
+
+    from . import env
+    want = Path(board).resolve()
+    sockets = env.kicad_api_sockets() if sockets is None else sockets
+    opener = opener or _open
+    clock, sleep = _clock
+    asked, hits = [], []
+    for s in sockets:
+        try:
+            k = _ready(opener(s, PROBE_TIMEOUT_MS))
+            docs = _when_idle(lambda: k.get_open_documents(DocumentType.DOCTYPE_PCB), "listing open boards",
+                              no_reply=False, clock=clock, sleep=sleep)
+        except EnvironmentFault as e:
+            asked.append(f"{s}: {e.message}")
+            continue
+        except ApiError as e:
+            why = "no PCB editor (a project manager)" if e.code == ApiStatusCode.AS_UNHANDLED else "refused"
+            asked.append(f"{s}: {why}: {e}")
+            continue
+        except Exception as e:
+            asked.append(f"{s}: does not answer ({type(e).__name__}: {e})")
+            continue
+        paths = [Path(d.project.path) / d.board_filename for d in docs]
+        asked.append(f"{s}: " + (", ".join(map(str, paths)) or "no board open"))
+        hits += [(s, k, d) for d, p in zip(docs, paths) if p.resolve() == want]
+    if len(hits) == 1:
+        return hits[0][1], hits[0][2]
+    if hits:
+        raise Outcome(f"{len(hits)} running KiCads have {want} open; close all but one. They are:\n  "
+                      + "\n  ".join(str(s) for s, _, _ in hits))
+    raise EnvironmentFault(f"no running KiCad has {want} open. Asked:\n  "
+                           + ("\n  ".join(asked) or "no KiCad API socket found (set KICAD_API_SOCKET)"))
+
+
+def _board(k, doc):
+    """The board for that document, built as kipy's KiCad.get_board builds its first one."""
+    from kipy.board import Board as KiBoard
+    return KiBoard(k._client, doc)
 
 
 def board_of(k):
@@ -73,26 +146,31 @@ def board_of(k):
 # Its blocking loop never counts its sleeps, so a KiCad that stays busy hangs
 # it forever, and a transport timeout escapes it; we poll ourselves.
 BUSY_WAIT_S, BUSY_POLL_S = 30.0, 0.5
+_clock = (time.monotonic, time.sleep)
 
 
 def _when_idle(call, what: str, wait: float = BUSY_WAIT_S, poll: float = BUSY_POLL_S,
-               clock=time.monotonic, sleep=time.sleep):
-    """call(), retried while KiCad answers busy or does not answer, for at most `wait` seconds."""
+               clock=time.monotonic, sleep=time.sleep, codes=None, no_reply: bool = True):
+    """call(), retried while KiCad answers with one of `codes` (default: busy) or,
+    if no_reply, does not answer, for at most `wait` seconds."""
     from kipy.errors import ApiError
     from kipy.errors import ConnectionError as NoReply
     from kipy.proto.common import ApiStatusCode
+    codes = (ApiStatusCode.AS_BUSY,) if codes is None else codes
     deadline = clock() + wait
     while True:
         try:
             return call()
         except ApiError as e:
-            if e.code != ApiStatusCode.AS_BUSY:
+            if e.code not in codes:
                 raise
             last = e
         except NoReply as e:
+            if not no_reply:
+                raise
             last = e
         if clock() >= deadline:
-            raise EnvironmentFault(f"KiCad was still busy or not answering after {wait:g} s of {what} "
+            raise EnvironmentFault(f"KiCad was still busy, not ready or not answering after {wait:g} s of {what} "
                                    f"({type(last).__name__}: {last})") from last
         sleep(poll)
 
@@ -222,9 +300,18 @@ def main(argv: list[str]) -> int:
         import kipy  # noqa: F401
     except ImportError:
         raise EnvironmentFault('boardwright live needs the live extra: pip install "boardwright[live]"') from None
-    if not argv:
+    board, words = None, []
+    it = iter(argv)
+    for a in it:
+        if a == "--board" or a.startswith("--board="):
+            board = a.partition("=")[2] if "=" in a else next(it, "")
+            if not board or board.startswith("--"):
+                raise Usage("--board needs a board file: --board FILE.kicad_pcb")
+        else:
+            words.append(a)
+    if not words:
         raise Usage(__doc__)
-    cmd, rest = argv[0], argv[1:]
+    cmd, rest = words[0], words[1:]
     flags = {a for a in rest if a.startswith("--")}
     args = [a for a in rest if not a.startswith("--")]
 
@@ -236,17 +323,21 @@ def main(argv: list[str]) -> int:
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         return 0
 
-    k = connect()
+    if board:
+        k, d = find_board(board)
+        b = _board(k, d)
+    else:
+        k, b = connect(), None
     if cmd == "status":
         print("KiCad", k.get_version())
-        b = board_of(k)
+        b = b if b is not None else board_of(k)
         print("board:", board_path(b), "| copper layers:", b.get_copper_layer_count())
         print(f"  {len(b.get_footprints())} footprints, {len(b.get_tracks())} tracks, {len(b.get_vias())} vias, "
               f"{len(b.get_zones())} zones, {len(b.get_nets())} nets")
         sel = b.get_selection()
         print(f"  selected: {len(sel)} item(s)")
         return 0
-    b = board_of(k)
+    b = b if b is not None else board_of(k)
     if cmd == "refill":
         refill(k, b)
         print("zones refilled")
