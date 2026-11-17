@@ -84,8 +84,7 @@ branch on them:
 - **KiCad is the judge.** Nothing is "done" on the tool's own arithmetic. Every
   generated board goes through `kicad-cli`, and edits to existing designs are compared
   against a baseline that KiCad produced. Connectivity before and after an edit is
-  checked with [netspec](https://github.com/heibench/netspec), which this project uses
-  to find KiCad.
+  checked with [netspec](https://github.com/heibench/netspec).
 - **Placement and hand copper are yours; the rest is routed.** Power loops, USB pairs and
   anything sensitive are drawn in `board.py` (`TRACKS`, `VIAS`, `ZONES`). Parts can be
   placed by intent: `pad_at(1, ("U1", 24), dy=-1.7)` puts a capacitor's pad 1.7 mm from

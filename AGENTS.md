@@ -38,5 +38,5 @@ A change found by working on a real board gets an entry in `docs/devlog/`.
 ## Related
 
 `netspec` (heibench/netspec) is the read-only gate: it never writes a design
-file. boardwright is the writer and uses netspec to find KiCad and to check
-connectivity. `gerberdiff` compares fabrication output.
+file. boardwright is the writer and uses netspec to check connectivity.
+`gerberdiff` compares fabrication output.

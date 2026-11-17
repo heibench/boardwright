@@ -81,7 +81,7 @@ def machine(request, monkeypatch):
             monkeypatch.delenv(f"{v}_SYMBOL_DIR", raising=False)
             monkeypatch.delenv(f"{v}_FOOTPRINT_DIR", raising=False)
         monkeypatch.setattr(env, "_library_candidates", lambda dir_: [])
-        monkeypatch.setenv("NETSPEC_KICAD_CLI", "/nonexistent/kicad-cli")
+        monkeypatch.setenv("BOARDWRIGHT_KICAD_CLI", "/nonexistent/kicad-cli")
         monkeypatch.setenv("BOARDWRIGHT_FREEROUTING", "/nonexistent/freerouting")
     return request.param
 
@@ -98,7 +98,7 @@ def test_exit_codes_follow_the_heibench_contract(ldo_copy, monkeypatch, capsys, 
     assert main(["verify", str(ldo_copy)]) == 2
     assert "CANNOT TELL" in capsys.readouterr().out
     # 4 environment fault: no KiCad to run
-    monkeypatch.setenv("NETSPEC_KICAD_CLI", "/nonexistent/kicad-cli")
+    monkeypatch.setenv("BOARDWRIGHT_KICAD_CLI", "/nonexistent/kicad-cli")
     assert main(["check", str(ldo_copy)]) == 4
     # 1 violated: a finding about the design
     spec = ldo_copy / "spec.py"

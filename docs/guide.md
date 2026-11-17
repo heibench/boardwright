@@ -348,4 +348,5 @@ rectangles (rounded pads are treated as slightly larger than they are).
   pairs; `existing.py` in-place work on an existing board; `sch.py` in-place
   edits to an existing schematic.
 - kicad-tools (pinned) does PCB file plumbing, DSN export and SES import.
-  Freerouting routes. netspec finds `kicad-cli`.
+  Freerouting routes. `env.py` finds `kicad-cli`, or takes it from
+  `BOARDWRIGHT_KICAD_CLI`.
