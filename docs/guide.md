@@ -233,6 +233,7 @@ schematic open in KiCad has to be closed and reopened to show the change.
     boardwright live select NET|REF ... | refill
     boardwright live apply SPEC.py|EDITS.json [--dry-run] [--save]
     boardwright live --board FILE.kicad_pcb VERB ...
+    boardwright live open BOARD.kicad_pcb
     boardwright edits SPEC.py BOARD.kicad_pcb OUT.json [PROJECT.kicad_pro]
 
 Needs `pip install "boardwright[live]"` and KiCad 10 running with the PCB
@@ -260,6 +261,25 @@ project manager, is skipped. No match is exit 4, listing each socket and what
 it had open; two matches is exit 1. A KiCad that answers "not ready" while it
 loads is asked again for up to the same 30 s.
 
+`live open BOARD` gets a board in front of `live` on KiCad 10, whose API
+cannot open a document (the project manager answers only a few common
+requests). If a running KiCad already has BOARD open, it prints that socket
+and starts nothing; two with it open is exit 1. Otherwise it starts the
+standalone PCB editor on BOARD, detached, and asks every socket once a second
+until one answers with BOARD open, for at most 60 s. That bound is chosen,
+not measured: an editor's cold start loads the libraries, and it has not been
+timed. Past it, or if the editor exits with an error first, it stops with
+exit 4, naming the command it started and what the sockets had open. BOARD
+must be an existing `.kicad_pcb` (otherwise exit 64). The editor is found as
+kicad-cli is: `BOARDWRIGHT_PCBNEW`, then `pcbnew` on PATH, then the Flatpak
+(`flatpak run --command=pcbnew org.kicad.KiCad`, if `flatpak info
+org.kicad.KiCad` says it is installed), then the macOS bundle and a Windows
+install; none is exit 4. With the Flatpak editor it refuses (exit 1) while
+any `api-*.sock` is in the Flatpak socket folder: each Flatpak instance has
+its own pid namespace, so a new one may take the same `api-<pid>.sock` name
+as a running one. That collision is inferred, not seen. A project manager on
+`api.sock` does not stop it.
+
 `boardwright selection SELECTION_FILE BOARD.kicad_pcb` describes KiCad's text
 for a set of selected or copied items (footprints, loose pads, tracks, vias)
 in board-relative coordinates, naming each part and pad.
@@ -278,7 +298,8 @@ executed by a separate client, was applied and read back correctly. `live
 apply` has since been rewritten to execute edit lists and has not been run
 against KiCad in that form; `live selection` and `refill` have never been
 run against KiCad. The refill before `apply --save` and the bounded busy wait
-are tested against a fake KiCad only. `boardwright selection` was checked against two real
+are tested against a fake KiCad only, and so is `live open`: it has not been run
+against a real KiCad. `boardwright selection` was checked against two real
 selections copied from KiCad 10.0.8. Limits found: the PCB editor must be open (the project manager
 alone answers nothing); with the schematic editor open as well, KiCad refuses
 a grouped commit from kicad-python 0.8.0, so the edit lands as separate undo

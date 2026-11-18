@@ -7,6 +7,20 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `live open BOARD` starts the PCB editor on BOARD, detached, and waits up to
+  60 s (chosen, not measured) until a running KiCad answers with it open; a
+  board already open starts nothing. KiCad 10's API cannot open a document.
+  The editor is found as kicad-cli is, or set in `BOARDWRIGHT_PCBNEW`. The
+  Flatpak editor is not started while another `api-*.sock` exists, since its
+  namespaced pid may repeat (#62).
+
+### Fixed
+
+- `BOARDWRIGHT_KICAD_CLI` with an unbalanced quote stopped with a Python
+  traceback; it is now exit 4 naming the variable.
+
 ## [0.6.0] - 2026-11-17
 
 ### Added

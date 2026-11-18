@@ -360,3 +360,139 @@ def test_board_flag_reaches_a_verb_with_arguments(monkeypatch, capsys):
 def test_board_flag_without_a_value_is_usage(argv):
     with pytest.raises(Usage):
         live.main(argv)
+
+
+# --- live open: start the PCB editor on a board and wait until it has it ---
+
+class FakeProc:
+    def __init__(self, code=None):
+        self.code = code
+
+    def poll(self):
+        return self.code
+
+
+@pytest.fixture
+def opening(tmp_path, monkeypatch):
+    """A board file, a native editor, an empty Flatpak socket folder, a fake clock,
+    and a Popen that records its calls. Nothing is started; no socket is opened."""
+    board = tmp_path / "w" / "a.kicad_pcb"
+    board.parent.mkdir()
+    board.write_text("(kicad_pcb)")
+    flat = tmp_path / "flat"
+    flat.mkdir()
+    c = Clock()
+    h = SimpleNamespace(board=board, flat=flat, clock=c, popen=[], proc=FakeProc(), editor=(["/opt/pcbnew"], False),
+                        found_after=None, located=0, hits=1)
+    monkeypatch.setattr(live, "_clock", (c.now, c.sleep))
+    monkeypatch.setattr(env, "pcbnew", lambda: h.editor)
+    monkeypatch.setattr(env, "flatpak_socket_dir", lambda: flat)
+
+    def popen(argv, **kw):
+        h.popen.append((argv, kw))
+        if isinstance(h.proc, Exception):
+            raise h.proc
+        return h.proc
+    monkeypatch.setattr(live.subprocess, "Popen", popen)
+
+    def locate(board):
+        h.located += 1
+        if h.hits > 1:
+            raise Outcome(f"{h.hits} running KiCads have {board} open")
+        if h.found_after is None or h.located <= h.found_after:
+            raise EnvironmentFault(f"no running KiCad has {board} open. Asked:\n  api.sock: no board open")
+        return "api-2.sock", SimpleNamespace(), doc(board)
+    monkeypatch.setattr(live, "_locate", locate)
+    return h
+
+
+def test_open_a_board_already_open_starts_nothing(opening, capsys):
+    opening.found_after = 0
+    assert live.main(["open", str(opening.board)]) == 0
+    assert opening.popen == []
+    assert "api-2.sock" in capsys.readouterr().out
+
+
+def test_open_a_board_open_in_two_kicads_is_refused(opening):
+    opening.hits = 2
+    with pytest.raises(Outcome) as e:
+        live.main(["open", str(opening.board)])
+    assert e.value.exit == 1
+    assert opening.popen == []
+
+
+@pytest.mark.parametrize("name", ["missing.kicad_pcb", "a.kicad_sch"])
+def test_open_needs_an_existing_kicad_pcb(opening, name):
+    f = opening.board.parent / name
+    if name.endswith(".kicad_sch"):
+        f.write_text("")
+    with pytest.raises(Usage) as e:
+        live.main(["open", str(f)])
+    assert e.value.exit == 64
+    assert opening.popen == []
+
+
+@pytest.mark.parametrize("argv", [["open"], ["open", "a.kicad_pcb", "b.kicad_pcb"]])
+def test_open_needs_one_board(opening, argv):
+    with pytest.raises(Usage):
+        live.main(argv)
+
+
+def test_open_flatpak_refuses_while_a_numbered_socket_exists(opening):
+    opening.editor = (["flatpak", "run", "--command=pcbnew", "org.kicad.KiCad"], True)
+    (opening.flat / "api.sock").write_text("")
+    (opening.flat / "api-2.sock").write_text("")
+    with pytest.raises(Outcome) as e:
+        live.main(["open", str(opening.board)])
+    assert e.value.exit == 1 and type(e.value) is Outcome
+    assert "api-2.sock" in e.value.message
+    assert opening.popen == []
+
+
+def test_open_flatpak_starts_beside_a_project_manager_on_api_sock(opening):
+    opening.editor = (["flatpak", "run", "--command=pcbnew", "org.kicad.KiCad"], True)
+    (opening.flat / "api.sock").write_text("")
+    opening.found_after = 2
+    assert live.main(["open", str(opening.board)]) == 0
+    assert len(opening.popen) == 1
+
+
+def test_open_popen_failing_is_an_environment_fault(opening):
+    opening.proc = FileNotFoundError(2, "No such file or directory", "/opt/pcbnew")
+    with pytest.raises(EnvironmentFault) as e:
+        live.main(["open", str(opening.board)])
+    assert e.value.exit == 4
+    assert "could not start the PCB editor" in e.value.message
+
+
+def test_open_starts_the_editor_detached_and_waits_for_the_board(opening, capsys):
+    opening.found_after = 4                 # the first look (already open?) and three polls miss
+    assert live.main(["--board", str(opening.board), "open"]) == 0
+    assert len(opening.popen) == 1
+    argv, kw = opening.popen[0]
+    assert argv == ["/opt/pcbnew", str(opening.board.resolve())]
+    assert kw["start_new_session"] is True and kw["close_fds"] is True
+    import subprocess
+    assert kw["stdin"] == kw["stdout"] == kw["stderr"] == subprocess.DEVNULL
+    assert opening.clock.sleeps == 3
+    out = capsys.readouterr().out
+    assert "api-2.sock" in out and str(opening.board.resolve()) in out
+
+
+def test_open_gives_up_after_the_bound(opening):
+    with pytest.raises(EnvironmentFault) as e:
+        live.main(["open", str(opening.board)])
+    m = e.value.message
+    assert e.value.exit == 4
+    assert str(opening.board.resolve()) in m and "/opt/pcbnew" in m and "no board open" in m
+    assert f"{live.OPEN_WAIT_S:g}" in m
+    assert live.OPEN_WAIT_S <= opening.clock.t <= live.OPEN_WAIT_S + live.OPEN_POLL_S
+    assert len(opening.popen) == 1
+
+
+def test_open_reports_an_editor_that_exited(opening):
+    opening.proc = FakeProc(code=3)
+    with pytest.raises(EnvironmentFault) as e:
+        live.main(["open", str(opening.board)])
+    assert e.value.exit == 4 and "exit code 3" in e.value.message
+    assert opening.clock.t < live.OPEN_WAIT_S
