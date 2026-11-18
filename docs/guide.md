@@ -131,7 +131,7 @@ place: commit before `apply` or `reroute`.
   whose clearance changed is reported as new. Every new finding fails
   `verify`; it does not tell the nets the edit touched from the rest.
 - `reroute` rips up only the named nets, gives Freerouting everything else as
-  fixed copper (curved tracks included, which kicad-tools' export omits), and
+  fixed copper (curved tracks included, as polylines), and
   afterwards keeps only the named nets' new copper: every other net is
   byte-identical to before. A net the router cannot finish gets its original
   routing back. New tracks are held to the project's own minimum width.
@@ -385,7 +385,7 @@ rectangles (rounded pads are treated as slightly larger than they are).
   KiCad's IPC API; `selection.py` selection text; `si.py` impedance and
   pairs; `existing.py` in-place work on an existing board; `sch.py` in-place
   edits to an existing schematic.
-- kicad-tools (pinned) does PCB file plumbing and DSN export. `ses.py` reads
-  Freerouting's session; `build.import_ses` adds its tracks and vias.
-  Freerouting routes. `env.py` finds `kicad-cli`, or takes it from
-  `BOARDWRIGHT_KICAD_CLI`.
+- kicad-tools (pinned) does PCB file plumbing. `dsn.py` writes the board as
+  Freerouting reads it; `ses.py` reads Freerouting's session;
+  `build.import_ses` adds its tracks and vias. Freerouting routes. `env.py`
+  finds `kicad-cli`, or takes it from `BOARDWRIGHT_KICAD_CLI`.

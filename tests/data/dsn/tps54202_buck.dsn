@@ -1,0 +1,474 @@
+(pcb tps54202_buck
+  (parser
+    (string_quote ")
+    (space_in_quoted_tokens on)
+    (host_cad "KiCad's Pcbnew")
+    (host_version "kicad-tools")
+  )
+  (resolution um 10)
+  (unit um)
+  (structure
+    (layer F.Cu
+      (type signal)
+      (property
+        (index 0)
+      )
+    )
+    (layer B.Cu
+      (type signal)
+      (property
+        (index 1)
+      )
+    )
+    (boundary
+      (path pcb 0
+        177200.0 87300.0
+        119800.0 87300.0
+        119800.0 122700.0
+        177200.0 122700.0
+        177200.0 87300.0
+      )
+    )
+    (rule
+      (width 250.0)
+      (clearance 200.0)
+      (clearance 200.0 (type default_smd))
+      (clearance 200.0 (type smd_smd))
+    )
+  )
+  (placement
+    (component TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+      (place J1 126500.0 100000.0 front 90)
+    )
+    (component TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+      (place J2 169500.0 107500.0 front 270)
+    )
+    (component Package_TO_SOT_SMD:SOT-23-6
+      (place U1 143500.0 105000.0 front 180)
+    )
+    (component Capacitor_SMD:C_1210_3225Metric
+      (place C1 147300.0 105000.0 front 90)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C2 151100.0 102900.0 front 0)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C3 143300.0 108000.0 front 0)
+    )
+    (component Inductor_SMD:L_Bourns_SRN6045TA
+      (place L1 154000.0 110500.0 front 0)
+    )
+    (component Capacitor_SMD:C_1206_3216Metric
+      (place C4 159100.0 107500.0 front 270)
+    )
+    (component Capacitor_SMD:C_1206_3216Metric
+      (place C5 161700.0 107500.0 front 270)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R1 136500.0 103400.0 front 0)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R2 139800.0 104200.0 front 0)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R3 139800.0 105800.0 front 180)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C6 139800.0 102700.0 front 0)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R4 133300.0 103400.0 front 90)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R5 133300.0 106500.0 front 90)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R6 163500.0 115300.0 front 0)
+    )
+    (component LED_SMD:LED_0603_1608Metric
+      (place D1 167000.0 115300.0 front 180)
+    )
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place H1 123500.0 91000.0 front 0)
+    )
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place H2 173500.0 91000.0 front 0)
+    )
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place H3 123500.0 119000.0 front 0)
+    )
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place H4 173500.0 119000.0 front 0)
+    )
+  )
+  (library
+    (image TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+      (pin Round[A]Pad_2600.0x2600.0_Drill1300.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_2600.0x2600.0_Drill1300.0_circlee3fc78df_um 2 5080.0 0.0)
+    )
+    (image Package_TO_SOT_SMD:SOT-23-6
+      (pin Rect[T]Pad_1325.0x600.0_um 1 -1137.5 -950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 2 -1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 3 -1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 4 1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 5 1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 6 1137.5 -950.0)
+    )
+    (image Capacitor_SMD:C_1210_3225Metric
+      (pin Rect[T]Pad_1150.0x2700.0_um 1 -1475.0 0.0)
+      (pin Rect[T]Pad_1150.0x2700.0_um 2 1475.0 0.0)
+    )
+    (image Capacitor_SMD:C_0603_1608Metric
+      (pin Rect[T]Pad_900.0x950.0_um 1 -775.0 0.0)
+      (pin Rect[T]Pad_900.0x950.0_um 2 775.0 0.0)
+    )
+    (image Inductor_SMD:L_Bourns_SRN6045TA
+      (pin Rect[T]Pad_2350.0x5100.0_um 1 -2075.0 0.0)
+      (pin Rect[T]Pad_2350.0x5100.0_um 2 2075.0 0.0)
+    )
+    (image Capacitor_SMD:C_1206_3216Metric
+      (pin Rect[T]Pad_1150.0x1800.0_um 1 -1475.0 0.0)
+      (pin Rect[T]Pad_1150.0x1800.0_um 2 1475.0 0.0)
+    )
+    (image Resistor_SMD:R_0603_1608Metric
+      (pin Rect[T]Pad_800.0x950.0_um 1 -825.0 0.0)
+      (pin Rect[T]Pad_800.0x950.0_um 2 825.0 0.0)
+    )
+    (image LED_SMD:LED_0603_1608Metric
+      (pin Rect[T]Pad_875.0x950.0_um 1 -787.5 0.0)
+      (pin Rect[T]Pad_875.0x950.0_um 2 787.5 0.0)
+    )
+    (image MountingHole:MountingHole_3.2mm_M3
+      (keepout "" (circle F.Cu 3200.0 0.0 0.0))
+      (keepout "" (circle B.Cu 3200.0 0.0 0.0))
+    )
+    (padstack Round[A]Pad_2600.0x2600.0_Drill1300.0_um
+      (shape (rect F.Cu -1300.0 -1300.0 1300.0 1300.0))
+      (shape (rect B.Cu -1300.0 -1300.0 1300.0 1300.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_2600.0x2600.0_Drill1300.0_circlee3fc78df_um
+      (shape (circle F.Cu 2600.0 0.0 0.0))
+      (shape (circle B.Cu 2600.0 0.0 0.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1325.0x600.0_um
+      (shape (rect F.Cu -662.5 -300.0 662.5 300.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1150.0x2700.0_um
+      (shape (rect F.Cu -575.0 -1350.0 575.0 1350.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_900.0x950.0_um
+      (shape (rect F.Cu -450.0 -475.0 450.0 475.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_2350.0x5100.0_um
+      (shape (rect F.Cu -1175.0 -2550.0 1175.0 2550.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1150.0x1800.0_um
+      (shape (rect F.Cu -575.0 -900.0 575.0 900.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_800.0x950.0_um
+      (shape (rect F.Cu -400.0 -475.0 400.0 475.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_875.0x950.0_um
+      (shape (rect F.Cu -437.5 -475.0 437.5 475.0))
+      (attach off)
+    )
+    (padstack Via[0-1]_Pad600_um
+      (shape (circle F.Cu 600.0))
+      (shape (circle B.Cu 600.0))
+      (attach off)
+    )
+    (padstack Via[0-1]_Pad800_um
+      (shape (circle F.Cu 800.0))
+      (shape (circle B.Cu 800.0))
+      (attach off)
+    )
+  )
+  (network
+    (net BOOT
+      (pins
+        C3-1
+        U1-6
+      )
+    )
+    (net EN
+      (pins
+        R4-2
+        R5-1
+        U1-5
+      )
+    )
+    (net FB
+      (pins
+        C6-2
+        R2-2
+        R3-1
+        U1-4
+      )
+    )
+    (net GND
+      (pins
+        C1-2
+        C2-2
+        C4-2
+        C5-2
+        D1-1
+        J1-2
+        J2-2
+        R3-2
+        R5-2
+        U1-1
+      )
+    )
+    (net LED_A
+      (pins
+        D1-2
+        R6-2
+      )
+    )
+    (net SW
+      (pins
+        C3-2
+        L1-1
+        U1-2
+      )
+    )
+    (net VIN
+      (pins
+        C1-1
+        C2-1
+        J1-1
+        R4-1
+        U1-3
+      )
+    )
+    (net VOUT
+      (pins
+        C4-1
+        C5-1
+        J2-1
+        L1-2
+        R1-1
+        R6-1
+      )
+    )
+    (net VSENSE
+      (pins
+        C6-1
+        R1-2
+        R2-1
+      )
+    )
+    (class kicad_default
+      BOOT
+      EN
+      FB
+      LED_A
+      VSENSE
+      (circuit
+        (use_via Via[0-1]_Pad600_um)
+      )
+      (rule
+        (width 250.0)
+        (clearance 200.0)
+      )
+    )
+    (class Power
+      GND
+      SW
+      VIN
+      VOUT
+      (circuit
+        (use_via Via[0-1]_Pad800_um)
+      )
+      (rule
+        (width 400.0)
+        (clearance 200.0)
+      )
+    )
+  )
+  (wiring
+    (wire
+      (path F.Cu 250.0 135675.0 103400.0 134800.0 103400.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 250.0 134800.0 103400.0 134800.0 116500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 250.0 134800.0 116500.0 160400.0 116500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 250.0 160400.0 116500.0 160400.0 112000.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 250.0 162675.0 115300.0 162675.0 112500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 400.0 133300.0 102575.0 133300.0 100000.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 126500.0 100000.0 145500.0 100000.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 145500.0 100000.0 147300.0 101800.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 147300.0 101800.0 147300.0 103525.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 147300.0 103525.0 144637.0 104050.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 147300.0 101800.0 150325.0 101800.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 150325.0 101800.0 150325.0 102900.0)
+      (net VIN)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 144637.0 105000.0 151100.0 105000.0)
+      (net SW)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 151100.0 105000.0 151925.0 105800.0)
+      (net SW)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 151925.0 105800.0 151925.0 110500.0)
+      (net SW)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 156075.0 110500.0 159100.0 110500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 159100.0 110500.0 159100.0 108975.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 159100.0 110500.0 161700.0 110500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 161700.0 110500.0 161700.0 108975.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 161700.0 110500.0 169500.0 110500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 169500.0 110500.0 169500.0 107500.0)
+      (net VOUT)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 144637.0 105950.0 145900.0 106475.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 145900.0 106475.0 147300.0 106475.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 151875.0 102900.0 153300.0 102900.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 146700.0 108300.0 147300.0 106475.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 147300.0 106475.0 148500.0 108300.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 159100.0 106025.0 159100.0 104000.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 159100.0 104000.0 161700.0 104000.0)
+      (net GND)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 500.0 161700.0 104000.0 161700.0 106025.0)
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 146700.0 108300.0
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 148500.0 108300.0
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 153300.0 102900.0
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 159100.0 104000.0
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 161700.0 104000.0
+      (net GND)
+      (type protect)
+    )
+    (via
+      Via[0-1]_Pad800_um 160400.0 104000.0
+      (net GND)
+      (type protect)
+    )
+  )
+)

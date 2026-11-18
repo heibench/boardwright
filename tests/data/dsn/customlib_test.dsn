@@ -1,0 +1,140 @@
+(pcb customlib_test
+  (parser
+    (string_quote ")
+    (space_in_quoted_tokens on)
+    (host_cad "KiCad's Pcbnew")
+    (host_version "kicad-tools")
+  )
+  (resolution um 10)
+  (unit um)
+  (structure
+    (layer F.Cu
+      (type signal)
+      (property
+        (index 0)
+      )
+    )
+    (layer B.Cu
+      (type signal)
+      (property
+        (index 1)
+      )
+    )
+    (boundary
+      (path pcb 0
+        160200.0 97300.0
+        136800.0 97300.0
+        136800.0 112700.0
+        160200.0 112700.0
+        160200.0 97300.0
+      )
+    )
+    (rule
+      (width 250.0)
+      (clearance 200.0)
+      (clearance 200.0 (type default_smd))
+      (clearance 200.0 (type smd_smd))
+    )
+  )
+  (placement
+    (component Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (place J1 139500.0 103500.0 front 0)
+    )
+    (component Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (place J2 157500.0 103500.0 front 0)
+    )
+    (component Custom:MY_SOT-23-5
+      (place U1 148500.0 105000.0 front 0)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C1 144500.0 105000.0 front 270)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C2 152500.0 105000.0 front 270)
+    )
+  )
+  (library
+    (image Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 2 0.0 2540.0)
+    )
+    (image Custom:MY_SOT-23-5
+      (pin Rect[T]Pad_1325.0x600.0_um 1 -1137.5 -950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 2 -1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 3 -1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 4 1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 5 1137.5 -950.0)
+    )
+    (image Capacitor_SMD:C_0603_1608Metric
+      (pin Rect[T]Pad_900.0x950.0_um 1 -775.0 0.0)
+      (pin Rect[T]Pad_900.0x950.0_um 2 775.0 0.0)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_um
+      (shape (rect F.Cu -850.0 -850.0 850.0 850.0))
+      (shape (rect B.Cu -850.0 -850.0 850.0 850.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um
+      (shape (circle F.Cu 1700.0 0.0 0.0))
+      (shape (circle B.Cu 1700.0 0.0 0.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1325.0x600.0_um
+      (shape (rect F.Cu -662.5 -300.0 662.5 300.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_900.0x950.0_um
+      (shape (rect F.Cu -450.0 -475.0 450.0 475.0))
+      (attach off)
+    )
+    (padstack Via[0-1]_Pad600_um
+      (shape (circle F.Cu 600.0))
+      (shape (circle B.Cu 600.0))
+      (attach off)
+    )
+  )
+  (network
+    (net +3V3
+      (pins
+        C2-1
+        J2-1
+        U1-5
+      )
+    )
+    (net GND
+      (pins
+        C1-2
+        C2-2
+        J1-2
+        J2-2
+        U1-2
+      )
+    )
+    (net VIN
+      (pins
+        C1-1
+        J1-1
+        U1-1
+        U1-3
+      )
+    )
+    (net "unconnected-(U1-NC-Pad4)"
+      (pins
+        U1-4
+      )
+    )
+    (class kicad_default
+      +3V3
+      GND
+      VIN
+      "unconnected-(U1-NC-Pad4)"
+      (circuit
+        (use_via Via[0-1]_Pad600_um)
+      )
+      (rule
+        (width 250.0)
+        (clearance 200.0)
+      )
+    )
+  )
+)

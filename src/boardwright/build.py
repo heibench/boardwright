@@ -103,8 +103,6 @@ def gen(d: Path) -> None:
         B.gnd_pour(pcb, net, (layer,), solid=False)
     # kct writes its own .kicad_pro/.kicad_dru sidecars; ours wins.
     write_project(d, m.NAME, getattr(m, "RULES", None), getattr(m, "CLASSES", None), getattr(m, "SEVERITIES", None))
-    for junk in d.glob(f"{m.NAME}.*.json"):
-        junk.unlink()
     from .model import Board
     from .review import crossings
     for c in crossings(Board(pcb), m):
@@ -201,7 +199,8 @@ def complete(pcb: Path, m, poured: set) -> list[str]:
 
 def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     dsn, ses = d / "out" / f"{m.NAME}{tag}.dsn", d / "out" / f"{m.NAME}{tag}.ses"
-    B.kct("pcb", "export-dsn", str(pcb), "-o", str(dsn))
+    from .dsn import export
+    export(pcb, dsn)
     # FR_MARGIN (mm) routes wider than the DRC clearance. Costs routability on
     # fine-pitch parts, so it is off unless a board asks for it.
     margin = getattr(m, "FR_MARGIN", 0) * 1000
