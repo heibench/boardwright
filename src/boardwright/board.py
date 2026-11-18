@@ -14,9 +14,9 @@ from pathlib import Path
 from . import copper, env
 
 
-def kct(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+def kct(*args: str) -> subprocess.CompletedProcess:
     r = subprocess.run([*env.kct(), *args], capture_output=True, text=True)
-    if check and r.returncode != 0:
+    if r.returncode != 0:
         raise RuntimeError(f"kct {' '.join(args)} -> {r.returncode}\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
     return r
 

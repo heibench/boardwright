@@ -147,7 +147,9 @@ def route(d: Path, m, pcb: Path) -> None:
         pcb.write_text(best[1])
     if best[0]:
         print("WARNING: still open after every attempt, hand-route these:", best[0])
-    B.kct("place-silk-refs", str(pcb), "--allow-rotate", "-o", str(pcb), check=False)
+    from .silk import place_refs
+    moved = place_refs(pcb)
+    print(f"reference text moved clear: {len(moved)}")
 
 
 def complete(pcb: Path, m, poured: set) -> list[str]:
