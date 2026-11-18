@@ -1,0 +1,9 @@
+cheapino_kicad8.kicad_pcb is cut down from pcb/cheapino.kicad_pcb of
+Cheapino by tompi, https://github.com/tompi/cheapino (commit eea27c0),
+licensed under Creative Commons Attribution 4.0 International
+(https://creativecommons.org/licenses/by/4.0/).
+
+Changes: only a part of the board is kept, as KiCad 8 saved it: the header,
+net list and setup, every board graphic and text, seven footprints (one
+mounting hole, JP1, D1, ENC1, U1, K1, J_2_RIGHT1), the first 60 segments
+and 40 arcs, every via and the four smallest zones. Nothing kept was edited.
