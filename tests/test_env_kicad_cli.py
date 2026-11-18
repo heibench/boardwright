@@ -3,6 +3,7 @@ here is a stub script in a temporary folder; this machine's KiCad is never run."
 
 import stat
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -100,6 +101,25 @@ def test_does_not_need_netspec(host, monkeypatch):
     monkeypatch.setitem(sys.modules, "kicad_netspec.oracle", None)
     monkeypatch.setitem(sys.modules, "kicad_netspec.oracle.discovery", None)
     assert env.kicad_cli() == [str(cli)]
+
+
+def test_windows_installs_newest_version_first(host, tmp_path, monkeypatch):
+    base = tmp_path / "Program Files" / "KiCad"
+    for folder in ("8.0", "9.0", "10.0", "nightly"):
+        _tool(base / folder / "bin", "kicad-cli.exe")
+    monkeypatch.setattr(env, "_WINDOWS_KICAD_CLI", (str(base / "*" / "bin" / "kicad-cli.exe"),))
+    order = [Path(argv[0]).parent.parent.name for argv, _ in env._kicad_cli_candidates()]
+    assert order == ["10.0", "9.0", "8.0", "nightly"]
+
+
+def test_library_folders_newest_version_first(tmp_path):
+    base = tmp_path / "Program Files" / "KiCad"
+    for folder in ("8.0", "9.0", "10.0", "nightly"):
+        (base / folder / "share" / "kicad" / "symbols").mkdir(parents=True)
+    found = env._newest_first(str(base / "*" / "share" / "kicad" / "symbols"))
+    assert [p.parts[-4] for p in found] == ["10.0", "9.0", "8.0", "nightly"]
+    fixed = base / "10.0" / "share" / "kicad" / "symbols"           # a pattern with no `*` is the path itself
+    assert env._newest_first(str(fixed)) == [fixed]
 
 
 def test_variable_with_an_unbalanced_quote_is_an_environment_fault(host, monkeypatch):

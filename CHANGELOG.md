@@ -18,6 +18,7 @@ the command line).
 
 ### Fixed
 
+- On Windows, kicad-cli, pcbnew and KiCad's libraries are taken from the newest KiCad version folder first; `9.0` was tried before `10.0`.
 - `BOARDWRIGHT_KICAD_CLI` with an unbalanced quote stopped with a Python
   traceback; it is now exit 4 naming the variable.
 

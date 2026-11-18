@@ -3,6 +3,7 @@ here is a stub script in a temporary folder; nothing is started, only looked for
 
 import stat
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -101,6 +102,16 @@ def test_windows_install_is_found(host, tmp_path, monkeypatch):
     ed = _tool(base / "10.0" / "bin", "pcbnew.exe")
     monkeypatch.setattr(env, "_WINDOWS_PCBNEW", (str(base / "*" / "bin" / "pcbnew.exe"),))
     assert env.pcbnew() == ([str(ed)], False)
+
+
+def test_windows_installs_newest_version_first(host, tmp_path, monkeypatch):
+    base = tmp_path / "Program Files" / "KiCad"
+    for folder in ("8.0", "9.0", "10.0", "nightly"):
+        _tool(base / folder / "bin", "pcbnew.exe")
+    monkeypatch.setattr(env, "_WINDOWS_PCBNEW", (str(base / "*" / "bin" / "pcbnew.exe"),))
+    found = env._windows_installs(env._WINDOWS_PCBNEW)
+    assert [Path(p).parent.parent.name for p in found] == ["10.0", "9.0", "8.0", "nightly"]
+    assert env.pcbnew() == ([found[0]], False)
 
 
 def test_variable_with_an_unbalanced_quote_is_an_environment_fault(host, monkeypatch):
