@@ -13,8 +13,6 @@ everything is printed in the board-relative mm the other tools use.
 from __future__ import annotations
 
 import math
-import shutil
-import tempfile
 from pathlib import Path
 
 from .errors import Usage
@@ -24,23 +22,19 @@ from .model import Board
 def describe(sel_file: Path, board_file: Path) -> list[str]:
     if sel_file.stat().st_size == 0:
         return ["nothing selected"]
-    with tempfile.TemporaryDirectory() as td:          # the parser wants a .kicad_pcb name
-        f = Path(td) / "selection.kicad_pcb"
-        shutil.copy(sel_file, f)
-        sel = Board(f)
-        _ = sel.pads, sel.tracks, sel.vias, sel.zones   # read while the file exists
+    sel = Board(sel_file)
     board = Board(board_file)
     ox, oy = board.origin
     R = lambda x, y: f"({x - ox:.3f}, {y - oy:.3f})"
-    by_uuid = {fp.uuid: fp for fp in board.pcb.footprints}
+    by_uuid = {fp.uuid: fp for fp in board.footprints}
     out = []
-    for fp in sel.pcb.footprints:
+    for fp in sel.footprints:
         hit = by_uuid.get(fp.uuid)
         if hit is not None:
             nets = sorted({p.net for p in board.pads if p.ref == hit.reference and p.net})
             out.append(f"footprint {hit.reference} at {R(*fp.position)} rot {fp.rotation:g} {fp.layer}  nets: {', '.join(nets)}")
     # Pads selected on their own arrive wrapped in an anonymous footprint: match each to the board's pad there
-    known = {f.uuid for f in sel.pcb.footprints if f.uuid in by_uuid}
+    known = {f.uuid for f in sel.footprints if f.uuid in by_uuid}
     loose = [p for p in sel.pads if not p.ref]
     if not known:
         for p in loose:

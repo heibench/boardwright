@@ -39,7 +39,7 @@ from .model import Board
 def from_spec(m, board: Board, project=None) -> dict:
     copper.check_tracks(m)
     ox, oy = board.origin
-    refs = {fp.reference for fp in board.pcb.footprints}
+    refs = {fp.reference for fp in board.footprints}
     nets = {p.net for p in board.pads} | {t.net for t in board.tracks} | {z.net for z in board.zones}
     r = lambda v: round(v, 4)
     def need_net(n):

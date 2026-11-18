@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 
 from boardwright import silk
-from boardwright.model import Board
+from boardwright.model import Board, contours
 
 
 def _l(v):
@@ -28,37 +28,16 @@ def _l(v):
 
 def _graphic(g) -> list:
     return _l([g.graphic_type, g.layer, g.stroke_width, g.start, g.end, g.mid, g.center,
-               getattr(g, "radius", None), list(g.points or []), g.is_filled])
+               g.radius, list(g.points), g.is_filled])
 
 
 def _text(t) -> list:
-    return _l([getattr(t, "text_type", None), t.text, t.position, t.rotation, t.layer,
+    return _l([t.text_type, t.text, t.position, t.rotation, t.layer,
                t.font_size, t.font_thickness, t.hidden])
-
-
-def _contours(b: Board) -> list:
-    from kicad_tools.schema.pcb import PCB
-
-    segs = b.pcb.get_board_outline_segments()
-    return _l([PCB._chain_segment_indices(segs, idx, 0.01) for idx in PCB._group_segments_by_connectivity(segs, 0.01)])
-
-
-def _angle(fp):
-    """silk._angle; None where kicad-tools could not link the footprint to its
-    node (boards whose footprints share one uuid), "error" where the reference's
-    (at ...) has a word for its angle (KiCad 6 and 7 write `unlocked` there)."""
-    if fp._sexp_node is None:
-        return None
-    try:
-        return silk._angle(fp)
-    except ValueError:
-        return "error"
 
 
 def dump(path: Path) -> dict:
     b = Board(path)
-    pcb = b.pcb
-    setup = pcb.setup
     return {
         "origin": _l(b.origin),
         "layers": b.layers,
@@ -67,21 +46,20 @@ def dump(path: Path) -> dict:
         "pads": [_l([p.ref, p.num, p.net, p.x, p.y, p.layer, p.w, p.h, p.angle, p.thru, p.layers, p.shape, p.rratio])
                  for p in b.pads],
         "tracks": [_l([t.pts, t.width, t.layer, t.net]) for t in b.tracks],
-        "vias": [_l([v.x, v.y, v.size, v.drill, v.layers, v.net, w.tenting_front, w.tenting_back])
-                 for v, w in zip(b.vias, pcb.vias)],
+        "vias": [_l([v.x, v.y, v.size, v.drill, v.layers, v.net, *v.tenting]) for v in b.vias],
         "zones": [_l([z.net, z.layers, z.priority, z.keepout, z.outline, z.fills]) for z in b.zones],
-        "tenting": [None if setup is None else setup.tenting_front, None if setup is None else setup.tenting_back],
-        "outline": _l(list(pcb.get_board_outline() or [])),
-        "outline_segments": _l(pcb.get_board_outline_segments()),
-        "contours": _contours(b),
-        "footprints": [_l([fp.reference, fp.uuid, fp.position, fp.rotation, fp.layer, _angle(fp),
+        "tenting": _l(b.tenting),
+        "outline": _l(b.outline),
+        "outline_segments": _l(b.outline_segments),
+        "contours": _l(contours(b.outline_segments)),
+        "footprints": [_l([fp.reference, fp.uuid, fp.position, fp.rotation, fp.layer, silk._angle(fp),
                            [[q.number, q.type, q.shape, q.position, q.size, q.rotation, q.drill,
                              q.solder_mask_margin, q.layers, q.roundrect_rratio] for q in fp.pads],
                            [_text(t) for t in fp.texts],
                            [_graphic(g) for g in fp.graphics]])
-                       for fp in pcb.footprints],
-        "texts": [_text(t) for t in pcb.texts],
-        "graphics": [_graphic(g) for g in pcb.graphics],
+                       for fp in b.footprints],
+        "texts": [_text(t) for t in b.texts],
+        "graphics": [_graphic(g) for g in b.graphics],
     }
 
 

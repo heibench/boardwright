@@ -84,7 +84,7 @@ def _copper(board: Board, net: str, layer: str, window, extra, ignore=frozenset(
 
 
 def _outline(board: Board):
-    pts = list(board.pcb.get_board_outline() or [])
+    pts = board.outline
     if len(pts) >= 3:
         poly = Polygon(pts)
         if poly.is_valid and poly.area > 0:

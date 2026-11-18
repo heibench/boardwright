@@ -52,6 +52,16 @@ the command line).
   kicad-tools left out the layers past In6.Cu; KiCad 10's jumper layers
   stay out. An Edge.Cuts arc or circle is still cut into chords within
   0.1 um of it, at different points (#60).
+- Boards are read by boardwright's own reader instead of kicad-tools'
+  parser. On every committed board and 17 of KiCad 10's demos it reads the
+  same footprints, pads, tracks, vias, zones, outline and board origin as
+  before. Boards saved by KiCad 6 to 10 are read, and KiCad 8, 9 and 10
+  files are tested. A board saved by a newer KiCad is read as KiCad 10
+  would read it, with a note on stderr; one saved by KiCad 5 or older,
+  which kicad-tools read, is refused with exit 4. The board origin, which
+  every board-relative coordinate is measured from, is unchanged and now
+  written down in the guide. Copper layers of KiCad's `mixed` type count
+  as copper, as `dsn.py` already counted them (#58).
 
 ### Removed
 
@@ -61,6 +71,10 @@ the command line).
 
 ### Fixed
 
+- A board with a copper arc whose three points lie on a line, or a file
+  that is not a board, no longer stops a command with an internal error
+  (exit 2): the arc is read as a straight track, and the file is refused
+  as unreadable (exit 4) (#58).
 - `existing reroute` no longer leaves a `<board>.dsn-revision.json` in the
   project folder; kicad-tools' export wrote it beside the board (#60).
 - Footprint zones (an RF module's antenna keep-out) are placed in board

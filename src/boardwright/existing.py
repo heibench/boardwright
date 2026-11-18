@@ -80,7 +80,7 @@ def info(d: Path) -> int:
     b = Board(pcb)
     x0, y0, x1, y1 = b.bbox
     print(f"{pcb.name}: {x1 - x0:.1f} x {y1 - y0:.1f} mm, layers {', '.join(b.layers)}")
-    print(f"  {len(b.pcb.footprints)} footprints, {len(b.pads)} pads, {len(b.tracks)} tracks, {len(b.vias)} vias, "
+    print(f"  {len(b.footprints)} footprints, {len(b.pads)} pads, {len(b.tracks)} tracks, {len(b.vias)} vias, "
           f"{len({p.net for p in b.pads if p.net})} nets")
     per: dict[str, float] = {}
     for t in b.tracks:
