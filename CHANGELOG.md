@@ -44,6 +44,14 @@ the command line).
   references land where the command put them. Only the `(at ...)` of
   each moved reference changes now; the rest of the file stays as it was
   (#54).
+- `gen` and `existing reroute` write the DSN for Freerouting themselves
+  instead of running kicad-tools' `pcb export-dsn`. For the example boards
+  it is the same file but for its `host_version`, and curved tracks go in
+  with the rest of the fixed copper instead of being added afterwards.
+  Every signal, power and mixed copper layer goes in, front to back, where
+  kicad-tools left out the layers past In6.Cu; KiCad 10's jumper layers
+  stay out. An Edge.Cuts arc or circle is still cut into chords within
+  0.1 um of it, at different points (#60).
 
 ### Removed
 
@@ -53,6 +61,8 @@ the command line).
 
 ### Fixed
 
+- `existing reroute` no longer leaves a `<board>.dsn-revision.json` in the
+  project folder; kicad-tools' export wrote it beside the board (#60).
 - Footprint zones (an RF module's antenna keep-out) are placed in board
   coordinates as each footprint is placed. kicad-tools' create-pcb leaves them
   in the library's coordinates; `board.place_footprint_zones`, which patched

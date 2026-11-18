@@ -103,8 +103,6 @@ def gen(d: Path) -> None:
         B.gnd_pour(pcb, net, (layer,), solid=False)
     # kct writes its own .kicad_pro/.kicad_dru sidecars; ours wins.
     write_project(d, m.NAME, getattr(m, "RULES", None), getattr(m, "CLASSES", None), getattr(m, "SEVERITIES", None))
-    for junk in d.glob(f"{m.NAME}.*.json"):
-        junk.unlink()
     from .model import Board
     from .review import crossings
     for c in crossings(Board(pcb), m):

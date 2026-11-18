@@ -436,33 +436,6 @@ def _net_of(blk: str, names: dict) -> str:
     return n.group(3) if n.group(3) is not None else (n.group(2) or names.get(n.group(1), ""))
 
 
-def add_arcs_to_dsn(dsn: Path, b: Board) -> int:
-    """kicad-tools' DSN export leaves out curved tracks. Without them the router
-    sees those nets as open and routes them again, through copper it cannot see.
-    Each arc goes in as a fixed polyline."""
-    ox, oy = b.origin
-    text = dsn.read_text()
-    quoted = {name: q for q, name in re.findall(r'\(net ("?)([^\s")]+)\1', text)}
-    add = []
-    for t in b.tracks:
-        if len(t.pts) <= 2:
-            continue
-        coords = " ".join(f"{(x + ox) * 1000:.1f} {(y + oy) * 1000:.1f}" for x, y in t.pts)
-        net = t.net if (t.net in quoted and not quoted[t.net]) or not re.search(r"[\s()\"]", t.net) else f'"{t.net}"'
-        add.append(f"    (wire\n      (path {t.layer} {t.width * 1000:.1f} {coords})\n      (net {net})\n      (type protect)\n    )\n")
-    if not add:
-        return 0
-    i = text.rfind("(wiring")
-    if i < 0:
-        j = text.rstrip().rfind(")")
-        text = text[:j] + "  (wiring\n" + "".join(add) + "  )\n" + text[j:]
-    else:
-        k = text.index("\n", i) + 1
-        text = text[:k] + "".join(add) + text[k:]
-    dsn.write_text(text)
-    return len(add)
-
-
 def reroute(d: Path, nets_: list[str]) -> int:
     """Rip up the named nets and let Freerouting route only them.
 

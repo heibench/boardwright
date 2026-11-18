@@ -28,6 +28,11 @@
   rehearsal with vias, judged clean by KiCad (11). Rules in a `.kicad_dru`
   file are not read. No push-aside, no pairs, no length tuning; multi-pad
   nets are routed as the pairs you list.
+- **Freerouting sees only what a DSN can say.** Conditional and
+  layer-specific `.kicad_dru` rules, hole and annular-ring minima, zone
+  holes and arc-edged zone outlines are not given to it, and a net in
+  several classes routes at the class KiCad ranks first (`dsn.py`). KiCad's
+  DRC still judges the result.
 - **Alternatives to Freerouting were not tried.** Its job mode and the
   Topola router both need installing or configuring, which is a decision
   about the machine, not this tool.
