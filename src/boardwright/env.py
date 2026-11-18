@@ -39,8 +39,17 @@ def _library_candidates(dir_: str) -> list[Path]:
     ]
     found: list[Path] = []
     for p in pats:
-        found += [Path(g) for g in sorted(glob.glob(p), reverse=True)]
+        found += _newest_first(p)
     return [p for p in found if p.is_dir()]
+
+
+def _newest_first(pattern: str) -> list[Path]:
+    """The matches of a glob pattern with at most one `*` standing for a version
+    folder, newest version first (see _version_key)."""
+    if "*" not in pattern:                      # a fixed path: nothing to order
+        return [Path(g) for g in glob.glob(pattern)]
+    base = Path(pattern.partition("*")[0])
+    return sorted((Path(g) for g in glob.glob(pattern)), key=_version_key(base), reverse=True)
 
 
 def _library(dir_: str) -> Path:
@@ -167,8 +176,17 @@ def _windows_installs(patterns) -> list[str]:
         root, _, tail = pattern.partition("*")
         base = Path(root)
         if base.is_dir():
-            found += [str(m) for m in sorted(base.glob("*" + tail.replace("\\", "/")), reverse=True)]
+            found += [str(m) for m in sorted(base.glob("*" + tail.replace("\\", "/")), key=_version_key(base), reverse=True)]
     return found
+
+
+def _version_key(base: Path):
+    """Order matches under base by the version folder they are in, compared by number
+    (10.0 after 9.0); a folder whose name is not a version comes after every version."""
+    def key(m: Path) -> tuple[bool, tuple[int, ...]]:
+        parts = m.relative_to(base).parts[0].split(".")
+        return (True, tuple(map(int, parts))) if all(p.isdigit() for p in parts) else (False, ())
+    return key
 
 
 def _kicad_cli_works(argv: list[str]) -> bool:
