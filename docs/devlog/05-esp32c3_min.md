@@ -81,3 +81,6 @@ and 0 and 90 on the bottom.
 `board.place_footprint_zones` now places those zones after every placement,
 the example's override is gone, and its full gate is 0 violations, 0
 unconnected, 0 parity issues with the check on.
+
+Since #55, `board.place` puts the zones in board coordinates as it places
+each footprint, and `place_footprint_zones` is gone.

@@ -119,19 +119,22 @@ def _pads(fp: str) -> list[tuple[int, int, str, str | None]]:
     return out
 
 
-def _set_pad_net(pad: str, net: str) -> str:
-    if re.search(r'\n\s*\(net "', pad):
-        return re.sub(r'(\n\s*)\(net "(?:[^"\\]|\\.)*"\)', lambda m: f'{m.group(1)}(net "{_esc(net)}")', pad, count=1)
+def _set_pad_net(pad: str, net: str, code: int | None = None) -> str:
+    """The pad on net `net`; `code` is its number on a board that numbers its nets
+    (as KiCad 9 and kicad-tools write them), None on one that names them only."""
+    tok = f'(net "{_esc(net)}")' if code is None else f'(net {code} "{_esc(net)}")'
+    if re.search(r'\n\s*\(net (?:\d+ )?"', pad):
+        return re.sub(r'(\n\s*)\(net (?:\d+ )?"(?:[^"\\]|\\.)*"\)', lambda m: m.group(1) + tok, pad, count=1)
     ind = re.search(r"\n(\s*)\(", pad[1:]).group(1)          # the indent of the pad's own items (the second line)
     m = re.search(r"\n\s*\(uuid ", pad)
     k = m.start() if m else pad.rstrip().rfind("\n")
-    return pad[:k] + f'\n{ind}(net "{_esc(net)}")' + pad[k:]
+    return pad[:k] + f'\n{ind}{tok}' + pad[k:]
 
 
-def _with_pad_nets(fp: str, want: dict) -> str:
+def _with_pad_nets(fp: str, want: dict, codes: dict | None = None) -> str:
     for s, e, num, _have in reversed(_pads(fp)):
         if num and num in want:
-            fp = fp[:s] + _set_pad_net(fp[s:e], want[num]) + fp[e:]
+            fp = fp[:s] + _set_pad_net(fp[s:e], want[num], codes[want[num]] if codes else None) + fp[e:]
     return fp
 
 

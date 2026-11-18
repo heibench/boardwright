@@ -63,7 +63,7 @@
 - Generated boards unlinked from their symbols -> `gen` and `update` link them (11, #26).
 - `MOVE` rewrote the board file -> moved blocks edited in place (11, #32).
 - Schematic adds only by copying, root sheet only, no way to the board -> library symbols, global tables, sub-sheets, `existing update` (#3).
-- ESP32 footprint warning: the module's keep-out zone was left beside the part -> `board.place_footprint_zones` (05, #6).
+- ESP32 footprint warning: the module's keep-out zone was left beside the part -> zones placed in board coordinates with their footprint, `board.place` (05, #6, #55).
 - Pour necks not measured by the current check -> `review.neck` (#5).
 - Pours invisible in renders -> copper plots (03).
 - Legal-but-split power polygons -> review (03).

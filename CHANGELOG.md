@@ -7,6 +7,29 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+
+- `place` and `gen` place footprints by editing each footprint's own block
+  instead of loading and re-saving the whole board through kicad-tools' `PCB`.
+  Moving a footprint, turning it over onto the back and putting a no-connect
+  pad on its net each replace only that footprint's block; a net the board
+  does not list yet is added to its net list. A back-side footprint now keeps
+  its place in the file instead of moving to the end, and angles are written
+  in (-180, 180] (`-90`, not `270`), as `existing apply` writes them (#55).
+
+### Removed
+
+- `PREROUTE(pcb)`, which handed a board's spec the kicad-tools board object
+  before routing. No example used it; hand copper goes in `TRACKS` and
+  `VIAS` (#55).
+
+### Fixed
+
+- Footprint zones (an RF module's antenna keep-out) are placed in board
+  coordinates as each footprint is placed. kicad-tools' create-pcb leaves them
+  in the library's coordinates; `board.place_footprint_zones`, which patched
+  them after placement, is gone (#55, #36).
+
 ## [0.7.0] - 2026-11-17
 
 ### Added

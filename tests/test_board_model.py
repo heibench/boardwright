@@ -90,35 +90,6 @@ def test_current_review_fails_a_necked_pour():
     assert any("narrows to" in f for f in fails), fails
 
 
-def test_footprint_zone_is_put_back_on_its_footprint(tmp_path):
-    import re
-    import shutil
-
-    from conftest import BOARDS
-
-    from boardwright.board import place_footprint_zones
-    from boardwright.copper import blocks
-
-    d = tmp_path / "esp32c3_min"
-    shutil.copytree(BOARDS / "esp32c3_min", d)
-    pcb = d / "esp32c3_min.kicad_pcb"
-    t = pcb.read_text()
-    fs, fe = next((s, e) for s, e in blocks(t, ("footprint",)) if '"RF_Module:ESP32-C3-WROOM-02"' in t[s:s + 200])
-    fp = t[fs:fe]
-    zs, ze = blocks(fp, ("zone",))[0]
-    shifted = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", lambda m: f"(xy {float(m.group(1)) + 10:g} {m.group(2)})", fp[zs:ze])
-    pcb.write_text(t[:fs] + fp[:zs] + shifted + fp[ze:] + t[fe:])
-
-    assert place_footprint_zones(pcb, d) == 1
-    t = pcb.read_text()
-    fp = next(t[s:e] for s, e in blocks(t, ("footprint",)) if '"RF_Module:ESP32-C3-WROOM-02"' in t[s:s + 200])
-    fx, fy = map(float, re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)", fp).groups())
-    got = [(float(x), float(y)) for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", fp[slice(*blocks(fp, ("zone",))[0])])]
-    lib = (d / "libs/RF_Module.pretty/ESP32-C3-WROOM-02.kicad_mod").read_text()
-    want = [(float(x) + fx, float(y) + fy) for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", lib[slice(*blocks(lib, ("zone",))[0])])]
-    assert [c for p in got for c in p] == pytest.approx([c for p in want for c in p])
-
-
 def test_preview_stays_svg_without_rsvg_convert(tmp_path, monkeypatch, capsys):
     """`doctor` says previews stay SVG without rsvg-convert; the preview must not crash."""
     from conftest import board
