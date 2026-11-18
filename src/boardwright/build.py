@@ -234,6 +234,13 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr)
     if not ses.exists():
         raise EnvironmentFault("freerouting produced no SES; see out/freerouting.log")
+    import_ses(pcb, ses, m)
+
+
+def import_ses(pcb: Path, ses: Path, m) -> None:
+    """Freerouting's session into the board, without what it gets wrong:
+    re-added protected copper, tracks below the minimum width, dangling vias
+    and stubs."""
     B.kct("pcb", "import-ses", str(pcb), str(ses), "-o", str(pcb))
     # Freerouting necks traces down to squeeze between pads; never below the fab minimum.
     minw = (getattr(m, "RULES", None) or {}).get("min_track_width", 0.15)

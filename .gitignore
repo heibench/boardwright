@@ -14,6 +14,7 @@ fp-info-cache
 **/boardwright_out/
 *.dsn
 *.ses
+!tests/data/ses/*.ses
 *.rules
 preview.svg
 *_preview.png
