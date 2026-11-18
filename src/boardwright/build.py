@@ -5,8 +5,7 @@
     boardwright verify <board dir>    # parse the reports, gate
 
 A board dir holds board.py defining: NAME, CIRCUIT, W, H, PLACE, and optionally
-PREROUTE(pcb) for hand-routed traces, ROUTE_SKIP (nets left to pours),
-POURS (list of (net, layers)).
+ROUTE_SKIP (nets left to pours), POURS (list of (net, layers)).
 """
 
 from __future__ import annotations
@@ -17,8 +16,6 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-
-from kicad_tools.schema.pcb import PCB
 
 from . import board as B
 from . import copper, env
@@ -75,13 +72,8 @@ def stage_place(d: Path, m) -> Path:
     from .placement import resolve
     place = resolve(pcb, m.PLACE, m.CIRCUIT, d)
     (out / "placement.json").write_text(json.dumps(place, indent=1))
-    B.place(pcb, place, m.CIRCUIT, d)
-    p = PCB.load(pcb)
-    for ref, num, name in m.CIRCUIT.nc_nets:   # KiCad's own name for a no-connect pad
-        p.assign_net_to_footprint_pad(ref, num, name)
-    if hasattr(m, "PREROUTE"):
-        m.PREROUTE(p)
-    p.save(pcb)
+    B.place(pcb, place)
+    B.set_pad_nets(pcb, m.CIRCUIT.nc_nets)   # KiCad's own name for a no-connect pad
     copper.apply(pcb, m, "pre")      # VIAS, TRACKS, KEEPOUTS: fixed before routing
     return pcb
 

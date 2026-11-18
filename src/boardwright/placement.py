@@ -62,7 +62,7 @@ def resolve(pristine: Path, place: dict, circuit, board_dir: Path) -> dict:
         trial = dict(fixed)
         for r, c in cons.items():
             trial[r] = (10.0, 10.0, k) + (("B",) if c.side == "B" else ())
-        B.place(tmp, trial, circuit, board_dir)
+        B.place(tmp, trial)
         pos = {}
         for p in Board(tmp).pads:
             pos.setdefault((p.ref, p.num), (p.x, p.y))

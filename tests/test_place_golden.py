@@ -80,6 +80,30 @@ def test_place_matches_its_golden(tmp_path, case):
     assert sch == (GOLDEN / f"{case}.kicad_sch.sha256").read_text().strip()
 
 
+
+@needs_libs
+@pytest.mark.parametrize("case", ["esp32c3_min", *VARIANTS])
+def test_module_zone_is_placed_in_board_coordinates(tmp_path, case):
+    """The module's keep-out zone is its library outline, mirrored on the back,
+    turned and moved with the footprint: board coordinates, where KiCad keeps it."""
+    import math
+
+    out = place(case, tmp_path)
+    t = out.with_suffix(".kicad_pcb").read_text()
+    fp = next(t[s:e] for s, e in blocks(t, ("footprint",)) if '"RF_Module:ESP32-C3-WROOM-02"' in t[s:s + 200])
+    at = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", fp)
+    fx, fy, rot = float(at.group(1)), float(at.group(2)), float(at.group(3) or 0)
+    back = '\n\t\t(layer "B.Cu")' in fp
+    assert back == case.endswith("_back")
+    c, s = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+    lib = (out.parent / "libs/RF_Module.pretty/ESP32-C3-WROOM-02.kicad_mod").read_text()
+    want = []
+    for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", lib[slice(*blocks(lib, ("zone",))[0])]):
+        lx, ly = float(x), -float(y) if back else float(y)
+        want += [fx + lx * c + ly * s, fy - lx * s + ly * c]
+    got = [float(v) for xy in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", fp[slice(*blocks(fp, ("zone",))[0])]) for v in xy]
+    assert got == pytest.approx(want)
+
 if __name__ == "__main__":
     import tempfile
 
