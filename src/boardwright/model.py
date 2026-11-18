@@ -25,7 +25,8 @@ Versions. Files saved by KiCad 6 to 10 are read (versions 20211014 to
 20260206; tested on KiCad 8, 9 and 10 files). A newer file is read as if
 KiCad 10 had saved it, with a note on stderr, since KiCad's own checks judge
 whatever is written from it. A file older than KiCad 6 (KiCad 5's
-`(module ...)` syntax) is refused (exit 4): open it in a newer KiCad first.
+`(module ...)` syntax) is not read yet (exit 4, #78): open it in a newer KiCad
+first.
 
 The reading of each item, the origin rule and the outline chaining are
 ported from kicad-tools 0.29.0 (kicad_tools/schema/pcb.py,
@@ -655,7 +656,7 @@ class Board:
         self.version = _int(v[1]) if v is not None and len(v) > 1 else None
         if self.version is not None and self.version < KICAD6:
             raise EnvironmentFault(f"{self.path}: saved by KiCad 5 or older (version {self.version}); "
-                                   "boardwright reads KiCad 6 and newer. Open it in KiCad and save it first.")
+                                   "boardwright does not read KiCad 5 boards yet (#78). Open it in KiCad 6 or newer and save it first.")
         if self.version is not None and self.version > NEWEST and str(self.path) not in _warned:
             _warned.add(str(self.path))
             print(f"note: {self.path.name} was saved by a KiCad newer than 10 (version {self.version}); "

@@ -21,7 +21,7 @@
   `existing update` carries a change to the board and swaps a footprint
   only for one with the same pads; what it adds lands beside the board for
   `free` and `MOVE`, and footprints whose symbol is gone wait for `REMOVE`.
-- **Boards older than KiCad 6 are refused.** `model.py` reads KiCad 6 to 10
+- **Boards older than KiCad 6 are not read yet (#78).** `model.py` reads KiCad 6 to 10
   files and is tested on KiCad 8, 9 and 10 ones; KiCad 6 and 7 boards are
   read but no test holds them. A KiCad 5 board (`(module ...)`, unquoted
   names) has to be opened and saved in a newer KiCad first (#58).

@@ -58,7 +58,7 @@ the command line).
   before. Boards saved by KiCad 6 to 10 are read, and KiCad 8, 9 and 10
   files are tested. A board saved by a newer KiCad is read as KiCad 10
   would read it, with a note on stderr; one saved by KiCad 5 or older,
-  which kicad-tools read, is refused with exit 4. The board origin, which
+  which kicad-tools read, is not read yet and exits 4 (#78). The board origin, which
   every board-relative coordinate is measured from, is unchanged and now
   written down in the guide. Copper layers of KiCad's `mixed` type count
   as copper, as `dsn.py` already counted them (#58).

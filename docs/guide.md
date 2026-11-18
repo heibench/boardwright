@@ -13,7 +13,8 @@ Everything that reads a board (`pads`, preview, review) goes through
 any layer count, curved tracks included. Boards saved by KiCad 6 to 10 are
 read; KiCad 8, 9 and 10 files are tested. A board saved by a KiCad newer
 than 10 is read as KiCad 10 would read it, with a note; one saved by KiCad 5
-or older is refused (exit 4): open it in a newer KiCad and save it first.
+or older is not read yet (exit 4, #78): open it in a newer KiCad and save it
+first.
 
 Board-relative coordinates (what `pads` prints, and PLACE, TRACKS, VIAS,
 ZONES and MOVE take) are measured from the top-left corner of the board
