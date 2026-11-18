@@ -43,6 +43,10 @@ the command line).
   coordinates as each footprint is placed. kicad-tools' create-pcb leaves them
   in the library's coordinates; `board.place_footprint_zones`, which patched
   them after placement, is gone (#55, #36).
+- A board with `LIBS` no longer leaves `KICAD_SYMBOL_DIR` and
+  `KICAD_FOOTPRINT_DIR` pointing at its merged library view after the
+  command: the next board placed in the same Python process used that
+  board's libraries, or failed once its `.libmerge` was gone (#69).
 
 ## [0.7.0] - 2026-11-17
 

@@ -56,12 +56,7 @@ def place(case: str, tmp: Path) -> Path:
         t = b.read_text()
         assert '"U1": (MX, MY, 0),' in t
         b.write_text(t.replace('"U1": (MX, MY, 0),', f'"U1": {spec},'))
-    saved = dict(os.environ)          # a LIBS board points KICAD_*_DIR at its merged view under tmp
-    try:
-        assert main(["place", str(d)]) == 0
-    finally:
-        os.environ.clear()
-        os.environ.update(saved)
+    assert main(["place", str(d)]) == 0
     return d / name
 
 

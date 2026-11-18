@@ -108,16 +108,17 @@ def _run(argv: list[str]) -> int:
         raise Usage(f"usage: boardwright {cmd} DIR, where DIR holds a board.py")
     if cmd == "pins" and not rest:
         raise Usage("usage: boardwright pins LIB:SYMBOL [LIB:FOOTPRINT] [--libs DIR ...]")
-    if cmd in _NEEDS_LIBS:              # after the arguments are known to be usable
-        from . import env
+    from . import env
 
-        env.use_libraries()
-    if cmd in _BUILD:
-        from . import build
+    with env.library_scope():           # one command's libraries are not the next one's (#69)
+        if cmd in _NEEDS_LIBS:          # after the arguments are known to be usable
+            env.use_libraries()
+        if cmd in _BUILD:
+            from . import build
 
-        return build.cli([rest[0], cmd])
-    mod = importlib.import_module(f".{_MODULES[cmd]}", __package__)
-    return mod.cli(rest) or 0
+            return build.cli([rest[0], cmd])
+        mod = importlib.import_module(f".{_MODULES[cmd]}", __package__)
+        return mod.cli(rest) or 0
 
 
 if __name__ == "__main__":

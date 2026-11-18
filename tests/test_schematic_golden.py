@@ -11,7 +11,6 @@ re-recorded from boardwright's.
 (build.stage_place), so the same circuit must give the same file every run.
 """
 
-import os
 import shutil
 from pathlib import Path
 
@@ -29,12 +28,7 @@ def schematic(name: str, tmp: Path) -> str:
     d = tmp / "boards" / name
     shutil.copytree(ROOT / "examples" / "boards" / name, d, ignore=shutil.ignore_patterns("out", "__pycache__", ".libmerge"))
     shutil.copytree(ROOT / "examples" / "libs", tmp / "libs")        # customlib_test's LIBS = ["../../libs"]
-    saved = dict(os.environ)          # a LIBS board points KICAD_*_DIR at its merged view under tmp
-    try:
-        assert main(["place", str(d)]) == 0
-    finally:
-        os.environ.clear()
-        os.environ.update(saved)
+    assert main(["place", str(d)]) == 0
     return (d / f"{name}.kicad_sch").read_text()
 
 
