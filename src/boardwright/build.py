@@ -101,7 +101,6 @@ def gen(d: Path) -> None:
             B.gnd_pour(pcb, net, layers, solid=bool(solid and solid[0]))
     for layer, net in getattr(m, "PLANES", {}).items():      # inner planes, after routing: see AGENTS.md
         B.gnd_pour(pcb, net, (layer,), solid=False)
-    # kct writes its own .kicad_pro/.kicad_dru sidecars; ours wins.
     write_project(d, m.NAME, getattr(m, "RULES", None), getattr(m, "CLASSES", None), getattr(m, "SEVERITIES", None))
     from .model import Board
     from .review import crossings

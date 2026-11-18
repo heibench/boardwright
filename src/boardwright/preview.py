@@ -112,7 +112,7 @@ def svg(b: Board, scale: float = 20.0) -> tuple[str, int]:
     rn = ratsnest(b, poured)
     for (ax, ay), (bx, by), _net in rn:
         o.append(f'<line x1="{X(ax):.1f}" y1="{Y(ay):.1f}" x2="{X(bx):.1f}" y2="{Y(by):.1f}" stroke="#ff3" stroke-width="1.2" stroke-opacity="0.8"/>')
-    for fp in b.pcb.footprints:
+    for fp in b.footprints:
         o.append(f'<text x="{X(fp.position[0]):.1f}" y="{Y(fp.position[1]):.1f}" fill="#fff" font-size="{0.9 * scale:.0f}" '
                  f'font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" opacity="0.9">{fp.reference}</text>')
     o.append("</svg>")

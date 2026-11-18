@@ -169,13 +169,13 @@ class Clearance:
         self.tree = STRtree([s for *_, s in self.items])
         self.reach = max([self.gap(net) for _r, net, _l, _s in self.items] + [0.2])
         self.fps = {}                                        # ref -> (side, position, rotation, courtyard)
-        for fp in b.pcb.footprints:
+        for fp in b.footprints:
             fx, fy = fp.position
             yard = _courtyard(fp)
             if yard is not None:
                 yard = affinity.translate(affinity.rotate(yard, -(fp.rotation or 0), origin=(0, 0)), fx, fy)
             self.fps[fp.reference] = ("B" if (fp.layer or "").startswith("B") else "F", (fx, fy), fp.rotation or 0, yard)
-        outline = list(b.pcb.get_board_outline() or [])
+        outline = b.outline
         self.inside = Polygon(outline).buffer(-self.edge) if len(outline) >= 3 else None
 
     def _moved(self, ref: str, at: tuple | None):

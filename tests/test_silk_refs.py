@@ -88,9 +88,37 @@ def test_references_keep_clear_of_the_board_edge(tmp_path):
     assert t.count("\n\t\t(at 136.5 103.7)\n") == 1
     pcb.write_text(t.replace("\n\t\t(at 136.5 103.7)\n", "\n\t\t(at 134.45 103.7)\n"))
     assert "J1" in silk.place_refs(pcb)
-    b = Board(pcb).pcb
+    b = Board(pcb)
     material, outline = silk._material(b)
     for fp in b.footprints:
         r = next(x for x in fp.texts if x.text_type == "reference")
         g = silk._text_box(r.text, r.font_size, r.font_thickness, silk._transform(fp)(r.position), silk._angle(fp))
         assert material.covers(g) and g.distance(outline) >= silk.EDGE - silk.EPS, fp.reference
+
+
+def _small_board(tmp_path, body: str):
+    p = tmp_path / "b.kicad_pcb"
+    p.write_text('(kicad_pcb (version 20260206) (generator "pcbnew")\n\t(layers (0 "F.Cu" signal) (31 "B.Cu" signal) '
+                 '(44 "Edge.Cuts" user))\n'
+                 '\t(gr_rect (start 100 50) (end 130 70) (stroke (width 0.05) (type default)) (fill no) (layer "Edge.Cuts"))\n'
+                 f'{body})\n')
+    return p
+
+
+def test_a_cutout_is_not_board_material(tmp_path):
+    from boardwright.model import Board
+
+    cutout = '\t(gr_rect (start 110 55) (end 115 60) (stroke (width 0.05) (type default)) (fill no) (layer "Edge.Cuts"))\n'
+    material, outline = silk._material(Board(_small_board(tmp_path, cutout)))
+    assert material.area == pytest.approx(30 * 20 - 5 * 5) and len(outline.geoms) == 8
+
+
+def test_an_untented_via_is_an_opening_where_it_is(tmp_path):
+    """A via the setup leaves untented on the front is an opening there (the
+    via's 0.6 mm plus the 0.05 mm mask margin each side), at its board-relative
+    position; on the back, tented by default, it is none."""
+    from boardwright.model import Board
+
+    via = '\t(via (at 101 52) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net 0))\n\t(setup (tenting (front no)))\n'
+    openings = silk._openings(Board(_small_board(tmp_path, via)))
+    assert [o.bounds for o in openings["F"]] == [pytest.approx((0.65, 1.65, 1.35, 2.35))] and openings["B"] == []

@@ -7,19 +7,10 @@ copper.origin defines it).
 from __future__ import annotations
 
 import re
-import subprocess
 import uuid
 from pathlib import Path
 
-from . import copper, env
-
-
-def kct(*args: str) -> subprocess.CompletedProcess:
-    r = subprocess.run([*env.kct(), *args], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(f"kct {' '.join(args)} -> {r.returncode}\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
-    return r
-
+from . import copper
 
 _LAYERS = {
     2: '\t\t(0 "F.Cu" signal)\n\t\t(31 "B.Cu" signal)\n',

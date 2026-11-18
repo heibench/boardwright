@@ -118,8 +118,8 @@ def libraries() -> tuple[Path, Path]:
 
 
 def use_libraries(sym: Path | None = None, fp: Path | None = None) -> None:
-    """Point libraries() (and the kicad-tools commands run from here, which read
-    the same KICAD_*_DIR variables) at a library set, until library_scope ends."""
+    """Point libraries() at a library set, through the KICAD_*_DIR variables,
+    until library_scope ends."""
     if sym is None or fp is None:
         sym, fp = libraries()
     for v in ("KICAD", "KICAD10", "KICAD9"):
@@ -336,8 +336,3 @@ def freerouting() -> list[str]:
             'e.g. "java -jar /path/to/freerouting.jar".'
         )
     return cmd
-
-
-def kct() -> list[str]:
-    """kicad-tools' command line, from the same environment as this package."""
-    return [sys.executable, "-m", "kicad_tools.cli"]

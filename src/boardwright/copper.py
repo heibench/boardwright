@@ -21,7 +21,7 @@ def num(v: float) -> str:
 
 
 def origin(pcb) -> tuple[float, float]:
-    """File coordinates of the board-relative (0, 0), as kicad-tools defines it.
+    """File coordinates of the board-relative (0, 0), as model.py defines it.
 
     Takes a path. One definition for generated and hand-drawn boards alike, so
     what `pads` prints is what TRACKS, VIAS and ZONES are written in.

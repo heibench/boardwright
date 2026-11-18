@@ -82,7 +82,7 @@ def test_routes_from_one_pad_share_a_via(routes):
     o = defaults_for(b, None, "+3V3")
     tracks, vias, failed = route_all(b, [(a, c, o) for a, c in routes])
     assert not failed and len(vias) == 1
-    drill = {(fp.reference, str(q.number)): q.drill for fp in b.pcb.footprints for q in fp.pads if q.drill}
+    drill = {(fp.reference, str(q.number)): q.drill for fp in b.footprints for q in fp.pads if q.drill}
     holes = [(v.x, v.y, v.drill) for v in b.vias] + [(p.x, p.y, drill[(p.ref, p.num)]) for p in b.pads if (p.ref, p.num) in drill]
     holes += [(v[1], v[2], v[4]) for v in vias]
     gaps = [math.dist(a[:2], c[:2]) - a[2] / 2 - c[2] / 2 for a, c in itertools.combinations(holes, 2)]

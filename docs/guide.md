@@ -9,8 +9,19 @@ Two ways in, one set of checks:
   "First contact with a board you did not make".
 
 Everything that reads a board (`pads`, preview, review) goes through
-`boardwright/model.py`, which uses kicad-tools' parser and so reads any KiCad
-board, hand-drawn or generated, any layer count, curved tracks included.
+`boardwright/model.py`, which reads any KiCad board, hand-drawn or generated,
+any layer count, curved tracks included. Boards saved by KiCad 6 to 10 are
+read; KiCad 8, 9 and 10 files are tested. A board saved by a KiCad newer
+than 10 is read as KiCad 10 would read it, with a note; one saved by KiCad 5
+or older is not read yet (exit 4, #78): open it in a newer KiCad and save it
+first.
+
+Board-relative coordinates (what `pads` prints, and PLACE, TRACKS, VIAS,
+ZONES and MOVE take) are measured from the top-left corner of the board
+outline's bounding box: the board's own Edge.Cuts lines, rectangles, arcs
+(to the furthest point they reach), circles, polygons and curves. A board
+with no outline, or one with something else on Edge.Cuts, is measured from
+the file's (0, 0); `existing DIR info` prints the origin it uses.
 
 `boardwright doctor` says what this machine has for each step.
 
@@ -385,7 +396,7 @@ rectangles (rounded pads are treated as slightly larger than they are).
   KiCad's IPC API; `selection.py` selection text; `si.py` impedance and
   pairs; `existing.py` in-place work on an existing board; `sch.py` in-place
   edits to an existing schematic.
-- kicad-tools (pinned) does PCB file plumbing. `dsn.py` writes the board as
-  Freerouting reads it; `ses.py` reads Freerouting's session;
-  `build.import_ses` adds its tracks and vias. Freerouting routes. `env.py`
-  finds `kicad-cli`, or takes it from `BOARDWRIGHT_KICAD_CLI`.
+- `dsn.py` writes the board as Freerouting reads it; `ses.py` reads
+  Freerouting's session; `build.import_ses` adds its tracks and vias.
+  Freerouting routes. `env.py` finds `kicad-cli`, or takes it from
+  `BOARDWRIGHT_KICAD_CLI`.

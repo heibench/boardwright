@@ -63,7 +63,6 @@ def doctor() -> int:
     row("footprints", lambda: env.libraries()[1])
     row("kicad-cli", lambda: " ".join(env.kicad_cli()))
     row("freerouting", lambda: " ".join(env.freerouting()))
-    row("kicad-tools", lambda: importlib.metadata.version("kicad-tools"))
     try:
         print(f"ok    {'kicad-python':<12} {importlib.metadata.version('kicad-python')} (live)")
     except importlib.metadata.PackageNotFoundError:

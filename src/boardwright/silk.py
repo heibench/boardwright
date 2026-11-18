@@ -10,8 +10,8 @@ Ported from kicad-tools 0.29's `place-silk-refs --allow-rotate`
 (kicad_tools/silkscreen/place_refs.py and the helpers it takes from
 validate/rules/silkscreen.py and geometry/courtyard.py), which `gen` used to
 run; tests/test_silk_refs.py holds it to that command's output on every
-example. The board is read through kicad-tools' parser, as model.py reads it.
-Ported from kicad-tools under its licence:
+example. The board is read through model.py. Ported from kicad-tools under its
+licence:
 
 MIT License
 
@@ -46,6 +46,7 @@ from shapely.affinity import rotate
 from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 
 from . import copper
+from .model import contours
 
 # kicad-tools 0.29's defaults (kicad_tools/silkscreen/_silk_defaults.py), as
 # `gen` ran the command: silk-to-pad and silk-to-silk clearance, silk to board
@@ -156,21 +157,21 @@ def _openings(pcb) -> dict[str, list]:
         if via.size <= 0:
             continue
         for side in ("F", "B"):
-            if _tented(via, pcb.setup, side):
+            if _tented(via, pcb.tenting, side):
                 continue
             d = via.size + 2 * MASK
-            cx, cy = via.position
+            cx, cy = via.x, via.y
             out[side].append(box(cx - d / 2, cy - d / 2, cx + d / 2, cy + d / 2))
     return out
 
 
-def _tented(via, setup, side: str) -> bool:
+def _tented(via, tenting, side: str) -> bool:
     """The via's own setting, else the board's, else tented (KiCad 10's default
     when neither says, as kicad-tools measured it against kicad-cli 10.0.5)."""
-    own = via.tenting_front if side == "F" else via.tenting_back
+    own = via.tenting[0 if side == "F" else 1]
     if own in ("yes", "no"):
         return own == "yes"
-    board = None if setup is None else (setup.tenting_front if side == "F" else setup.tenting_back)
+    board = tenting[0 if side == "F" else 1]
     return True if board is None else board
 
 
@@ -192,7 +193,7 @@ def _static_silk(pcb) -> dict[str, list]:
             g = _ink(gr, xf) if side else None
             if g is not None:
                 out[side].append(g)
-    ox, oy = getattr(pcb, "_board_origin", (0.0, 0.0))     # board items are still in file coordinates
+    ox, oy = pcb.origin                         # board items are still in file coordinates
     to_board = lambda p: (p[0] - ox, p[1] - oy)
     for t in pcb.texts:
         side = SILK.get(t.layer)
@@ -264,23 +265,21 @@ def _courtyard(fp, side: str):
 def _material(pcb):
     """(the board's material as a polygon, its outline), or (None, None) when the
     Edge.Cuts lines do not close into separate contours."""
-    from kicad_tools.schema.pcb import PCB
-    segs = pcb.get_board_outline_segments()
+    segs = pcb.outline_segments
     if not segs:
         return None, None
-    contours = []
-    for idx in PCB._group_segments_by_connectivity(segs, 0.01):
-        ring = PCB._chain_segment_indices(segs, idx, 0.01)
+    polys = []
+    for ring in contours(segs, 0.01):
         if not ring:
             return None, None
         poly = Polygon(ring)
         if not poly.is_valid or poly.is_empty or poly.area <= 0:
             return None, None
-        if any(poly.boundary.intersects(o.boundary) for o in contours):
+        if any(poly.boundary.intersects(o.boundary) for o in polys):
             return None, None
-        contours.append(poly)
+        polys.append(poly)
     material = Polygon()
-    for poly in contours:          # nested contours alternate material and cutout
+    for poly in polys:             # nested contours alternate material and cutout
         material = material.symmetric_difference(poly)
     return material, MultiLineString([[a, b] for a, b in segs])
 
@@ -328,7 +327,7 @@ def _at(block: str):
 
 def plan(pcb) -> dict[str, tuple[float, float, float]]:
     """ref -> new footprint-local (x, y, angle) of each reference that moves.
-    `pcb` is kicad-tools' PCB."""
+    `pcb` is a model.Board."""
     refs = [fp.reference for fp in pcb.footprints]
     if len(refs) != len(set(refs)):
         raise ValueError("duplicate footprint references; give each part its own before placing its text")
@@ -411,15 +410,7 @@ def plan(pcb) -> dict[str, tuple[float, float, float]]:
 
 def _angle(fp) -> float:
     """The reference's own (at x y angle) as the file has it: the board-frame angle."""
-    for child in fp._sexp_node.children:
-        if child.is_atom or child.name not in ("property", "fp_text") or not child.children:
-            continue
-        atoms = child.get_atoms()
-        if atoms and str(atoms[0]) in ("Reference", "reference") and len(atoms) >= 2:
-            at = child.find("at")
-            a = at.get_atoms() if at is not None else []
-            return float(a[2]) if len(a) >= 3 else 0.0
-    return 0.0
+    return next((t.rotation for t in fp.texts if t.text_type == "reference"), 0.0)
 
 
 def place_refs(pcb_path: Path) -> list[str]:
@@ -430,7 +421,7 @@ def place_refs(pcb_path: Path) -> list[str]:
     from .update import _footprints, _prop
 
     t = t0 = pcb_path.read_text()
-    moves = plan(Board(pcb_path).pcb)
+    moves = plan(Board(pcb_path))
     for s, e in reversed(_footprints(t)):
         fp = t[s:e]
         ref = _prop(fp, "Reference")
