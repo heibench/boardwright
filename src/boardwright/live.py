@@ -8,6 +8,7 @@ and change it inside one undo step.
     boardwright live select NET|REF ...     # select those items in KiCad, so you can see what I mean
     boardwright live apply SPEC.py|EDITS.json [--dry-run] [--save]
     boardwright live refill                 # refill zones
+    boardwright live open BOARD             # start the PCB editor on BOARD and wait until it answers
 
 SPEC.py uses the names an existing-board boardwright.py uses: MOVE, RIPUP, TRACKS,
 VIAS, REVIEW. `apply` turns it into an edit list (boardwright/edits.py), or takes
@@ -28,6 +29,14 @@ gets api-<pid>.sock, so the default socket may be one without the board.
 Every socket in KiCad's socket folders is asked (env.kicad_api_sockets);
 none with FILE open is exit 4, more than one is exit 1.
 
+`open BOARD` is how a board gets in front of `live` on KiCad 10, whose API
+cannot open a document: the project manager serves no OpenDocument or
+RunAction, while a standalone PCB editor serves the API. It does nothing if a
+KiCad already has BOARD open; otherwise it starts the editor (env.pcbnew)
+detached and waits up to OPEN_WAIT_S for a socket to answer with BOARD open.
+With the Flatpak editor it refuses while any api-*.sock exists in the Flatpak
+socket folder (see open_board).
+
 Known traps (learned from other IPC API clients):
 items are built as typed objects, never parsed from strings (KiCad reports
 success and creates nothing); deleting returns no per-item result, so the
@@ -37,6 +46,7 @@ result is read back; no access to the interactive router exists in the API.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import time
 import types
 from pathlib import Path
@@ -92,6 +102,11 @@ def find_board(board: str, sockets=None, opener=None):
     every socket env.kicad_api_sockets() lists. The open board's path is the
     document's project.path joined with its board_filename (kicad-python 0.8.0
     DocumentSpecifier; kipy.board.Board.name and Project.path read the same)."""
+    return _locate(board, sockets, opener)[1:]
+
+
+def _locate(board: str, sockets=None, opener=None):
+    """(socket, KiCad, document): find_board, naming the socket too."""
     from kipy.errors import ApiError
     from kipy.proto.common import ApiStatusCode
     from kipy.proto.common.types import DocumentType
@@ -121,12 +136,70 @@ def find_board(board: str, sockets=None, opener=None):
         asked.append(f"{s}: " + (", ".join(map(str, paths)) or "no board open"))
         hits += [(s, k, d) for d, p in zip(docs, paths) if p.resolve() == want]
     if len(hits) == 1:
-        return hits[0][1], hits[0][2]
+        return hits[0]
     if hits:
         raise Outcome(f"{len(hits)} running KiCads have {want} open; close all but one. They are:\n  "
                       + "\n  ".join(str(s) for s, _, _ in hits))
     raise EnvironmentFault(f"no running KiCad has {want} open. Asked:\n  "
                            + ("\n  ".join(asked) or "no KiCad API socket found (set KICAD_API_SOCKET)"))
+
+
+# Chosen, not measured: the Flatpak editor's start on this machine has not been
+# timed. A cold start loads the libraries, so it gets longer than BUSY_WAIT_S,
+# which bounds one busy reply.
+OPEN_WAIT_S, OPEN_POLL_S = 60.0, 1.0
+
+
+def open_board(board: str) -> int:
+    """Start the PCB editor on `board`, detached, and wait until a running KiCad
+    answers with it open. Nothing is started if one already has it."""
+    from . import env
+    path = Path(board).resolve()
+    if path.suffix != ".kicad_pcb" or not path.is_file():
+        raise Usage(f"live open needs an existing .kicad_pcb file: {board}")
+    try:
+        s, _, _ = _locate(str(path))
+        print(f"already open: {path} on {s}")
+        return 0
+    except EnvironmentFault:
+        pass                                    # not open anywhere; a KiCad open in two is exit 1, raised as is
+    cmd, flatpak = env.pcbnew()
+    if flatpak:
+        # Inside each Flatpak instance the pid is namespaced, so a new instance
+        # may name its socket api-<pid>.sock exactly as a running one did, and
+        # `--board` could no longer tell them apart. Inferred from the
+        # namespacing, not measured: refuse rather than risk it. A project
+        # manager on api.sock is fine (measured: the editor got api-2.sock).
+        taken = sorted(env.flatpak_socket_dir().glob("api-*.sock"))
+        if taken:
+            raise Outcome(
+                "not starting a Flatpak PCB editor while another Flatpak KiCad holds a numbered socket ("
+                + ", ".join(map(str, taken)) + "): inside Flatpak the pid in api-<pid>.sock is namespaced, so a "
+                "new instance may take the same name. Close that KiCad (or remove the file if no KiCad is running), "
+                "or open the board in it.")
+    argv = [*cmd, str(path)]
+    try:
+        proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise EnvironmentFault(f"could not start the PCB editor: {' '.join(argv)} ({type(e).__name__}: {e})") from e
+    print("started:", " ".join(argv))
+    clock, sleep = _clock
+    deadline = clock() + OPEN_WAIT_S
+    while True:
+        try:
+            s, _, _ = _locate(str(path))
+            print(f"open: {path} on {s}")
+            return 0
+        except EnvironmentFault as e:
+            last = e.message
+        code = proc.poll()
+        exited = "" if code is None else f"; the editor exited with exit code {code}"
+        if (code not in (None, 0)) or clock() >= deadline:
+            waited = "" if code not in (None, 0) else f" after {OPEN_WAIT_S:g} s"
+            raise EnvironmentFault(f"{path} did not appear in a running KiCad{waited} (started: {' '.join(argv)}"
+                                   f"{exited}). Last look: {last}")
+        sleep(OPEN_POLL_S)
 
 
 def _board(k, doc):
@@ -322,6 +395,12 @@ def main(argv: list[str]) -> int:
         doc = edit_list(args[0], Path(args[1]) if len(args) > 1 else None)
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         return 0
+
+    if cmd == "open":
+        if len(args) > 1 or (args and board and Path(args[0]).resolve() != Path(board).resolve()) \
+                or not (args or board):
+            raise Usage("live open BOARD.kicad_pcb (or live --board BOARD.kicad_pcb open)")
+        return open_board(args[0] if args else board)
 
     if board:
         k, d = find_board(board)

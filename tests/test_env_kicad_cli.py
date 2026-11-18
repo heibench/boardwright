@@ -100,3 +100,12 @@ def test_does_not_need_netspec(host, monkeypatch):
     monkeypatch.setitem(sys.modules, "kicad_netspec.oracle", None)
     monkeypatch.setitem(sys.modules, "kicad_netspec.oracle.discovery", None)
     assert env.kicad_cli() == [str(cli)]
+
+
+def test_variable_with_an_unbalanced_quote_is_an_environment_fault(host, monkeypatch):
+    _tool(host, "kicad-cli")
+    monkeypatch.setenv("BOARDWRIGHT_KICAD_CLI", '"/opt/my kicad')
+    with pytest.raises(EnvironmentFault) as e:
+        env.kicad_cli()
+    assert e.value.exit == 4
+    assert "BOARDWRIGHT_KICAD_CLI" in e.value.message and "unbalanced quote" in e.value.message

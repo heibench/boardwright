@@ -3,6 +3,10 @@
 ## Open
 
 - **The live API gives no access to the interactive router.**
+- **KiCad 10's API cannot open a board.** `live open` starts a standalone
+  PCB editor instead, and with the Flatpak editor refuses while another
+  numbered socket exists (a pid collision inferred, not seen). Its 60 s wait
+  is chosen, not measured. KiCad 11's `OpenDocument` would replace it (#50).
 - **Text is placed by hand.** `existing free` finds room for a part's copper
   and courtyard, not for its silkscreen; a `MOVE` can place the reference and
   value, but where is your call (11).
