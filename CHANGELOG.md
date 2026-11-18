@@ -37,6 +37,13 @@ the command line).
   symbol as its library writes it, as `sch add` does, rather than in
   kicad-tools' layout, and a symbol that extends another keeps its parent's
   order and one `embedded_fonts` (kicad-tools wrote it twice) (#59).
+- `gen` places reference text itself instead of running kicad-tools'
+  `place-silk-refs --allow-rotate`, which saved the whole board through
+  kicad-tools (2,388 changed lines on rp2040_min, formatting only). The
+  placement is the same, ported from kicad-tools: on every example the
+  references land where the command put them. Only the `(at ...)` of
+  each moved reference changes now; the rest of the file stays as it was
+  (#54).
 
 ### Removed
 
