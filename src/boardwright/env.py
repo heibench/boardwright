@@ -20,6 +20,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from .errors import EnvironmentFault
@@ -117,17 +118,31 @@ def libraries() -> tuple[Path, Path]:
 
 
 def use_libraries(sym: Path | None = None, fp: Path | None = None) -> None:
-    """Point kicad-tools (which reads the KICAD_*_DIR variables) at a library set."""
+    """Point libraries() (and the kicad-tools commands run from here, which read
+    the same KICAD_*_DIR variables) at a library set, until library_scope ends."""
     if sym is None or fp is None:
         sym, fp = libraries()
     for v in ("KICAD", "KICAD10", "KICAD9"):
         os.environ[f"{v}_SYMBOL_DIR"] = str(sym)
         os.environ[f"{v}_FOOTPRINT_DIR"] = str(fp)
-    # kicad-tools keeps one symbol registry per process, with the search paths
-    # it saw first; drop it so the next lookup uses these.
-    from kicad_tools.schematic import registry
 
-    registry._global_registry = None
+
+_LIBRARY_VARS = [f"{v}_{k}_DIR" for v in ("KICAD", "KICAD10", "KICAD9") for k in ("SYMBOL", "FOOTPRINT")]
+
+
+@contextmanager
+def library_scope():
+    """The KICAD_*_DIR variables as they are now, restored on leaving: a board's
+    LIBS point them at its merged view (project.merge_libs) for its own build only."""
+    saved = {v: os.environ.get(v) for v in _LIBRARY_VARS}
+    try:
+        yield
+    finally:
+        for v, value in saved.items():
+            if value is None:
+                os.environ.pop(v, None)
+            else:
+                os.environ[v] = value
 
 
 # kicad-cli discovery, ported from netspec 0.9.0 (heibench/netspec, Apache-2.0),
