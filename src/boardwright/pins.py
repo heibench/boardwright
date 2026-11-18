@@ -8,13 +8,12 @@ import re
 import tempfile
 from pathlib import Path
 
-from kicad_tools.schematic.models.symbol import SymbolDef
-
 from . import env
+from .circuit import library_symbol
 
 
 def main(lib_id: str, fp: str | None = None) -> None:
-    sd = SymbolDef.from_library(lib_id)
+    sd = library_symbol(lib_id)
     print(lib_id)
     for p in sorted(sd.pins, key=lambda p: (len(p.number), p.number)):
         print(f"  {p.number:>4} {p.name:<22} {p.pin_type:<14} unit={sd.get_pin_unit(p.number)}")

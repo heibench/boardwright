@@ -30,6 +30,13 @@ the command line).
   placed. The nets come from the circuit, so the board no longer depends on
   whether kicad-tools found a working kicad-cli, and a no-connect pad no
   longer leaves an unused `Net-(REF-PIN)` entry in the net list (#57).
+- `place`, `gen` and `pins` read symbols from the libraries themselves, and
+  `place` and `gen` write the schematic themselves instead of through
+  kicad-tools' `Schematic`. Everything outside the symbol cache is the
+  same as before, byte for byte, uuids included. The cache now holds each
+  symbol as its library writes it, as `sch add` does, rather than in
+  kicad-tools' layout, and a symbol that extends another keeps its parent's
+  order and one `embedded_fonts` (kicad-tools wrote it twice) (#59).
 
 ### Removed
 
