@@ -65,6 +65,12 @@ the command line).
 
 ### Removed
 
+- The kicad-tools dependency. Nothing in boardwright uses it any more:
+  the board reader, footprint placement, the board skeleton, the
+  schematic writer, the SES import, the DSN export and reference text
+  placement are all boardwright's own. Installing boardwright no longer
+  brings in kicad-tools, pydantic, rich or rtree, and `doctor` has no
+  kicad-tools row (#58, #60, #61).
 - `PREROUTE(pcb)`, which handed a board's spec the kicad-tools board object
   before routing. No example used it; hand copper goes in `TRACKS` and
   `VIAS` (#55).
