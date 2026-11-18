@@ -16,6 +16,12 @@ the command line).
   does not list yet is added to its net list. A back-side footprint now keeps
   its place in the file instead of moving to the end, and angles are written
   in (-180, 180] (`-90`, not `270`), as `existing apply` writes them (#55).
+- `gen` and `existing reroute` read Freerouting's session themselves instead
+  of running kicad-tools' `pcb import-ses`, and add only its tracks and vias
+  to the board. `gen` leaves out what it used to remove afterwards (the
+  protected copper the session gives back, dangling vias and stubs) and
+  widens tracks below the minimum width as it adds them; copper already on
+  the board is no longer touched by that clean-up (#56).
 
 ### Removed
 

@@ -68,9 +68,9 @@
 - Pours invisible in renders -> copper plots (03).
 - Legal-but-split power polygons -> review (03).
 - Hand routing, vias, polygons, keep-outs, silkscreen text -> `copper.py` (03, 05).
-- Length figures doubled by duplicate segments -> de-duplication (04).
+- Length figures doubled by duplicate segments -> protected copper the session gives back is left out (04, #56).
 - Crossed hand tracks -> `check_tracks` (05).
-- Autorouter stubs and dangling vias -> removed after routing (04).
+- Autorouter stubs and dangling vias -> left out when the session is imported (04, #56).
 - Starved thermal reliefs that moved every run -> one spoke suffices (04).
 - Bottom pours shredded by the autorouter -> coverage review, `FR_BOTTOM_COST` (04, 05).
 - Skew as total copper -> `match` on routed pad-to-pad paths (06).

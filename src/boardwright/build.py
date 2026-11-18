@@ -234,110 +234,82 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr)
     if not ses.exists():
         raise EnvironmentFault("freerouting produced no SES; see out/freerouting.log")
-    B.kct("pcb", "import-ses", str(pcb), str(ses), "-o", str(pcb))
-    # Freerouting necks traces down to squeeze between pads; never below the fab minimum.
-    minw = (getattr(m, "RULES", None) or {}).get("min_track_width", 0.15)
-    text = pcb.read_text()
-    seg = re.compile(r'(\(segment\s+\(start [^)]*\)\s+\(end [^)]*\)\s+\(width )([0-9.]+)\)')
-    text, n = seg.subn(lambda mm: mm.group(1) + (f"{minw})" if float(mm.group(2)) < minw else mm.group(2) + ")"), text)
-    # import-ses re-adds the protected vias we placed before routing: drop exact duplicates
-    seen, dup = set(), 0
-    def _dedupe(mm):
-        nonlocal dup
-        x, y = re.search(r"\(at ([-\d.]+) ([-\d.]+)", mm.group(0)).groups()
-        key = (round(float(x), 3), round(float(y), 3))
-        if key in seen:
-            dup += 1
-            return ""
-        seen.add(key)
-        return mm.group(0)
-    text = re.sub(r'\n\s*\(via\b(?:[^()]|\([^()]*\))*\)', _dedupe, text)
-    # ...and the protected hand-routed segments too (they double every measured length)
-    sseen = set()
-    def _sdedupe(mm):
-        f = [round(float(v), 3) for v in re.findall(r"\((?:start|end) ([-\d.]+) ([-\d.]+)\)", mm.group(0))[0]
-             + re.findall(r"\((?:start|end) ([-\d.]+) ([-\d.]+)\)", mm.group(0))[1]]
-        key = (frozenset([(f[0], f[1]), (f[2], f[3])]), re.search(r'\(layer "([^"]+)"', mm.group(0)).group(1))
-        if key in sseen:
-            return ""
-        sseen.add(key)
-        return mm.group(0)
-    text = re.sub(r'\n\s*\(segment\b(?:[^()]|\([^()]*\))*\)', _sdedupe, text)
-    m._pcb = pcb
-    text = _drop_dangling_vias(text, m)
-    pcb.write_text(text)
-    text = _drop_dangling_tracks(pcb, text, m)
-    pcb.write_text(text)
+    import_ses(pcb, ses, m)
 
 
-def _drop_dangling_vias(text: str, m) -> str:
-    """Freerouting leaves vias from abandoned attempts: no track on one side.
+def import_ses(pcb: Path, ses: Path, m) -> None:
+    """Add Freerouting's tracks and vias to the board, leaving the rest of the
+    file as it was, without what the session gets wrong: the protected copper
+    it gives back a second time, tracks necked below the minimum width, and
+    vias and stubs left from abandoned attempts.
 
-    Vias on poured nets and hand-placed VIAS are kept (a pour connects them).
-    """
-    from . import copper
-    poured = {p[0] for p in getattr(m, "POURS", [("GND",)])} | {z[0] for z in getattr(m, "ZONES", [])}
-    ends: dict[tuple[float, float], set[str]] = {}
-    for x1, y1, x2, y2, _w, layer, _net in copper.segments(text):
-        for x, y in ((x1, y1), (x2, y2)):
-            ends.setdefault((round(x, 2), round(y, 2)), set()).add(layer)
-    names = dict(re.findall(r'\n\s*\(net (\d+) "([^"]*)"\)', text))
-    ox, oy = copper.origin(m._pcb)
-    placed = {(round(v[1] + ox, 2), round(v[2] + oy, 2)) for v in getattr(m, "VIAS", [])}
-    def keep(mm):
-        b = mm.group(0)
-        x, y = re.search(r"\(at ([-\d.]+) ([-\d.]+)", b).groups()
-        if (round(float(x), 2), round(float(y), 2)) in placed:
-            return b
-        n = re.search(r'\(net (?:(\d+)|"([^"]*)")', b)
-        net = n.group(2) if n.group(2) is not None else names.get(n.group(1), "")
-        if net in poured or len(ends.get((round(float(x), 2), round(float(y), 2)), ())) >= 2:
-            return b
-        return ""
-    return re.sub(r'\n\s*\(via\b(?:[^()]|\([^()]*\))*\)', keep, text)
-
-
-def _drop_dangling_tracks(pcb: Path, text: str, m) -> str:
-    """Remove autorouter stubs: a track end touching no pad, via or other track.
-
-    Poured nets are left alone (a track may legitimately end in the pour).
+    Vias and tracks on poured nets are kept (a pour connects them), and so are
+    vias at hand-placed VIAS. The board's own copper is never removed.
     """
     import math
+    from collections import Counter
 
-    from . import copper
+    from . import ses as S
+    text = pcb.read_text()
+    layers = S.copper_layers(text)
+    tracks, vias = S.read(ses, layers)
+    unknown = {i[0] for i in tracks + vias} - S.nets(text)
+    if unknown:
+        raise ValueError(f"{ses.name} routes nets {sorted(unknown)}, which the board does not have")
+    have_t, have_v = [], []     # the board's own: (layer, x1, y1, x2, y2) and (x, y)
+    for s0, e0 in copper.blocks(text, ("segment", "via")):
+        b = text[s0:e0]
+        if b.lstrip().startswith("(via"):
+            have_v.append(tuple(map(float, re.search(r"\(at ([-\d.]+) ([-\d.]+)", b).groups())))
+        else:
+            ends = re.findall(r"\((?:start|end) ([-\d.]+) ([-\d.]+)\)", b)
+            have_t.append((re.search(r'\(layer "([^"]+)"', b).group(1), *map(float, ends[0] + ends[1])))
+    # The vias and tracks placed before routing come back as protected copper: keep the board's own.
+    seen = {(round(x, 3), round(y, 3)) for x, y in have_v}
+    new_v = []
+    for v in vias:
+        if (round(v[1], 3), round(v[2], 3)) not in seen:
+            seen.add((round(v[1], 3), round(v[2], 3)))
+            new_v.append(v)
+    def key(layer, x1, y1, x2, y2):
+        return frozenset([(round(x1, 3), round(y1, 3)), (round(x2, 3), round(y2, 3))]), layer
+    seen = {key(*t) for t in have_t}
+    # Freerouting necks traces down to squeeze between pads; never below the fab minimum.
+    minw = (getattr(m, "RULES", None) or {}).get("min_track_width", 0.15)
+    new_t = []
+    for t in tracks:
+        if key(*t[1:6]) not in seen:
+            seen.add(key(*t[1:6]))
+            new_t.append((*t[:6], max(t[6], minw)))
+    # A via from an abandoned attempt has a track on one side or none.
     poured = {p[0] for p in getattr(m, "POURS", [("GND",)])} | {z[0] for z in getattr(m, "ZONES", [])}
     ox, oy = copper.origin(pcb)
-    padlist = [(p[3] + ox, p[4] + oy, p.reach + 0.05) for p in copper.pads(pcb)]
-    vias = {(round(float(x), 2), round(float(y), 2)) for x, y in re.findall(r"\(via\s+\(at ([-\d.]+) ([-\d.]+)", text)}
-    seg_re = re.compile(r'\n\s*\(segment\b(?:[^()]|\([^()]*\))*\)')
-    names = dict(re.findall(r'\n\s*\(net (\d+) "([^"]*)"\)', text))
+    def r2(x, y):
+        return round(x, 2), round(y, 2)
+    on: dict[tuple[float, float], set[str]] = {}
+    for layer, x1, y1, x2, y2 in have_t + [t[1:6] for t in new_t]:
+        for pt in (r2(x1, y1), r2(x2, y2)):
+            on.setdefault(pt, set()).add(layer)
+    placed = {r2(v[1] + ox, v[2] + oy) for v in getattr(m, "VIAS", [])}
+    new_v = [v for v in new_v if r2(v[1], v[2]) in placed or v[0] in poured or len(on.get(r2(v[1], v[2]), ())) >= 2]
+    # A stub: a track end touching no pad, via or other track on its layer. Dropping one can leave another.
+    pads = [(p[3] + ox, p[4] + oy, p.reach + 0.05) for p in copper.pads(pcb)]
+    at_via = {r2(x, y) for x, y in have_v} | {r2(v[1], v[2]) for v in new_v}
     removed = 0
     while True:
-        segs = []
-        for mm in seg_re.finditer(text):
-            b = mm.group(0)
-            (x1, y1), (x2, y2) = [(round(float(a), 2), round(float(c), 2))
-                                  for a, c in re.findall(r"\((?:start|end) ([-\d.]+) ([-\d.]+)\)", b)]
-            n = re.search(r'\(net (?:(\d+)|"([^"]*)")', b)
-            net = n.group(2) if n.group(2) is not None else names.get(n.group(1), "")
-            segs.append((mm.span(), (x1, y1), (x2, y2), re.search(r'\(layer "([^"]+)"', b).group(1), net))
-        count: dict = {}
-        for _sp, a, b, layer, _n in segs:
-            for pt in (a, b):
-                count[(pt, layer)] = count.get((pt, layer), 0) + 1
+        count = Counter((pt, layer) for layer, x1, y1, x2, y2 in have_t + [t[1:6] for t in new_t]
+                        for pt in (r2(x1, y1), r2(x2, y2)))
         def held(pt, layer):
-            return (count[(pt, layer)] > 1 or pt in vias
-                    or any(math.hypot(pt[0] - px, pt[1] - py) <= r for px, py, r in padlist))
-        drop = [sp for sp, a, b, layer, net in segs
-                if net not in poured and not (held(a, layer) and held(b, layer))]
-        if not drop:
+            return (count[(pt, layer)] > 1 or pt in at_via
+                    or any(math.hypot(pt[0] - px, pt[1] - py) <= r for px, py, r in pads))
+        keep = [t for t in new_t if t[0] in poured or (held(r2(*t[2:4]), t[1]) and held(r2(*t[4:6]), t[1]))]
+        if len(keep) == len(new_t):
             break
-        for s0, e0 in sorted(drop, reverse=True):
-            text = text[:s0] + text[e0:]
-        removed += len(drop)
+        removed += len(new_t) - len(keep)
+        new_t = keep
     if removed:
         print(f"removed {removed} dangling autorouter stub segment(s)")
-    return text
+    copper.append(pcb, [S.track_block(text, t) for t in new_t] + [S.via_block(text, v, layers) for v in new_v])
 
 
 def _violations(report: Path) -> list[dict]:

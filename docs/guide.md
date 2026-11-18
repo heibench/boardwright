@@ -385,6 +385,7 @@ rectangles (rounded pads are treated as slightly larger than they are).
   KiCad's IPC API; `selection.py` selection text; `si.py` impedance and
   pairs; `existing.py` in-place work on an existing board; `sch.py` in-place
   edits to an existing schematic.
-- kicad-tools (pinned) does PCB file plumbing, DSN export and SES import.
+- kicad-tools (pinned) does PCB file plumbing and DSN export. `ses.py` reads
+  Freerouting's session; `build.import_ses` adds its tracks and vias.
   Freerouting routes. `env.py` finds `kicad-cli`, or takes it from
   `BOARDWRIGHT_KICAD_CLI`.
