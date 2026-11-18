@@ -1,0 +1,176 @@
+(pcb ldo_breakout
+  (parser
+    (string_quote ")
+    (space_in_quoted_tokens on)
+    (host_cad "KiCad's Pcbnew")
+    (host_version "kicad-tools")
+  )
+  (resolution um 10)
+  (unit um)
+  (structure
+    (layer F.Cu
+      (type signal)
+      (property
+        (index 0)
+      )
+    )
+    (layer B.Cu
+      (type signal)
+      (property
+        (index 1)
+      )
+    )
+    (boundary
+      (path pcb 0
+        163200.0 95300.0
+        133800.0 95300.0
+        133800.0 114700.0
+        163200.0 114700.0
+        163200.0 95300.0
+      )
+    )
+    (rule
+      (width 250.0)
+      (clearance 200.0)
+      (clearance 200.0 (type default_smd))
+      (clearance 200.0 (type smd_smd))
+    )
+  )
+  (placement
+    (component Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (place J1 136500.0 103700.0 front 0)
+    )
+    (component Package_TO_SOT_SMD:SOT-223-3_TabPin2
+      (place U1 148500.0 105000.0 front 90)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C1 142000.0 105000.0 front 270)
+    )
+    (component Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B
+      (place C2 155000.0 105000.0 front 270)
+    )
+    (component Resistor_SMD:R_0805_2012Metric
+      (place R1 145500.0 111500.0 front 0)
+    )
+    (component LED_SMD:LED_0805_2012Metric
+      (place D1 151500.0 111500.0 front 180)
+    )
+    (component Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (place J2 160500.0 103700.0 front 0)
+    )
+  )
+  (library
+    (image Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 2 0.0 2540.0)
+    )
+    (image Package_TO_SOT_SMD:SOT-223-3_TabPin2
+      (pin Rect[T]Pad_2000.0x1500.0_um 1 -3150.0 -2300.0)
+      (pin Rect[T]Pad_2000.0x1500.0_um 2 -3150.0 0.0)
+      (pin Rect[T]Pad_2000.0x3800.0_um 2 3150.0 0.0)
+      (pin Rect[T]Pad_2000.0x1500.0_um 3 -3150.0 2300.0)
+    )
+    (image Capacitor_SMD:C_0805_2012Metric
+      (pin Rect[T]Pad_1000.0x1450.0_um 1 -950.0 0.0)
+      (pin Rect[T]Pad_1000.0x1450.0_um 2 950.0 0.0)
+    )
+    (image Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B
+      (pin Rect[T]Pad_1340.0x2390.0_um 1 -1540.0 0.0)
+      (pin Rect[T]Pad_1340.0x2390.0_um 2 1540.0 0.0)
+    )
+    (image Resistor_SMD:R_0805_2012Metric
+      (pin Rect[T]Pad_1025.0x1400.0_um 1 -912.5 0.0)
+      (pin Rect[T]Pad_1025.0x1400.0_um 2 912.5 0.0)
+    )
+    (image LED_SMD:LED_0805_2012Metric
+      (pin Rect[T]Pad_975.0x1400.0_um 1 -937.5 0.0)
+      (pin Rect[T]Pad_975.0x1400.0_um 2 937.5 0.0)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_um
+      (shape (rect F.Cu -850.0 -850.0 850.0 850.0))
+      (shape (rect B.Cu -850.0 -850.0 850.0 850.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um
+      (shape (circle F.Cu 1700.0 0.0 0.0))
+      (shape (circle B.Cu 1700.0 0.0 0.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_2000.0x1500.0_um
+      (shape (rect F.Cu -1000.0 -750.0 1000.0 750.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_2000.0x3800.0_um
+      (shape (rect F.Cu -1000.0 -1900.0 1000.0 1900.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1000.0x1450.0_um
+      (shape (rect F.Cu -500.0 -725.0 500.0 725.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1340.0x2390.0_um
+      (shape (rect F.Cu -670.0 -1195.0 670.0 1195.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1025.0x1400.0_um
+      (shape (rect F.Cu -512.5 -700.0 512.5 700.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_975.0x1400.0_um
+      (shape (rect F.Cu -487.5 -700.0 487.5 700.0))
+      (attach off)
+    )
+    (padstack Via[0-1]_Pad600_um
+      (shape (circle F.Cu 600.0))
+      (shape (circle B.Cu 600.0))
+      (attach off)
+    )
+  )
+  (network
+    (net +3V3
+      (pins
+        C2-1
+        J2-1
+        R1-1
+        U1-2
+        U1-2
+      )
+    )
+    (net GND
+      (pins
+        C1-2
+        C2-2
+        D1-1
+        J1-2
+        J2-2
+        U1-1
+      )
+    )
+    (net LED_A
+      (pins
+        D1-2
+        R1-2
+      )
+    )
+    (net VIN
+      (pins
+        C1-1
+        J1-1
+        U1-3
+      )
+    )
+    (class kicad_default
+      +3V3
+      GND
+      LED_A
+      VIN
+      (circuit
+        (use_via Via[0-1]_Pad600_um)
+      )
+      (rule
+        (width 250.0)
+        (clearance 200.0)
+      )
+    )
+  )
+)

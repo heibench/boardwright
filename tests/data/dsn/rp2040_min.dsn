@@ -1,0 +1,945 @@
+(pcb rp2040_min
+  (parser
+    (string_quote ")
+    (space_in_quoted_tokens on)
+    (host_cad "KiCad's Pcbnew")
+    (host_version "kicad-tools")
+  )
+  (resolution um 10)
+  (unit um)
+  (structure
+    (layer F.Cu
+      (type signal)
+      (property
+        (index 0)
+      )
+    )
+    (layer B.Cu
+      (type signal)
+      (property
+        (index 1)
+      )
+    )
+    (boundary
+      (path pcb 0
+        178200.0 82300.0
+        118800.0 82300.0
+        118800.0 127700.0
+        178200.0 127700.0
+        178200.0 82300.0
+      )
+    )
+    (rule
+      (width 200.0)
+      (clearance 150.0)
+      (clearance 150.0 (type default_smd))
+      (clearance 150.0 (type smd_smd))
+    )
+  )
+  (placement
+    (component Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal
+      (place J1 155500.0 85000.0 front 180)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R1 149500.0 91000.0 front 270)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R2 161500.0 91000.0 front 270)
+    )
+    (component Package_TO_SOT_SMD:SOT-23-6
+      (place U3 155500.0 91500.0 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R3 149100.0 95600.0 front 90)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R4 150300.0 95600.0 front 90)
+    )
+    (component Package_TO_SOT_SMD:SOT-23-5
+      (place U2 168500.0 90000.0 front 0)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C1 165500.0 94000.0 front 270)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C2 171500.0 94000.0 front 270)
+    )
+    (component Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm
+      (place U1 148500.0 106000.0 front 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C3 143600.0 103400.0 back 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C4 143600.0 107000.0 back 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C5 147500.0 110900.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C6 153400.0 106000.0 back 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C7 153400.0 102400.0 back 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C8 148900.0 99900.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C9 151900.0 101100.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C10 147900.0 101100.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C11 149900.0 101100.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C12 150900.0 99900.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C13 149700.0 112100.0 back 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric__back
+      (place C14 146900.0 99900.0 back 0)
+    )
+    (component Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm
+      (place Y1 145000.0 113500.0 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R5 150000.0 111800.0 front 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric
+      (place C15 141500.0 113500.0 front 270)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric
+      (place C16 149000.0 115000.0 front 0)
+    )
+    (component Package_SO:SOIC-8_5.3x5.3mm_P1.27mm
+      (place U4 139500.0 97000.0 front 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric
+      (place C17 145100.0 95100.0 front 270)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R6 133000.0 99000.0 front 0)
+    )
+    (component Button_Switch_SMD:SW_SPST_EVQP0
+      (place SW1 127500.0 94000.0 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R7 163500.0 111000.0 front 0)
+    )
+    (component Button_Switch_SMD:SW_SPST_EVQP0
+      (place SW2 169500.0 107000.0 front 0)
+    )
+    (component Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+      (place J2 175000.0 115000.0 front 0)
+    )
+    (component Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical
+      (place J3 146500.0 123500.0 front 270)
+    )
+    (component Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+      (place J4 122000.0 110000.0 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R8 128500.0 106000.0 front 0)
+    )
+    (component LED_SMD:LED_0603_1608Metric
+      (place D1 128500.0 109000.0 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R9 163500.0 117000.0 front 0)
+    )
+    (component LED_SMD:LED_0603_1608Metric
+      (place D2 167500.0 117000.0 front 0)
+    )
+  )
+  (library
+    (image Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal
+      (keepout "" (circle F.Cu 650.0 -2890.0 -2605.0))
+      (keepout "" (circle B.Cu 650.0 -2890.0 -2605.0))
+      (keepout "" (circle F.Cu 650.0 2890.0 -2605.0))
+      (keepout "" (circle B.Cu 650.0 2890.0 -2605.0))
+      (pin Rect[T]Pad_600.0x1150.0_um A1 -3200.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um A4 -2400.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um A5 -1250.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um A6 -250.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um A7 250.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um A8 1250.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um A9 2400.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um A12 3200.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um B1 3200.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um B4 2400.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um B5 1750.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um B6 750.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um B7 -750.0 -3680.0)
+      (pin Rect[T]Pad_300.0x1150.0_um B8 -1750.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um B9 -2400.0 -3680.0)
+      (pin Rect[T]Pad_600.0x1150.0_um B12 -3200.0 -3680.0)
+      (pin Round[A]Pad_1000.0x2100.0_Drill600.0_path51446400_um SH -4320.0 -3105.0)
+      (pin Round[A]Pad_1000.0x1800.0_Drill600.0_path4db586fa_um SH -4320.0 1075.0)
+      (pin Round[A]Pad_1000.0x2100.0_Drill600.0_path51446400_um SH 4320.0 -3105.0)
+      (pin Round[A]Pad_1000.0x1800.0_Drill600.0_path4db586fa_um SH 4320.0 1075.0)
+    )
+    (image Resistor_SMD:R_0402_1005Metric
+      (pin Rect[T]Pad_540.0x640.0_um 1 -510.0 0.0)
+      (pin Rect[T]Pad_540.0x640.0_um 2 510.0 0.0)
+    )
+    (image Package_TO_SOT_SMD:SOT-23-6
+      (pin Rect[T]Pad_1325.0x600.0_um 1 -1137.5 -950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 2 -1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 3 -1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 4 1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 5 1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 6 1137.5 -950.0)
+    )
+    (image Package_TO_SOT_SMD:SOT-23-5
+      (pin Rect[T]Pad_1325.0x600.0_um 1 -1137.5 -950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 2 -1137.5 0.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 3 -1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 4 1137.5 950.0)
+      (pin Rect[T]Pad_1325.0x600.0_um 5 1137.5 -950.0)
+    )
+    (image Capacitor_SMD:C_0805_2012Metric
+      (pin Rect[T]Pad_1000.0x1450.0_um 1 -950.0 0.0)
+      (pin Rect[T]Pad_1000.0x1450.0_um 2 950.0 0.0)
+    )
+    (image Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm
+      (pin Rect[T]Pad_875.0x200.0_um 1 -3437.5 -2600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 2 -3437.5 -2200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 3 -3437.5 -1800.0)
+      (pin Rect[T]Pad_875.0x200.0_um 4 -3437.5 -1400.0)
+      (pin Rect[T]Pad_875.0x200.0_um 5 -3437.5 -1000.0)
+      (pin Rect[T]Pad_875.0x200.0_um 6 -3437.5 -600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 7 -3437.5 -200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 8 -3437.5 200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 9 -3437.5 600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 10 -3437.5 1000.0)
+      (pin Rect[T]Pad_875.0x200.0_um 11 -3437.5 1400.0)
+      (pin Rect[T]Pad_875.0x200.0_um 12 -3437.5 1800.0)
+      (pin Rect[T]Pad_875.0x200.0_um 13 -3437.5 2200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 14 -3437.5 2600.0)
+      (pin Rect[T]Pad_200.0x875.0_um 15 -2600.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 16 -2200.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 17 -1800.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 18 -1400.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 19 -1000.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 20 -600.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 21 -200.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 22 200.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 23 600.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 24 1000.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 25 1400.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 26 1800.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 27 2200.0 3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 28 2600.0 3437.5)
+      (pin Rect[T]Pad_875.0x200.0_um 29 3437.5 2600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 30 3437.5 2200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 31 3437.5 1800.0)
+      (pin Rect[T]Pad_875.0x200.0_um 32 3437.5 1400.0)
+      (pin Rect[T]Pad_875.0x200.0_um 33 3437.5 1000.0)
+      (pin Rect[T]Pad_875.0x200.0_um 34 3437.5 600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 35 3437.5 200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 36 3437.5 -200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 37 3437.5 -600.0)
+      (pin Rect[T]Pad_875.0x200.0_um 38 3437.5 -1000.0)
+      (pin Rect[T]Pad_875.0x200.0_um 39 3437.5 -1400.0)
+      (pin Rect[T]Pad_875.0x200.0_um 40 3437.5 -1800.0)
+      (pin Rect[T]Pad_875.0x200.0_um 41 3437.5 -2200.0)
+      (pin Rect[T]Pad_875.0x200.0_um 42 3437.5 -2600.0)
+      (pin Rect[T]Pad_200.0x875.0_um 43 2600.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 44 2200.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 45 1800.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 46 1400.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 47 1000.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 48 600.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 49 200.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 50 -200.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 51 -600.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 52 -1000.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 53 -1400.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 54 -1800.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 55 -2200.0 -3437.5)
+      (pin Rect[T]Pad_200.0x875.0_um 56 -2600.0 -3437.5)
+      (pin Rect[T]Pad_3200.0x3200.0_um 57 0.0 0.0)
+    )
+    (image Capacitor_SMD:C_0402_1005Metric__back
+      (pin Rect[T]Pad_560.0x620.0_um 1 480.0 0.0)
+      (pin Rect[T]Pad_560.0x620.0_um 2 -480.0 0.0)
+    )
+    (image Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm
+      (pin Rect[T]Pad_1400.0x1200.0_um 1 -1100.0 850.0)
+      (pin Rect[T]Pad_1400.0x1200.0_um 2 1100.0 850.0)
+      (pin Rect[T]Pad_1400.0x1200.0_um 3 1100.0 -850.0)
+      (pin Rect[T]Pad_1400.0x1200.0_um 4 -1100.0 -850.0)
+    )
+    (image Capacitor_SMD:C_0402_1005Metric
+      (pin Rect[T]Pad_560.0x620.0_um 1 -480.0 0.0)
+      (pin Rect[T]Pad_560.0x620.0_um 2 480.0 0.0)
+    )
+    (image Package_SO:SOIC-8_5.3x5.3mm_P1.27mm
+      (pin Rect[T]Pad_1625.0x650.0_um 1 -3587.5 -1905.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 2 -3587.5 -635.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 3 -3587.5 635.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 4 -3587.5 1905.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 5 3587.5 1905.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 6 3587.5 635.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 7 3587.5 -635.0)
+      (pin Rect[T]Pad_1625.0x650.0_um 8 3587.5 -1905.0)
+    )
+    (image Button_Switch_SMD:SW_SPST_EVQP0
+      (pin Rect[T]Pad_2750.0x1000.0_um 1 -2880.0 -2000.0)
+      (pin Rect[T]Pad_2750.0x1000.0_um 1 2880.0 -2000.0)
+      (pin Rect[T]Pad_2750.0x1000.0_um 2 -2880.0 2000.0)
+      (pin Rect[T]Pad_2750.0x1000.0_um 2 2880.0 2000.0)
+    )
+    (image Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 2 0.0 2540.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 3 0.0 5080.0)
+    )
+    (image Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 2 2540.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 3 0.0 2540.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 4 2540.0 2540.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 5 0.0 5080.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 6 2540.0 5080.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 7 0.0 7620.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 8 2540.0 7620.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 9 0.0 10160.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 10 2540.0 10160.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 11 0.0 12700.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 12 2540.0 12700.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 13 0.0 15240.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 14 2540.0 15240.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 15 0.0 17780.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 16 2540.0 17780.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 17 0.0 20320.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 18 2540.0 20320.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 19 0.0 22860.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 20 2540.0 22860.0)
+    )
+    (image Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_um 1 0.0 0.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 2 0.0 2540.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 3 0.0 5080.0)
+      (pin Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um 4 0.0 7620.0)
+    )
+    (image LED_SMD:LED_0603_1608Metric
+      (pin Rect[T]Pad_875.0x950.0_um 1 -787.5 0.0)
+      (pin Rect[T]Pad_875.0x950.0_um 2 787.5 0.0)
+    )
+    (padstack Rect[T]Pad_600.0x1150.0_um
+      (shape (rect F.Cu -300.0 -575.0 300.0 575.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_300.0x1150.0_um
+      (shape (rect F.Cu -150.0 -575.0 150.0 575.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1000.0x2100.0_Drill600.0_path51446400_um
+      (shape (path F.Cu 1000.0 0.0 -550.0 0.0 550.0))
+      (shape (path B.Cu 1000.0 0.0 -550.0 0.0 550.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1000.0x1800.0_Drill600.0_path4db586fa_um
+      (shape (path F.Cu 1000.0 0.0 -400.0 0.0 400.0))
+      (shape (path B.Cu 1000.0 0.0 -400.0 0.0 400.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_540.0x640.0_um
+      (shape (rect F.Cu -270.0 -320.0 270.0 320.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1325.0x600.0_um
+      (shape (rect F.Cu -662.5 -300.0 662.5 300.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1000.0x1450.0_um
+      (shape (rect F.Cu -500.0 -725.0 500.0 725.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_875.0x200.0_um
+      (shape (rect F.Cu -437.5 -100.0 437.5 100.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_200.0x875.0_um
+      (shape (rect F.Cu -100.0 -437.5 100.0 437.5))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_3200.0x3200.0_um
+      (shape (rect F.Cu -1600.0 -1600.0 1600.0 1600.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_560.0x620.0_um
+      (shape (rect F.Cu -280.0 -310.0 280.0 310.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1400.0x1200.0_um
+      (shape (rect F.Cu -700.0 -600.0 700.0 600.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_1625.0x650.0_um
+      (shape (rect F.Cu -812.5 -325.0 812.5 325.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_2750.0x1000.0_um
+      (shape (rect F.Cu -1375.0 -500.0 1375.0 500.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_um
+      (shape (rect F.Cu -850.0 -850.0 850.0 850.0))
+      (shape (rect B.Cu -850.0 -850.0 850.0 850.0))
+      (attach off)
+    )
+    (padstack Round[A]Pad_1700.0x1700.0_Drill1000.0_circleddc717fa_um
+      (shape (circle F.Cu 1700.0 0.0 0.0))
+      (shape (circle B.Cu 1700.0 0.0 0.0))
+      (attach off)
+    )
+    (padstack Rect[T]Pad_875.0x950.0_um
+      (shape (rect F.Cu -437.5 -475.0 437.5 475.0))
+      (attach off)
+    )
+    (padstack Via[0-1]_Pad600_um
+      (shape (circle F.Cu 600.0))
+      (shape (circle B.Cu 600.0))
+      (attach off)
+    )
+  )
+  (network
+    (net +1V1
+      (pins
+        C12-1
+        C13-1
+        C14-1
+        U1-23
+        U1-45
+        U1-50
+      )
+    )
+    (net +3V3
+      (pins
+        C10-1
+        C11-1
+        C17-1
+        C2-1
+        C3-1
+        C4-1
+        C5-1
+        C6-1
+        C7-1
+        C8-1
+        C9-1
+        J4-2
+        R7-1
+        R8-1
+        U1-1
+        U1-10
+        U1-22
+        U1-33
+        U1-42
+        U1-43
+        U1-44
+        U1-48
+        U1-49
+        U2-5
+        U4-8
+      )
+    )
+    (net BOOT
+      (pins
+        R6-2
+        SW1-1
+        SW1-1
+      )
+    )
+    (net CC1
+      (pins
+        J1-A5
+        R1-1
+      )
+    )
+    (net CC2
+      (pins
+        J1-B5
+        R2-1
+      )
+    )
+    (net GND
+      (pins
+        C1-2
+        C10-2
+        C11-2
+        C12-2
+        C13-2
+        C14-2
+        C15-2
+        C16-2
+        C17-2
+        C2-2
+        C3-2
+        C4-2
+        C5-2
+        C6-2
+        C7-2
+        C8-2
+        C9-2
+        D1-1
+        D2-1
+        J1-A1
+        J1-A12
+        J1-B1
+        J1-B12
+        J1-SH
+        J1-SH
+        J1-SH
+        J1-SH
+        J2-2
+        J4-3
+        J4-4
+        R1-2
+        R2-2
+        SW1-2
+        SW1-2
+        SW2-2
+        SW2-2
+        U1-19
+        U1-57
+        U2-2
+        U3-2
+        U4-4
+        Y1-2
+        Y1-4
+      )
+    )
+    (net GPIO0
+      (pins
+        J3-1
+        U1-2
+      )
+    )
+    (net GPIO1
+      (pins
+        J3-2
+        U1-3
+      )
+    )
+    (net GPIO10
+      (pins
+        J3-11
+        U1-13
+      )
+    )
+    (net GPIO11
+      (pins
+        J3-12
+        U1-14
+      )
+    )
+    (net GPIO12
+      (pins
+        J3-13
+        U1-15
+      )
+    )
+    (net GPIO13
+      (pins
+        J3-14
+        U1-16
+      )
+    )
+    (net GPIO14
+      (pins
+        J3-15
+        U1-17
+      )
+    )
+    (net GPIO15
+      (pins
+        J3-16
+        U1-18
+      )
+    )
+    (net GPIO2
+      (pins
+        J3-3
+        U1-4
+      )
+    )
+    (net GPIO25
+      (pins
+        R9-1
+        U1-37
+      )
+    )
+    (net GPIO26
+      (pins
+        J3-17
+        U1-38
+      )
+    )
+    (net GPIO27
+      (pins
+        J3-18
+        U1-39
+      )
+    )
+    (net GPIO28
+      (pins
+        J3-19
+        U1-40
+      )
+    )
+    (net GPIO29
+      (pins
+        J3-20
+        U1-41
+      )
+    )
+    (net GPIO3
+      (pins
+        J3-4
+        U1-5
+      )
+    )
+    (net GPIO4
+      (pins
+        J3-5
+        U1-6
+      )
+    )
+    (net GPIO5
+      (pins
+        J3-6
+        U1-7
+      )
+    )
+    (net GPIO6
+      (pins
+        J3-7
+        U1-8
+      )
+    )
+    (net GPIO7
+      (pins
+        J3-8
+        U1-9
+      )
+    )
+    (net GPIO8
+      (pins
+        J3-9
+        U1-11
+      )
+    )
+    (net GPIO9
+      (pins
+        J3-10
+        U1-12
+      )
+    )
+    (net LED_25
+      (pins
+        D2-2
+        R9-2
+      )
+    )
+    (net LED_PWR
+      (pins
+        D1-2
+        R8-2
+      )
+    )
+    (net QSPI_SCLK
+      (pins
+        U1-52
+        U4-6
+      )
+    )
+    (net QSPI_SD0
+      (pins
+        U1-53
+        U4-5
+      )
+    )
+    (net QSPI_SD1
+      (pins
+        U1-55
+        U4-2
+      )
+    )
+    (net QSPI_SD2
+      (pins
+        U1-54
+        U4-3
+      )
+    )
+    (net QSPI_SD3
+      (pins
+        U1-51
+        U4-7
+      )
+    )
+    (net QSPI_SS
+      (pins
+        R6-1
+        U1-56
+        U4-1
+      )
+    )
+    (net RUN
+      (pins
+        R7-2
+        SW2-1
+        SW2-1
+        U1-26
+      )
+    )
+    (net SWCLK
+      (pins
+        J2-1
+        U1-24
+      )
+    )
+    (net SWDIO
+      (pins
+        J2-3
+        U1-25
+      )
+    )
+    (net USB_DM
+      (pins
+        R4-2
+        U1-46
+      )
+    )
+    (net USB_DM_C
+      (pins
+        J1-A7
+        J1-B7
+        R4-1
+        U3-3
+        U3-4
+      )
+    )
+    (net USB_DP
+      (pins
+        R3-2
+        U1-47
+      )
+    )
+    (net USB_DP_C
+      (pins
+        J1-A6
+        J1-B6
+        R3-1
+        U3-1
+        U3-6
+      )
+    )
+    (net VBUS
+      (pins
+        C1-1
+        J1-A4
+        J1-A9
+        J1-B4
+        J1-B9
+        J4-1
+        U2-1
+        U2-3
+        U3-5
+      )
+    )
+    (net XIN
+      (pins
+        C15-1
+        U1-20
+        Y1-1
+      )
+    )
+    (net XOUT
+      (pins
+        C16-1
+        R5-2
+        Y1-3
+      )
+    )
+    (net XOUT_R
+      (pins
+        R5-1
+        U1-21
+      )
+    )
+    (net "unconnected-(J1-SBU1-PadA8)"
+      (pins
+        J1-A8
+      )
+    )
+    (net "unconnected-(J1-SBU2-PadB8)"
+      (pins
+        J1-B8
+      )
+    )
+    (net "unconnected-(U1-GPIO16-Pad27)"
+      (pins
+        U1-27
+      )
+    )
+    (net "unconnected-(U1-GPIO17-Pad28)"
+      (pins
+        U1-28
+      )
+    )
+    (net "unconnected-(U1-GPIO18-Pad29)"
+      (pins
+        U1-29
+      )
+    )
+    (net "unconnected-(U1-GPIO19-Pad30)"
+      (pins
+        U1-30
+      )
+    )
+    (net "unconnected-(U1-GPIO20-Pad31)"
+      (pins
+        U1-31
+      )
+    )
+    (net "unconnected-(U1-GPIO21-Pad32)"
+      (pins
+        U1-32
+      )
+    )
+    (net "unconnected-(U1-GPIO22-Pad34)"
+      (pins
+        U1-34
+      )
+    )
+    (net "unconnected-(U1-GPIO23-Pad35)"
+      (pins
+        U1-35
+      )
+    )
+    (net "unconnected-(U1-GPIO24-Pad36)"
+      (pins
+        U1-36
+      )
+    )
+    (net "unconnected-(U2-NC-Pad4)"
+      (pins
+        U2-4
+      )
+    )
+    (class kicad_default
+      BOOT
+      CC1
+      CC2
+      GPIO0
+      GPIO1
+      GPIO10
+      GPIO11
+      GPIO12
+      GPIO13
+      GPIO14
+      GPIO15
+      GPIO2
+      GPIO25
+      GPIO26
+      GPIO27
+      GPIO28
+      GPIO29
+      GPIO3
+      GPIO4
+      GPIO5
+      GPIO6
+      GPIO7
+      GPIO8
+      GPIO9
+      LED_25
+      LED_PWR
+      QSPI_SCLK
+      QSPI_SD0
+      QSPI_SD1
+      QSPI_SD2
+      QSPI_SD3
+      QSPI_SS
+      RUN
+      SWCLK
+      SWDIO
+      USB_DM
+      USB_DM_C
+      USB_DP
+      USB_DP_C
+      XIN
+      XOUT
+      XOUT_R
+      "unconnected-(J1-SBU1-PadA8)"
+      "unconnected-(J1-SBU2-PadB8)"
+      "unconnected-(U1-GPIO16-Pad27)"
+      "unconnected-(U1-GPIO17-Pad28)"
+      "unconnected-(U1-GPIO18-Pad29)"
+      "unconnected-(U1-GPIO19-Pad30)"
+      "unconnected-(U1-GPIO20-Pad31)"
+      "unconnected-(U1-GPIO21-Pad32)"
+      "unconnected-(U1-GPIO22-Pad34)"
+      "unconnected-(U1-GPIO23-Pad35)"
+      "unconnected-(U1-GPIO24-Pad36)"
+      "unconnected-(U2-NC-Pad4)"
+      (circuit
+        (use_via Via[0-1]_Pad600_um)
+      )
+      (rule
+        (width 200.0)
+        (clearance 150.0)
+      )
+    )
+    (class Power
+      +1V1
+      +3V3
+      GND
+      VBUS
+      (circuit
+        (use_via Via[0-1]_Pad600_um)
+      )
+      (rule
+        (width 300.0)
+        (clearance 150.0)
+      )
+    )
+  )
+  (wiring
+    (wire
+      (path F.Cu 200.0 149100.0 96110.0 149100.0 96600.0)
+      (net USB_DP)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 200.0 149100.0 96600.0 149500.0 97000.0)
+      (net USB_DP)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 200.0 149500.0 97000.0 149500.0 102562.0)
+      (net USB_DP)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 200.0 150300.0 96110.0 150300.0 96600.0)
+      (net USB_DM)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 200.0 150300.0 96600.0 149900.0 97000.0)
+      (net USB_DM)
+      (type protect)
+    )
+    (wire
+      (path F.Cu 200.0 149900.0 97000.0 149900.0 102562.0)
+      (net USB_DM)
+      (type protect)
+    )
+  )
+)

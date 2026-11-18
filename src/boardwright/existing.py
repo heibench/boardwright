@@ -39,8 +39,8 @@ import subprocess
 import types
 from pathlib import Path
 
-from . import board as B
 from . import copper, env
+from . import dsn as dsn_
 from . import ses as ses_
 from .errors import CannotTell, EnvironmentFault, Usage
 from .model import Board
@@ -486,8 +486,7 @@ def reroute(d: Path, nets_: list[str]) -> int:
     dsn, ses = o / f"{m.NAME}.dsn", o / f"{m.NAME}.ses"
     if ses.exists():
         ses.unlink()
-    B.kct("pcb", "export-dsn", str(pcb), "-o", str(dsn))
-    arcs = add_arcs_to_dsn(dsn, Board(pcb))
+    arcs = dsn_.export(pcb, dsn)
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", str(getattr(m, "FR_PASSES", 5))]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=getattr(m, "FR_TIMEOUT", 900))
     (o / "freerouting.log").write_text(r.stdout + r.stderr)

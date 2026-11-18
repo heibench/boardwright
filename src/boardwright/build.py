@@ -201,7 +201,8 @@ def complete(pcb: Path, m, poured: set) -> list[str]:
 
 def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     dsn, ses = d / "out" / f"{m.NAME}{tag}.dsn", d / "out" / f"{m.NAME}{tag}.ses"
-    B.kct("pcb", "export-dsn", str(pcb), "-o", str(dsn))
+    from .dsn import export
+    export(pcb, dsn)
     # FR_MARGIN (mm) routes wider than the DRC clearance. Costs routability on
     # fine-pitch parts, so it is off unless a board asks for it.
     margin = getattr(m, "FR_MARGIN", 0) * 1000

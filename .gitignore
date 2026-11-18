@@ -15,6 +15,7 @@ fp-info-cache
 *.dsn
 *.ses
 !tests/data/ses/*.ses
+!tests/data/dsn/*.dsn
 *.rules
 preview.svg
 *_preview.png
