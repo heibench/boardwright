@@ -291,10 +291,10 @@ def _extent(mod: str) -> tuple[float, float, float, float]:
     return min(xs), min(ys), max(xs), max(ys)
 
 
-def new_footprint(mod: str, lib_id: str, sym: dict, path: str, x: float, y: float, nets: dict) -> str:
+def new_footprint(mod: str, lib_id: str, sym: dict, path: str | None, x: float, y: float, nets: dict) -> str:
     """A library footprint (.kicad_mod text) as a board footprint: named LIB:NAME,
-    at (x, y) unrotated on the top, linked to its symbol, its pads on their nets
-    and its own zones moved with it."""
+    at (x, y) unrotated on the top, linked to its symbol (unless path is None),
+    its pads on their nets and its own zones moved with it."""
     t = mod.strip()
     if not t.startswith("(footprint "):
         raise SystemExit(f"{lib_id}: not a footprint file")
@@ -306,10 +306,11 @@ def new_footprint(mod: str, lib_id: str, sym: dict, path: str, x: float, y: floa
         raise SystemExit(f"{lib_id}: no (layer ...) line to place it after")
     for name, val in (("Reference", sym["ref"]), ("Value", sym["value"])):
         t = re.sub(r'(\n\t\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda m: f'{m.group(1)}"{_esc(val)}"', t, count=1)
-    props = [(s, e) for s, e in blocks(t, ("property",)) if t[s:s + 12] == "\n\t(property "]
-    k = props[-1][1] if props else t.index("\n", t.index("(at "))
-    link = f'\n\t(path "{path}")\n\t(sheetname "{_esc(sym["sheetname"])}")\n\t(sheetfile "{_esc(sym["sheetfile"])}")'
-    t = t[:k] + link + t[k:]
+    if path is not None:
+        props = [(s, e) for s, e in blocks(t, ("property",)) if t[s:s + 12] == "\n\t(property "]
+        k = props[-1][1] if props else t.index("\n", t.index("(at "))
+        link = f'\n\t(path "{path}")\n\t(sheetname "{_esc(sym["sheetname"])}")\n\t(sheetfile "{_esc(sym["sheetfile"])}")'
+        t = t[:k] + link + t[k:]
     for s, e in reversed(blocks(t, ("zone",))):              # footprint zones are stored board-absolute
         z = re.sub(r"\(xy ([-\d.]+) ([-\d.]+)\)", lambda m: f"(xy {mm_(float(m.group(1)) + x)} {mm_(float(m.group(2)) + y)})", t[s:e])
         t = t[:s] + z + t[e:]

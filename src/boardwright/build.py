@@ -68,7 +68,7 @@ def stage_place(d: Path, m) -> Path:
             (out / n).write_bytes(data)
         print("schematic unchanged: kept", ", ".join(SCH_OUT))
     check_parts(m.CIRCUIT, d)
-    B.create(sch, pcb, m.W, m.H, getattr(m, "LAYERS", 2))
+    B.create(sch, pcb, m.W, m.H, getattr(m, "LAYERS", 2), m.CIRCUIT)
     from .placement import resolve
     place = resolve(pcb, m.PLACE, m.CIRCUIT, d)
     (out / "placement.json").write_text(json.dumps(place, indent=1))
