@@ -22,6 +22,14 @@ the command line).
   protected copper the session gives back, dangling vias and stubs) and
   widens tracks below the minimum width as it adds them; copper already on
   the board is no longer touched by that clean-up (#56).
+- `place` and `gen` create the board themselves instead of running
+  kicad-tools' `create-pcb`: the same outline, layers, 4-layer stackup,
+  footprints and nets. Each footprint is taken from the project's library as
+  `existing update` adds one, with fresh uuids (kicad-tools gave every copy
+  of a footprint the library's), and waits at the sheet origin until it is
+  placed. The nets come from the circuit, so the board no longer depends on
+  whether kicad-tools found a working kicad-cli, and a no-connect pad no
+  longer leaves an unused `Net-(REF-PIN)` entry in the net list (#57).
 
 ### Removed
 
