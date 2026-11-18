@@ -41,6 +41,7 @@ from pathlib import Path
 
 from . import board as B
 from . import copper, env
+from . import ses as ses_
 from .errors import CannotTell, EnvironmentFault, Usage
 from .model import Board
 from .preview import ratsnest
@@ -493,21 +494,16 @@ def reroute(d: Path, nets_: list[str]) -> int:
     if not ses.exists():
         pcb.write_text(text0)
         raise EnvironmentFault("freerouting produced no SES; see boardwright_out/freerouting.log")
-    routed = pcb.with_suffix(".solve.kicad_pcb")
-    B.kct("pcb", "import-ses", str(pcb), str(ses), "-o", str(routed))
-    rt = routed.read_text()
-    routed.unlink()
-    names = dict(re.findall(r'\n\s*\(net (\d+) "([^"]*)"\)', rt))
-    graft = [rt[s0:e0] for s0, e0 in copper.blocks(rt, ("segment", "arc", "via")) if _net_of(rt[s0:e0], names) in set(nets_)]
+    layers = ses_.copper_layers(text0)
+    tracks, vias = ses_.read(ses, layers)
     # Freerouting necks tracks down; never below the project's own minimum
     minw = 0.0
     pro = pcb.with_suffix(".kicad_pro")
     if pro.exists():
         minw = json.loads(pro.read_text()).get("board", {}).get("design_settings", {}).get("rules", {}).get("min_track_width", 0.0)
-    if minw:
-        graft = [re.sub(r"\(width ([0-9.]+)\)", lambda mm: f"(width {max(float(mm.group(1)), minw)})", g) for g in graft]
-    base = text0.rstrip()
-    pcb.write_text(base[:-1].rstrip() + "".join(graft) + "\n)\n")
+    graft = ([ses_.track_block(text0, (*t[:6], max(t[6], minw))) for t in tracks if t[0] in nets_]
+             + [ses_.via_block(text0, v, layers) for v in vias if v[0] in nets_])
+    copper.append(pcb, graft)
     text, dup = dedupe(pcb.read_text())
     pcb.write_text(text)
     # a net the router could not finish gets its original routing back

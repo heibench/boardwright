@@ -22,6 +22,7 @@ To record the current output as the golden: `uv run python tests/test_ses_import
 import importlib.util
 import re
 import shutil
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -99,6 +100,36 @@ def test_ses_import_matches_its_golden(tmp_path, case):
     assert got_rest == want_rest, "the board differs outside its tracks and vias"
     assert sorted(got_items - want_items) == [], "tracks or vias the golden does not have"
     assert sorted(want_items - got_items) == [], "tracks or vias missing against the golden"
+
+
+def test_reroute_takes_only_the_named_nets_from_the_session(ldo_copy, monkeypatch):
+    """`existing reroute` keeps only the named nets' copper from the session.
+    ldo_routed's session is the LDO example's routing given back, so LED_A
+    gets its own tracks back and the rest of the file is as it was."""
+    from boardwright import env, existing
+
+    copy = "import shutil, sys; shutil.copy(sys.argv[1], sys.argv[sys.argv.index('-do') + 1])"
+    monkeypatch.setattr(env, "freerouting", lambda: [sys.executable, "-c", copy, str(DATA / "ldo_routed.ses")])
+    pcb = existing.find(ldo_copy)
+    want_items, want_rest = copper(pcb.read_text())
+    assert existing.reroute(ldo_copy, ["LED_A"]) == 0
+    got_items, got_rest = copper(pcb.read_text())
+    assert got_rest == want_rest
+    assert got_items == want_items
+
+
+def test_session_units_and_quoted_names(tmp_path):
+    """Coordinates are counts of 1/resolution of the declared unit, y as written;
+    a quoted net name is the name without its quotes."""
+    from boardwright import ses
+
+    f = tmp_path / "x.ses"
+    f.write_text('(session x (routes (resolution mil 10) (parser (string_quote ")) (library_out '
+                 '(padstack V (shape (circle F.Cu 240 0 0)) (shape (circle B.Cu 240 0 0)))) '
+                 '(network_out (net "/A B" (wire (path B.Cu 100 10000 20000 10000 30000)) (via V 10000 30000)))))')
+    tracks, vias = ses.read(f, ["F.Cu", "B.Cu"])
+    assert tracks == [("/A B", "B.Cu", 25.4, 50.8, 25.4, 76.2, 0.254)]
+    assert vias == [("/A B", 25.4, 76.2, 0.6096, "F.Cu", "B.Cu")]
 
 
 if __name__ == "__main__":
