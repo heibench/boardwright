@@ -7,6 +7,16 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing reroute` and `gen` no longer stop with `via padstack '…' is not
+  in the session's library_out` when the board has a via whose padstack
+  Freerouting used for none of its new vias. The session gives the board's
+  own vias back as protected copper under the DSN's padstack names, which
+  its `library_out` need not list; those vias are now left out when the
+  session is read, as both commands already left them out of the board
+  (#77).
+
 ## [0.8.0] - 2026-11-18
 
 ### Changed
