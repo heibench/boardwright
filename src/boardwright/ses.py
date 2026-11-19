@@ -53,7 +53,8 @@ def copper_layers(text: str) -> list[str]:
 def read(ses: Path, layers: list[str]) -> tuple[list[tuple], list[tuple]]:
     """Tracks (net, layer, x1, y1, x2, y2, width) and vias (net, x, y, size,
     top, bottom), in mm, in the order the session lists them. `layers` is the
-    board's copper, front to back, which a via's padstack is read against."""
+    board's copper, front to back, which a via's padstack is read against.
+    Protected vias are the board's own and are left out."""
     routes = _kids(_tree(ses.read_text()), "routes")[0]
     unit, count = _kids(routes, "resolution")[0][1:3]
     scale = _MM[unit.lower()] / float(count)
@@ -82,6 +83,9 @@ def read(ses: Path, layers: list[str]) -> tuple[list[tuple], list[tuple]]:
             pts = list(zip(v[1::2], v[2::2]))
             tracks += [(name, path[0][1], *a, *b, v[0]) for a, b in zip(pts, pts[1:])]
         for via in _kids(net, "via"):
+            # the board's own via, given back under the DSN's padstack, which library_out need not list
+            if ["type", "protect"] in via:
+                continue
             if via[1] not in pads:
                 raise ValueError(f"via padstack {via[1]!r} is not in the session's library_out")
             vias.append((name, mm(via[2]), mm(via[3]), *pads[via[1]]))

@@ -132,6 +132,21 @@ def test_session_units_and_quoted_names(tmp_path):
     assert vias == [("/A B", 25.4, 76.2, 0.6096, "F.Cu", "B.Cu")]
 
 
+def test_protected_via_padstack_need_not_be_in_library_out(tmp_path):
+    """A protected via is the board's own and keeps the DSN's padstack name,
+    which the session's library_out need not list (#77)."""
+    from boardwright import ses
+
+    lib = '(library_out (padstack V (shape (circle F.Cu 240 0 0)) (shape (circle B.Cu 240 0 0))))'
+    f = tmp_path / "x.ses"
+    f.write_text(f'(session x (routes (resolution mil 10) {lib} (network_out '
+                 '(net A (via W 0 0 (type protect))) (net B (via V 10000 30000)))))')
+    assert ses.read(f, ["F.Cu", "B.Cu"])[1] == [("B", 25.4, 76.2, 0.6096, "F.Cu", "B.Cu")]
+    f.write_text(f'(session x (routes (resolution mil 10) {lib} (network_out (net A (via W 0 0)))))')
+    with pytest.raises(ValueError, match="via padstack 'W' is not in the session's library_out"):
+        ses.read(f, ["F.Cu", "B.Cu"])
+
+
 if __name__ == "__main__":
     import tempfile
 
