@@ -7,14 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-19
+
 ### Fixed
 
 - `existing reroute` and `gen` no longer stop with `via padstack '…' is not
-  in the session's library_out` when the board has a via whose padstack
-  Freerouting used for none of its new vias. The session gives the board's
-  own vias back as protected copper under the DSN's padstack names, which
-  its `library_out` need not list; those vias are now left out when the
-  session is read, as both commands already left them out of the board
+  in the session's library_out`. Freerouting gives the board's own vias
+  back as protected copper under the DSN's padstack names, which the
+  session's `library_out` need not list; those vias are now left out when
+  the session is read, as both commands already left them out of the board
   (#77).
 
 ## [0.8.0] - 2026-11-18
@@ -334,7 +335,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/heibench/boardwright/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/heibench/boardwright/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/heibench/boardwright/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/heibench/boardwright/compare/v0.5.1...v0.6.0
