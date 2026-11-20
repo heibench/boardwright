@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-11-20
+
 ### Fixed
 
 - `existing reroute` keeps signals off inner plane layers, those holding a
@@ -405,7 +407,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.4...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.5...HEAD
+[0.8.5]: https://github.com/heibench/boardwright/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/heibench/boardwright/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/heibench/boardwright/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/heibench/boardwright/compare/v0.8.1...v0.8.2
