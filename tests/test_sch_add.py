@@ -223,3 +223,40 @@ def test_a_project_row_naming_the_stock_folder_is_found(tmp_path, monkeypatch, k
     (d / table).write_text(f'({table.replace("-", "_")}\n  (version 7)\n'
                            f'  (lib (name "{nick}")(type "KiCad")(uri "${{{var}}}/{lib}")(options "")(descr ""))\n)\n')
     assert sch._in_table(d / table, nick, d, kind=kind) == (True, stock / lib)
+
+
+def _strip_pins(f, refs):
+    """The sheet with the placed parts `refs` written without (pin ...) lines,
+    as a part with no pins (a mounting hole, a logo) is."""
+    t = f.read_text()
+    for s, e in reversed(sch.Sheet(f).instances()):
+        if sch.prop(t[s:e], "Reference") in refs:
+            t = t[:s] + re.sub(r'\n\t\t\(pin "[^"]*" \(uuid "[^"]*"\)\n\t\t\)', "", t[s:e]) + t[e:]
+    f.write_text(t)
+
+
+def test_a_library_part_is_added_when_the_first_part_has_no_pins(proj, tmp_path):
+    """#99: add took its pin lines from the sheet's first placed part, J1 here,
+    and crashed (StopIteration, exit 2) when it had none."""
+    _strip_pins(proj / SCH, {"J1"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 0
+    after = (proj / SCH).read_text()
+    part = next(after[s:e] for s, e in sch.Sheet(proj / SCH).instances() if '(lib_id "Mine:R_new")' in after[s:e])
+    assert sorted(re.findall(r'\(pin "([^"]*)"', part)) == ["1", "2"]
+
+
+def test_a_sheet_with_no_pinned_part_refuses_a_library_part_with_a_message(proj, tmp_path, capsys):
+    f = proj / SCH
+    _strip_pins(f, {sch.prop(f.read_text()[s:e], "Reference") for s, e in sch.Sheet(f).instances()})
+    before = f.read_text()
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [R50])]) == 1
+    assert "no placed part on the sheet has a pin" in capsys.readouterr().err
+    assert f.read_text() == before
+
+
+def test_a_sheet_with_no_pinned_part_still_copies_an_existing_part(proj, tmp_path):
+    f = proj / SCH
+    _strip_pins(f, {sch.prop(f.read_text()[s:e], "Reference") for s, e in sch.Sheet(f).instances()})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R51", "R1", "2k", "Resistor_SMD:R_0805_2012Metric",
+                                                              {1: "+3V3", 2: "GND"})])]) == 0
+    assert '(reference "R51")' in f.read_text()

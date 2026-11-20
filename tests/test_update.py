@@ -475,3 +475,65 @@ def test_kicad_finds_no_field_mismatch_after_an_update(ldo, tmp_path):
     assert before == {"footprint_symbol_field_mismatch", "missing_footprint"}
     assert main(["existing", str(ldo), "update"]) == 0
     assert _gate(ldo, tmp_path, "after")["schematic_parity"] == []
+
+
+def _with_flag(text: str, ref: str, flag: str) -> str:
+    """NET with `ref` carrying the component property `flag` (dnp,
+    exclude_from_bom), in the form KiCad 10.0.8 writes it."""
+    i = text.index(f'(ref "{ref}")')
+    j = text.index('\t\t\t(property\n\t\t\t\t(name "Sheetname")', i)
+    return text[:j] + f'\t\t\t(property\n\t\t\t\t(name "{flag}")\n\t\t\t)\n' + text[j:]
+
+
+def test_update_carries_dnp_and_exclude_from_bom_onto_the_footprint(ldo, tmp_path, capsys):
+    """KiCad's parity check flags a footprint whose "Do not populate" or
+    "Exclude from bill of materials" differs from its symbol's (#98). Set,
+    then a second run changes nothing, then cleared in the schematic."""
+    _unlink(ldo)
+    text = _with_flag(_with_flag(NET.read_text(), "C1", "dnp"), "R1", "exclude_from_bom")
+    f = tmp_path / "flags.net"
+    f.write_text(text)
+    board = ldo / "ldo_breakout.kicad_pcb"
+    assert main(["existing", str(ldo), "update", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "C1: dnp set" in out and "R1: exclude_from_bom set" in out
+    new = board.read_text()
+    fp = {update._prop(new[s:e], "Reference"): new[s:e] for s, e in update._footprints(new)}
+    assert "\n\t\t(attr smd dnp)\n" in fp["C1"] and "\n\t\t(attr smd exclude_from_bom)\n" in fp["R1"]
+    assert "\n\t\t(attr smd)\n" in fp["D1"]
+    assert main(["existing", str(ldo), "update", str(f)]) == 0
+    assert board.read_text() == new
+    assert main(["existing", str(ldo), "update", str(NET)]) == 0
+    out = capsys.readouterr().out
+    assert "C1: dnp cleared" in out and "R1: exclude_from_bom cleared" in out
+    assert "(attr smd dnp)" not in board.read_text() and "exclude_from_bom)" not in board.read_text()
+
+
+@pytest.mark.parametrize("attr, sym, want", [
+    ("(attr through_hole)", {"dnp": True, "exclude_from_bom": True}, "(attr through_hole exclude_from_bom dnp)"),
+    ("(attr exclude_from_pos_files exclude_from_bom)", {"dnp": False, "exclude_from_bom": False},
+     "(attr exclude_from_pos_files)"),
+    ("(attr smd allow_missing_courtyard)", {"dnp": True, "exclude_from_bom": False}, "(attr smd allow_missing_courtyard dnp)"),
+])
+def test_flags_keep_the_other_attributes_in_kicads_order(attr, sym, want):
+    fp = f'\n\t(footprint "X"\n\t\t(at 1 2)\n\t\t{attr}\n\t)'
+    assert update.with_flags(fp, sym)[0] == f'\n\t(footprint "X"\n\t\t(at 1 2)\n\t\t{want}\n\t)'
+
+
+def test_a_footprint_without_attr_gets_one_after_its_link():
+    fp = '\n\t(footprint "X"\n\t\t(at 1 2)\n\t\t(property "Reference" "X1"\n\t\t)\n\t\t(path "/a")\n\t\t(sheetfile "x.kicad_sch")\n\t)'
+    new, changed = update.with_flags(fp, {"dnp": True, "exclude_from_bom": False})
+    assert changed == ["dnp set"] and '(sheetfile "x.kicad_sch")\n\t\t(attr dnp)\n\t)' in new
+
+
+@pytest.mark.kicad
+@needs_kicad
+def test_kicad_finds_no_flag_mismatch_after_an_update(ldo, tmp_path):
+    """#98: D1 set do-not-populate and R1 left out of the BOM in the schematic.
+    KiCad's parity check flags both before the update and neither after."""
+    assert main(["sch", str(ldo), "set", "D1", "dnp=yes"]) == 0
+    assert main(["sch", str(ldo), "set", "R1", "in_bom=no"]) == 0
+    before = [v["description"] for v in _gate(ldo, tmp_path, "before")["schematic_parity"]]
+    assert len(before) == 2 and all("settings differ" in d for d in before)
+    assert main(["existing", str(ldo), "update"]) == 0
+    assert _gate(ldo, tmp_path, "after")["schematic_parity"] == []
