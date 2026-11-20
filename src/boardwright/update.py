@@ -73,10 +73,11 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
         if not sp or not ts:
             continue
         props = dict(re.findall(r'\(property\s*\(name "((?:[^"\\]|\\.)*)"\)(?:\s*\(value "((?:[^"\\]|\\.)*)"\))?', c))
+        fields = {_unesc(k): _unesc(v) for k, v in _FIELD.findall(c) if k not in ("Reference", "Value", "Footprint")}
         comps[sp.group(2) + ts.group(1)] = {
             "ref": _str(c, "ref"), "value": _str(c, "value") or "", "footprint": _str(c, "footprint") or "",
             "sheetname": re.sub(r"\\(.)", r"\1", sp.group(1)), "sheetfile": props.get("Sheetfile", ""),
-            "skip": "exclude_from_board" in props,
+            "skip": "exclude_from_board" in props, "fields": fields,
         }
     pins = {}
     for s, e in blocks(text, ("net",)):
@@ -85,6 +86,45 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
         for a, b in blocks(n, ("node",)):
             pins[(_str(n[a:b], "ref"), _str(n[a:b], "pin"))] = name
     return comps, pins
+
+
+_FIELD = re.compile(r'\(field\s*\(name "((?:[^"\\]|\\.)*)"\)\s*(?:"((?:[^"\\]|\\.)*)")?\s*\)')
+
+
+def _unesc(v: str) -> str:
+    return re.sub(r"\\(.)", r"\1", v)
+
+
+def _no_datasheet(v: str | None) -> bool:
+    return v in (None, "", "~")
+
+
+def with_fields(fp: str, fields: dict[str, str]) -> tuple[str, list[str]]:
+    """The board footprint carrying its symbol's fields (Datasheet, Description,
+    user fields), as KiCad's Update PCB from Schematic leaves it, so the
+    schematic parity check finds no footprint_symbol_field_mismatch (#95). A
+    field the footprint has is set in place; a missing one is added hidden on
+    F.Fab at the footprint's origin, the way KiCad writes one. An empty field
+    is not added, and "" and "~" are the same empty value. Returns the block
+    and the names changed."""
+    changed = []
+    rot = re.search(r'\n\t\t\(at [-\d.]+ [-\d.]+(?: ([-\d.]+))?\)', fp)
+    rot = rot.group(1) if rot and rot.group(1) else "0"
+    for name, val in fields.items():
+        have = _prop(fp, name)
+        have = None if have is None else _unesc(have)
+        if have == val or (_no_datasheet(have) and _no_datasheet(val)):
+            continue
+        if have is not None:
+            fp = _set_prop(fp, name, val)
+        else:
+            props = [(s, e) for s, e in blocks(fp, ("property",)) if fp[s:s + 13] == "\n\t\t(property "]
+            k = props[-1][1] if props else fp.index("\n", fp.index("\n\t\t(at "))
+            fp = fp[:k] + (f'\n\t\t(property "{_esc(name)}" "{_esc(val)}"\n\t\t\t(at 0 0 {rot})\n\t\t\t(layer "F.Fab")'
+                           f'\n\t\t\t(hide yes)\n\t\t\t(uuid "{uuid.uuid4()}")\n\t\t\t(effects\n\t\t\t\t(font\n'
+                           '\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)') + fp[k:]
+        changed.append(name)
+    return fp, changed
 
 
 def _footprints(t: str) -> list[tuple[int, int]]:
@@ -417,6 +457,9 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
             if have is not None and have != val:
                 new = _set_prop(new, name, val)
                 notes.append(f"{c['ref']}: {name} {have} -> {val}")
+        new, fields = with_fields(new, c["fields"])
+        if fields:
+            notes.append(f"{c['ref']}: {', '.join(fields)} from the symbol")
         for _s, _e, num, have in _pads(new):
             if num in want and want[num] != have:
                 notes.append(f"{c['ref']}.{num}: net {have or '(none)'} -> {want[num]}")
@@ -439,7 +482,7 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
             text = mod.read_text()
             ex0, ey0, ex1, ey1 = _extent(text)
             fx, fy = round(x - ex0, 2), round(y - ey0, 2)
-            made.append(new_footprint(text, c["footprint"], c, path, fx, fy, want))
+            made.append(with_fields(new_footprint(text, c["footprint"], c, path, fx, fy, want), c["fields"])[0])
             print(f"{c['ref']}: added {c['footprint']} at ({fx:g}, {fy:g}), beside the board: place it")
             y += ey1 - ey0 + 2.54
             row = max(row, ex1 - ex0)
