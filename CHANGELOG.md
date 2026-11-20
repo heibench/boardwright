@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-11-20
+
 ### Fixed
 
 - `existing reroute` leaves the board as it was read when the route cannot
@@ -20,7 +22,6 @@ the command line).
   `(net, x, y[, size, drill])` with exit 64 before changing anything. A nested
   `("NET", (x, y))` crashed with an IndexError, exit 2, after the rip-up and
   moves were written (#107).
-
 - `sch add` takes a net named the way KiCad's netlist names a local label,
   with the sheet path in front (`/LED_A`), as that label. It wrote a new
   label `/LED_A`, which KiCad kept on a net of its own. Any other name with a
@@ -390,7 +391,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/heibench/boardwright/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/heibench/boardwright/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/heibench/boardwright/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/heibench/boardwright/compare/v0.8.0...v0.8.1
