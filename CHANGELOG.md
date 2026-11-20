@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-11-20
+
 ### Fixed
 
 - `existing update` copies each symbol's datasheet, description and user
@@ -14,7 +16,6 @@ the command line).
   does. Added footprints had only what their library footprint had, so KiCad's
   schematic parity check reported `footprint_symbol_field_mismatch` on each
   one with a field set (#95).
-
 - `live apply --save` refuses (exit 1) when the board open in KiCad has edits
   that are not in its file, naming them, instead of saving them along with
   its own. Nothing is changed. The board and file are compared item by item:
@@ -23,7 +24,6 @@ the command line).
 - `existing apply`, `reroute`, `update` and the `sch` edits warn when KiCad
   has the file open (its `~<name>.lck` beside it), since KiCad's next save
   of it overwrites the edit (#46).
-
 - A file or folder boardwright cannot read or write, such as a read-only
   `boardwright_out` next to the board, now exits 4 with one line naming it.
   It exited 2 with a traceback and "internal error". Seen on `live apply`'s
@@ -357,7 +357,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/heibench/boardwright/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/heibench/boardwright/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/heibench/boardwright/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/heibench/boardwright/compare/v0.6.0...v0.7.0
