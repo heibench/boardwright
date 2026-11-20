@@ -74,3 +74,75 @@ def test_apply_refuses_a_bad_via_before_ripping_anything_up(ldo_copy, board, cap
     assert main(["existing", str(ldo_copy), "apply"]) == 64
     assert "VIAS entry ('LED_A', (10.0, 10.0)) is not (net, x, y[, size, drill])" in capsys.readouterr().err
     assert _hash(board) == before
+
+
+def test_plane_layers_are_the_inner_zone_only_layers_unless_planes_says():
+    """#106: reroute ran signals through stm32f103_4l's In1/In2 GND planes."""
+    from types import SimpleNamespace
+
+    from conftest import BOARDS
+
+    from boardwright import existing
+    from boardwright.model import Board
+
+    four = Board(BOARDS / "stm32f103_4l" / "stm32f103_4l.kicad_pcb")
+    two = Board(BOARDS / "ldo_breakout" / "ldo_breakout.kicad_pcb")      # GND pour on both outer layers
+    none = SimpleNamespace()
+    assert existing.plane_layers(four, none) == ["In1.Cu", "In2.Cu"]
+    assert existing.plane_layers(two, none) == []
+    assert existing.plane_layers(four, SimpleNamespace(PLANES=["In2.Cu"])) == ["In2.Cu"]
+    assert existing.plane_layers(four, SimpleNamespace(PLANES={"In1.Cu": "GND"})) == ["In1.Cu"]
+    assert existing.plane_layers(four, SimpleNamespace(PLANES=[])) == []
+    with pytest.raises(Usage, match="In3.Cu"):
+        existing.plane_layers(four, SimpleNamespace(PLANES=["In3.Cu"]))
+
+
+def test_reroute_hands_freerouting_the_planes_switched_off(tmp_path, monkeypatch, capsys):
+    import shutil
+
+    from conftest import BOARDS
+
+    d = tmp_path / "b"
+    shutil.copytree(BOARDS / "stm32f103_4l", d, ignore=shutil.ignore_patterns("out", "boardwright_out", "board.py"))
+    seen = tmp_path / "argv"
+    monkeypatch.setattr(env, "freerouting",
+                        lambda: [sys.executable, "-c", f"import sys; open({str(seen)!r}, 'w').write(repr(sys.argv))"])
+    assert main(["existing", str(d), "reroute", "PA1"]) == 4                 # the stand-in writes no SES
+    argv = eval(seen.read_text())
+    rules = (d / "boardwright_out" / "stm32f103_4l.rules").read_text()
+    assert argv[argv.index("-dr") + 1].endswith("stm32f103_4l.rules")
+    assert "(layer_rule In1.Cu\n      (active off)" in rules and "(layer_rule In2.Cu\n      (active off)" in rules
+    assert "(layer_rule F.Cu\n      (active on)" in rules and "(layer_rule B.Cu\n      (active on)" in rules
+    assert "kept off the plane layer(s) In1.Cu, In2.Cu" in capsys.readouterr().out
+
+
+def test_a_net_the_router_cannot_finish_refuses_the_whole_reroute(ldo_copy, board, monkeypatch, capsys):
+    """Its old copper, put back, landed on the other named nets' new routes:
+    two shorts with PA0 and PA1 on stm32f103_4l (#106). Now nothing changes."""
+    from pathlib import Path
+
+    ses = Path(__file__).parent / "data" / "ses" / "ldo_routed.ses"
+    t = ses.read_text()
+    i = t.index('      (net "LED_A"')
+    j = t.index("\n      (net ", i + 1) if "\n      (net " in t[i + 1:] else t.rindex("\n    )")
+    partial = ldo_copy / "partial.ses"
+    partial.write_text(t[:i] + t[j + 1:])
+    copy = "import shutil, sys; shutil.copy(sys.argv[1], sys.argv[sys.argv.index('-do') + 1])"
+    monkeypatch.setattr(env, "freerouting", lambda: [sys.executable, "-c", copy, str(partial)])
+    before = _hash(board)
+    assert main(["existing", str(ldo_copy), "reroute", "LED_A", "+3V3"]) == 1
+    err = capsys.readouterr().err
+    assert "refused: the router could not finish ['LED_A']; reroute ['+3V3'] without them" in err
+    assert _hash(board) == before
+
+
+def test_an_outer_pour_with_no_tracks_is_still_routed_on():
+    """A two-layer board routed on top with GND poured on the bottom keeps both
+    layers: only inner layers are planes by default."""
+    from types import SimpleNamespace
+
+    from boardwright import existing
+
+    b = SimpleNamespace(layers=["F.Cu", "B.Cu"], zones=[SimpleNamespace(layers=["B.Cu"], keepout=False)],
+                        tracks=[SimpleNamespace(layer="F.Cu")])
+    assert existing.plane_layers(b, SimpleNamespace()) == []
