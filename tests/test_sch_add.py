@@ -260,3 +260,52 @@ def test_a_sheet_with_no_pinned_part_still_copies_an_existing_part(proj, tmp_pat
     assert main(["sch", str(proj), "add", _spec(tmp_path, [("R51", "R1", "2k", "Resistor_SMD:R_0805_2012Metric",
                                                               {1: "+3V3", 2: "GND"})])]) == 0
     assert '(reference "R51")' in f.read_text()
+
+
+def _led_a_local(f):
+    """LED_A's two global labels turned into local labels at the same places,
+    so KiCad's netlist names the net /LED_A."""
+    t = f.read_text()
+    t, n = re.subn(r'\t\(global_label "LED_A" \(shape bidirectional\) \(at ([-\d.]+ [-\d.]+ [-\d.]+)\) \(fields_autoplaced yes\)\n'
+                   r'\t\t\(effects\n\t\t\t\(font\n\t\t\t\t\(size 1\.27 1\.27\)\n\t\t\t\)\n\t\t\t\(justify left\)\n\t\t\)\n'
+                   r'\t\t\(uuid "([^"]+)"\)\n\t\)',
+                   lambda m: f'\t(label "LED_A"\n\t\t(at {m.group(1)})\n\t\t(effects\n\t\t\t(font\n\t\t\t\t(size 1.27 1.27)\n'
+                             f'\t\t\t)\n\t\t\t(justify left bottom)\n\t\t)\n\t\t(uuid "{m.group(2)}")\n\t)', t)
+    assert n == 2
+    f.write_text(t)
+
+
+@pytest.mark.parametrize("net", ["/LED_A", "LED_A"])
+def test_a_netlist_name_joins_the_local_label(proj, tmp_path, capsys, net):
+    """#102: KiCad's netlist calls the root sheet's local label LED_A "/LED_A".
+    That name, like the bare one, joins the label; it wrote (label "/LED_A"),
+    a net of its own."""
+    f = proj / SCH
+    _led_a_local(f)
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R50", "R1", "1k", "Resistor_SMD:R_0805_2012Metric",
+                                                              {1: net, 2: "GND"})])]) == 0
+    assert "R50.1 -> LED_A  [label]" in capsys.readouterr().out
+    after = f.read_text()
+    assert '(label "/LED_A"' not in after and after.count('(label "LED_A"') == 3
+
+
+@pytest.mark.parametrize("net", ["/NOPE", "/sub/LED_A", "LED_A/x"])
+def test_a_slashed_name_that_is_no_label_here_is_refused(proj, tmp_path, capsys, net):
+    f = proj / SCH
+    _led_a_local(f)
+    before = f.read_text()
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R50", "R1", "1k", "Resistor_SMD:R_0805_2012Metric",
+                                                              {1: net, 2: "GND"})])]) == 64
+    assert "is not a label on ldo_breakout.kicad_sch" in capsys.readouterr().err
+    assert f.read_text() == before
+
+
+def test_a_sub_sheet_path_is_its_sheet_names(tmp_path):
+    def sheet(name, *subs):
+        body = "".join(f'\t(sheet\n\t\t(property "Sheetname" "{n}"\n\t\t)\n\t\t(property "Sheetfile" "{f}"\n\t\t)\n\t)\n'
+                       for n, f in subs)
+        (tmp_path / name).write_text(f"(kicad_sch\n{body})\n")
+        return sch.Sheet(tmp_path / name)
+    top, io, adc = sheet("top.kicad_sch", ("io", "io.kicad_sch")), sheet("io.kicad_sch", ("adc", "adc.kicad_sch")), sheet("adc.kicad_sch")
+    all_ = [top, io, adc]
+    assert [sch._sheet_path(s, all_, top.path) for s in all_] == ["/", "/io/", "/io/adc/"]

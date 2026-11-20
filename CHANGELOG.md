@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `sch add` takes a net named the way KiCad's netlist names a local label,
+  with the sheet path in front (`/LED_A`), as that label. It wrote a new
+  label `/LED_A`, which KiCad kept on a net of its own. Any other name with a
+  `/` in it is refused (exit 64), naming the sheet's local labels (#102).
+
 ## [0.8.3] - 2026-11-20
 
 ### Fixed

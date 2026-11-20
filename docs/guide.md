@@ -237,6 +237,12 @@ on it, a sheet pin's net gets a hierarchical label, a power net a copy of its
 power symbol from whichever sheet has one, and a net local to another sheet is
 refused (exit 1), since only a sheet pin reaches it.
 
+A net in a pin map is a label's name. The name KiCad's netlist and ERC give a
+local label's net, with the sheet path in front (`/LED_A` on the root sheet,
+`/io/LED_A` on sub-sheet io), joins that label too. Any other name with a `/`
+in it is refused (exit 64) rather than written as a new label with the slash
+in its text.
+
 Limits: `add` places single-unit symbols on a sheet used once, and draws only
 pin stubs. Nothing is moved or re-wired. A
 schematic open in KiCad has to be closed and reopened to show the change.

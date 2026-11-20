@@ -436,6 +436,34 @@ def _target(d: Path, name: str | None, all_sheets: list[Sheet]) -> Sheet:
     return hits[0]
 
 
+def _sheet_path(sh: Sheet, all_sheets: list[Sheet], top: Path) -> str:
+    """The sheet's path as KiCad's netlist names it: "/" for the root, then each
+    sheet's name down to this one, "/power/" or "/io/adc/"."""
+    names, here = [], sh
+    while here.path != top:
+        parent = next(((p, b) for p in all_sheets for a, e in blocks(p.text, ("sheet",)) for b in [p.text[a:e]]
+                       if re.search(r'\(property "Sheetfile" "%s"' % re.escape(here.path.name), b)), None)
+        if parent is None:
+            break
+        here, block = parent
+        names.append(prop(block, "Sheetname") or "")
+    return "/" + "".join(n + "/" for n in reversed(names))
+
+
+def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str) -> str:
+    """The label text for a net named in a pin map. KiCad names a local label's
+    net with its sheet path in front (/LED_A on the root sheet), so that form
+    joins the label; any other name with a "/" in it is refused rather than
+    written as a new label with the slash in its text (#102)."""
+    if net in known or "/" not in net:
+        return net
+    name = net[len(prefix):] if net.startswith(prefix) else None
+    if name and "/" not in name and name in labels:
+        return name
+    raise Usage(f"net {net!r} is not a label on {where}: a name with a sheet path in front ({prefix}NAME) must name one "
+                f"of its local labels ({', '.join(sorted(labels)) or 'none'}). Nothing written.")
+
+
 def add(d: Path, spec_path: str) -> int:
     sp = importlib.util.spec_from_file_location("sch_spec", spec_path)
     m = importlib.util.module_from_spec(sp)
@@ -476,11 +504,13 @@ def add(d: Path, spec_path: str) -> int:
     if template is None:
         raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
     path = _instance_path(template)
+    prefix = _sheet_path(sh, all_sheets, root(d).path)
     plan = []                                            # (ref, like, value, footprint, pins, lib_id, source, from library, extent)
     for ref, like, value, footprint, pins in m.ADD:
         if ref in taken or any(ref == p[0] for p in plan):
             raise Usage(f"{ref} already exists")
-        pins = {str(k): v for k, v in pins.items()}
+        pins = {str(k): _local_name(v, prefix, labels, labels | hier | globals_ | set(power), sh.path.name)
+                for k, v in pins.items()}
         if like in by_ref and not like.startswith("#"):
             src_text, src = by_ref[like]
             lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
