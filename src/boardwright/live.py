@@ -417,7 +417,9 @@ def apply(k, b, doc: dict, save: bool) -> None:
         _when_idle(b.save, "saving")
         print("saved")
     else:
-        print("not saved: look at it in KiCad, undo if wrong, save it yourself or rerun with --save")
+        # not "rerun with --save": this edit is now unsaved in KiCad, so that rerun is refused (#46)
+        print("not saved: look at it in KiCad, then save it there (Ctrl+S) to keep it, "
+              "or undo it (Ctrl+Z) before applying again")
 
 
 def main(argv: list[str]) -> int:
