@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- A file or folder boardwright cannot read or write, such as a read-only
+  `boardwright_out` next to the board, now exits 4 with one line naming it.
+  It exited 2 with a traceback and "internal error". Seen on `live apply`'s
+  snapshot; `existing DIR info` and `preview` reached the same handler (#86).
+
 ## [0.8.1] - 2026-11-19
 
 ### Fixed

@@ -76,7 +76,7 @@ branch on them:
 | 0 | done: the board passed, or the edit was made |
 | 1 | violated or refused: a finding about the design, or an edit not made |
 | 2 | could not tell: a check could not be decided (a KiCad report is missing or stale) |
-| 4 | environment fault: KiCad, a library or Freerouting missing or failing; never a verdict on the design |
+| 4 | environment fault: KiCad, a library or Freerouting missing or failing, or a file or folder it cannot read or write; never a verdict on the design |
 | 64 | usage: bad arguments, or a spec naming parts, nets or layers that are not there |
 
 ## How it decides
