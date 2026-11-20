@@ -14,6 +14,10 @@ the command line).
   leaving its other attributes as they are. They were never read, so KiCad's
   schematic parity check reported "'Do not populate' settings differ" and
   "'Exclude from bill of materials' settings differ" (#98).
+- `sch add` with a library symbol no longer stops with a traceback (exit 2)
+  when the sheet's first placed part has no pins: it takes its pin format
+  from a part that has one. A sheet with none refuses the library part with a
+  message (exit 1); copying an existing part still works there (#99).
 
 ## [0.8.2] - 2026-11-20
 

@@ -368,7 +368,11 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     t = _fresh(template)
     p0 = re.search(r"\n\t\t\(property ", t)
     i0 = re.search(r"\n\t\t\(instances\b", t)
-    pin_tpl = next(t[s:e] for s, e in blocks(t, ("pin",)))
+    pins_ = blocks(t, ("pin",))
+    if not pins_:
+        raise SystemExit(f"no placed part on the sheet has a pin to take the file's format from; "
+                         f"add {lib_id} in KiCad, or name an existing part to copy (#99)")
+    pin_tpl = t[pins_[0][0]:pins_[0][1]]
     head, tail = t[:p0.start()], t[i0.start():]
     head = re.sub(r'\(lib_id "[^"]*"\)', f'(lib_id "{lib_id}")', head, count=1)
     head = re.sub(r"\n\t\t\(lib_name \"[^\"]*\"\)", "", head)
@@ -465,7 +469,10 @@ def add(d: Path, spec_path: str) -> int:
     glabel_t, hlabel_t = first("global_label", [t, *rest]), first("hierarchical_label", [t])
     if wire_t is None or (label_t is None and glabel_t is None):
         raise SystemExit("the project has no wire or no label to take the file's format from")
-    template = next((b for b in here if not (prop(b, "Reference") or "#").startswith("#")), None)
+    parts = [b for b in here if not (prop(b, "Reference") or "#").startswith("#")]
+    # a part with a pin, which a symbol added from the library copies its pin lines from (#99);
+    # any part carries the sheet's instance path
+    template = next((b for b in parts if blocks(b, ("pin",))), parts[0] if parts else None)
     if template is None:
         raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
     path = _instance_path(template)
