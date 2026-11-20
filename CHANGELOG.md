@@ -7,7 +7,7 @@ the command line).
 
 ## [Unreleased]
 
-## [0.8.2] - 2026-11-19
+## [0.8.2] - 2026-11-20
 
 ### Fixed
 
