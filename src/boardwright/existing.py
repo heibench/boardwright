@@ -36,6 +36,7 @@ import json
 import math
 import re
 import subprocess
+import sys
 import types
 from pathlib import Path
 
@@ -348,6 +349,7 @@ def remove_footprints(t: str, names: list[str], force: bool = False) -> tuple[st
 def apply(d: Path, force: bool = False) -> int:
     pcb, m = find(d), spec(d)
     env.warn_if_open_in_kicad(pcb)
+    copper.check_vias(m)
     rm = list(getattr(m, "REMOVE", []))
     if rm:
         original = pcb.read_text()
@@ -458,15 +460,42 @@ def reroute(d: Path, nets_: list[str]) -> int:
     text0, n = copper.ripup(original, set(nets_))
     pcb.write_text(text0)
     print(f"ripped up {n} item(s)")
+    try:
+        kept, arcs = _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0)
+    except BaseException:
+        # nothing lands unless the route does: a failure leaves the board as it was read (#104)
+        if pcb.read_text() != original:
+            pcb.write_text(original)
+        print(f"{pcb.name} restored as it was read; nothing changed", file=sys.stderr)
+        raise
+    b1 = Board(pcb)
+    for net in nets_:
+        L = sum(t.length for t in b1.tracks if t.net == net)
+        print(f"  {net}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
+    left = len(ratsnest(b1, {z.net for z in b1.zones if not z.keepout}))
+    print(f"kept {kept} new item(s) on the named nets; {arcs} curved track(s) shown to the router as fixed; "
+          f"tracks {len(b0.tracks)} -> {len(b1.tracks)}; unrouted connections on unpoured nets: {left}")
+    write_preview(pcb, o / "preview.png")
+    return 0
+
+
+def _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0) -> tuple[int, int]:
+    """reroute's routing half, on the board with the named nets ripped up: export,
+    Freerouting, and the graft of its result. Any failure raises; reroute then
+    puts the board back as it was read. Returns the items grafted and the arcs
+    the router was shown as fixed."""
     dsn, ses = o / f"{m.NAME}.dsn", o / f"{m.NAME}.ses"
     if ses.exists():
         ses.unlink()
     arcs = dsn_.export(pcb, dsn)
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", str(getattr(m, "FR_PASSES", 5))]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=getattr(m, "FR_TIMEOUT", 900))
+    limit = getattr(m, "FR_TIMEOUT", 900)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
+    except subprocess.TimeoutExpired as e:
+        raise EnvironmentFault(f"freerouting did not finish in FR_TIMEOUT = {limit} s") from e
     (o / "freerouting.log").write_text(r.stdout + r.stderr)
     if not ses.exists():
-        pcb.write_text(text0)
         raise EnvironmentFault("freerouting produced no SES; see boardwright_out/freerouting.log")
     layers = ses_.copper_layers(text0)
     tracks, vias = ses_.read(ses, layers)
@@ -489,15 +518,7 @@ def reroute(d: Path, nets_: list[str]) -> int:
         text = text.rstrip()[:-1].rstrip() + "".join(old) + "\n)\n"
         pcb.write_text(text)
         print(f"  the router could not finish {failed}: original routing restored")
-    b1 = Board(pcb)
-    for net in nets_:
-        L = sum(t.length for t in b1.tracks if t.net == net)
-        print(f"  {net}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
-    left = len(ratsnest(b1, {z.net for z in b1.zones if not z.keepout}))
-    print(f"kept {len(graft)} new item(s) on the named nets; {arcs} curved track(s) shown to the router as fixed; "
-          f"tracks {len(b0.tracks)} -> {len(b1.tracks)}; unrouted connections on unpoured nets: {left}")
-    write_preview(pcb, o / "preview.png")
-    return 0
+    return len(graft), arcs
 
 
 def cli(argv: list[str]) -> int:

@@ -145,7 +145,12 @@ place: commit before `apply` or `reroute`.
   fixed copper (curved tracks included, as polylines), and
   afterwards keeps only the named nets' new copper: every other net is
   byte-identical to before. A net the router cannot finish gets its original
-  routing back. New tracks are held to the project's own minimum width.
+  routing back. New tracks are held to the project's own minimum width. When
+  the route cannot run at all (no SES, a timeout past `FR_TIMEOUT`, an
+  Edge.Cuts outline that does not close) the board is left as it was read,
+  and the exit is 4 with the reason.
+- `apply` checks every `VIAS` entry is `(net, x, y[, size, drill])` before
+  it changes anything (exit 64 otherwise).
 - `apply` is repeatable: exact duplicates are dropped. A `REMOVE` entry is the
   exception: once its footprint is gone it names nothing, which is refused
   (exit 64), so take it out of the spec.
