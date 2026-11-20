@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: extractions/setup-just@v4
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       - run: just setup
       - run: just check
 
@@ -34,9 +34,9 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: extractions/setup-just@v4
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: ${{ matrix.python-version }}
       - run: just setup
@@ -54,10 +54,10 @@ jobs:
       FREEROUTING_SHA256: f6f51bb02245e8e717f9359bd260cc9c5c0b1bc0acc8b7cb2cd5b8ffeb5de3c7
       KICAD_DEB: 10.0.8~ubuntu24.04.1   # the PPA's build CI installed on 2026-11-17
     steps:
-      - uses: actions/checkout@v7
-      - uses: extractions/setup-just@v4
-      - uses: astral-sh/setup-uv@v7
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "25"
@@ -68,7 +68,7 @@ jobs:
       # the PPA. Bump KICAD_DEB when the PPA moves on (it keeps only the latest).
       - name: Restore KiCad packages
         id: kicad-debs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ci/kicad-debs
           key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04
@@ -85,7 +85,7 @@ jobs:
              /var/cache/apt/archives/kicad-footprints_*.deb /var/cache/apt/archives/kicad-demos_*.deb .ci/kicad-debs/
       - name: Save KiCad packages
         if: steps.kicad-debs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ci/kicad-debs
           key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04

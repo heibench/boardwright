@@ -1,5 +1,9 @@
 version: 2
 updates:
+  # Actions are pinned to a full SHA with a `# vX.Y.Z` comment, and
+  # tests/test_workflows.py refuses anything else (#84). Dependabot bumps
+  # that form SHA-for-SHA and rewrites the comment, so its PRs pass the
+  # gate unaided.
   - package-ecosystem: github-actions
     directory: /
     schedule:
