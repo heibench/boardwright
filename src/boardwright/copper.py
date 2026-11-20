@@ -11,6 +11,8 @@ import re
 import uuid
 from pathlib import Path
 
+from .errors import Usage
+
 
 def num(v: float) -> str:
     """A length or angle as KiCad writes it: at most 6 decimals (1 nm), no
@@ -146,9 +148,20 @@ def _cross(p1, p2, p3, p4) -> bool:
     return o(p1, p2, p3) * o(p1, p2, p4) < 0 and o(p3, p4, p1) * o(p3, p4, p2) < 0
 
 
+def check_vias(m) -> None:
+    """Each VIAS entry is (net, x, y[, size, drill]); anything else is a usage
+    error naming the entry, before anything is written (#107)."""
+    for v in getattr(m, "VIAS", []):
+        ok = (isinstance(v, (tuple, list)) and len(v) in (3, 5) and isinstance(v[0], str)
+              and all(isinstance(n, (int, float)) and not isinstance(n, bool) for n in v[1:]))
+        if not ok:
+            raise Usage(f"VIAS entry {v!r} is not (net, x, y[, size, drill])")
+
+
 def check_tracks(m) -> None:
     """Hand routes of different nets must not cross on a layer, or pass over a foreign hand via."""
     import math
+    check_vias(m)
     segs = [(t[0], a, b, t[3] if len(t) > 3 else "F.Cu", t[2] if len(t) > 2 else 0.25)
             for t in getattr(m, "TRACKS", []) for a, b in zip(t[1], t[1][1:])]
     for i, (n1, a, b, l1, _w) in enumerate(segs):

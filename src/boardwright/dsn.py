@@ -62,6 +62,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .copper import blocks
+from .errors import EnvironmentFault
 from .model import _arc_points
 
 # KiCad's Default net class as kicad-tools 0.29 named and sized it when a board
@@ -377,6 +378,27 @@ def _outline(root: list) -> tuple[list, list]:
     return list(board.exterior.coords)[:-1], [list(c.exterior.coords)[:-1] for c in cutouts if c.area > 0]
 
 
+def _outline_problem(root: list) -> str:
+    """Why the top-level Edge.Cuts gives no closed board outline, for the error
+    that stops the export (#105): its unreadable shape, or its open ends."""
+    try:
+        segs = _outline_segments(root)
+    except ValueError as e:
+        return str(e)
+    if not segs:
+        return "there is no Edge.Cuts outline"
+    ends: dict = {}
+    for a, b in segs:
+        for p in (a, b):
+            k = (round(p[0], 3), round(p[1], 3))
+            ends[k] = ends.get(k, 0) + 1
+    open_ = sorted(p for p, n in ends.items() if n % 2)
+    if not open_:
+        return "the Edge.Cuts outline does not enclose an area"
+    shown = ", ".join(f"({x:g}, {y:g})" for x, y in open_[:6]) + (", ..." if len(open_) > 6 else "")
+    return f"the Edge.Cuts outline does not close within 1 um: open ends at {shown} (board mm)"
+
+
 def _inset(outline: list, cutouts: list, edge: float) -> tuple[list, list]:
     """Move the boundary in, and the cutouts out, by the copper-to-edge clearance:
     Specctra has no edge rule, but a router keeps copper inside the boundary and
@@ -647,10 +669,12 @@ class _Dsn:
             out += [f"    (layer {_q(layer)}", "      (type signal)", "      (property", f"        (index {i})",
                     "      )", "    )"]
         boundary, cutouts = _inset(*_outline(self.root), self.edge)
-        if boundary:
-            out += ["    (boundary", "      (path pcb 0"]
-            out += [f"        {_um(x):.1f} {_um(y):.1f}" for x, y in boundary + boundary[:1]]
-            out += ["      )", "    )"]
+        if not boundary:                 # Freerouting cannot build a board without one (#105)
+            raise EnvironmentFault(f"{self.pcb.name}: no board outline for the router: {_outline_problem(self.root)}. "
+                                   "Close it on Edge.Cuts in KiCad.")
+        out += ["    (boundary", "      (path pcb 0"]
+        out += [f"        {_um(x):.1f} {_um(y):.1f}" for x, y in boundary + boundary[:1]]
+        out += ["      )", "    )"]
         d = self.classes["Default"]
         c = _um(d.clearance)
         out += ["    (rule", f"      (width {_um(d.width):.1f})", f"      (clearance {c:.1f})",

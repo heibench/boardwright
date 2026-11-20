@@ -9,6 +9,18 @@ the command line).
 
 ### Fixed
 
+- `existing reroute` leaves the board as it was read when the route cannot
+  run, and exits 4 with the reason. It wrote the named nets' rip-up first and
+  left it there when Freerouting gave no SES; on a timeout it also said
+  "nothing was checked or written as a result" (#104).
+- The DSN export refuses a board whose Edge.Cuts outline does not close
+  within 1 um, naming the open ends. It wrote a DSN with no boundary, which
+  Freerouting 2.5.0 fails on with a NullPointerException (#105).
+- `existing apply` refuses a `VIAS` entry that is not
+  `(net, x, y[, size, drill])` with exit 64 before changing anything. A nested
+  `("NET", (x, y))` crashed with an IndexError, exit 2, after the rip-up and
+  moves were written (#107).
+
 - `sch add` takes a net named the way KiCad's netlist names a local label,
   with the sheet path in front (`/LED_A`), as that label. It wrote a new
   label `/LED_A`, which KiCad kept on a net of its own. Any other name with a
