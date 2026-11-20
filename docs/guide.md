@@ -171,7 +171,8 @@ place: commit before `apply` or `reroute`.
   reference where a footprint has none (boards made by kicad-tools). Each
   matched footprint takes the symbol's reference and value, its datasheet,
   description and user fields (a missing one added hidden on F.Fab, as KiCad
-  does; an empty one not added), and each pad its pin's net; a symbol with no footprint on the board gets one from the
+  does; an empty one not added), its "Do not populate" and "Exclude from
+  bill of materials" flags, and each pad its pin's net; a symbol with no footprint on the board gets one from the
   library (project, global, then stock `fp-lib-table`), beside the board
   outline, for you to place. A footprint changed in the schematic is swapped
   when the new library footprint has the board footprint's pads: the same

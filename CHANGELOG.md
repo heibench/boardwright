@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing update` sets or clears each footprint's `dnp` and
+  `exclude_from_bom` attributes from its symbol, as KiCad's Update PCB does,
+  leaving its other attributes as they are. They were never read, so KiCad's
+  schematic parity check reported "'Do not populate' settings differ" and
+  "'Exclude from bill of materials' settings differ" (#98).
+
 ## [0.8.2] - 2026-11-20
 
 ### Fixed

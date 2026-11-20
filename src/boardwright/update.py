@@ -78,6 +78,7 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
             "ref": _str(c, "ref"), "value": _str(c, "value") or "", "footprint": _str(c, "footprint") or "",
             "sheetname": re.sub(r"\\(.)", r"\1", sp.group(1)), "sheetfile": props.get("Sheetfile", ""),
             "skip": "exclude_from_board" in props, "fields": fields,
+            "dnp": "dnp" in props, "exclude_from_bom": "exclude_from_bom" in props,
         }
     pins = {}
     for s, e in blocks(text, ("net",)):
@@ -125,6 +126,36 @@ def with_fields(fp: str, fields: dict[str, str]) -> tuple[str, list[str]]:
                            '\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)') + fp[k:]
         changed.append(name)
     return fp, changed
+
+
+# The order KiCad 10 writes a footprint's (attr ...) tokens in.
+_ATTR_ORDER = ("smd", "through_hole", "board_only", "exclude_from_pos_files", "exclude_from_bom",
+               "allow_missing_courtyard", "dnp", "allow_soldermask_bridges")
+
+
+def with_flags(fp: str, sym: dict) -> tuple[str, list[str]]:
+    """The board footprint with its symbol's "Do not populate" and "Exclude
+    from bill of materials" flags in its (attr ...), as KiCad's Update PCB
+    sets them; its other attributes are left as they are (#98). Returns the
+    block and what changed, e.g. ["dnp set"]."""
+    m = re.search(r"\n\t\t\(attr((?: [a-z_]+)*)\)", fp)
+    have = m.group(1).split() if m else []
+    want = [a for a in have if a not in ("dnp", "exclude_from_bom")] + [a for a in ("dnp", "exclude_from_bom") if sym[a]]
+    want.sort(key=lambda a: _ATTR_ORDER.index(a) if a in _ATTR_ORDER else len(_ATTR_ORDER))
+    if want == have:
+        return fp, []
+    changed = [f"{a} {'set' if sym[a] else 'cleared'}" for a in ("dnp", "exclude_from_bom") if (a in have) != sym[a]]
+    line = f"\n\t\t(attr {' '.join(want)})" if want else ""
+    if m:
+        return fp[:m.start()] + line + fp[m.end():], changed
+    k = max((e for s, e in blocks(fp, ("property",)) if fp[s:s + 13] == "\n\t\t(property "), default=None)
+    for key in ("path", "sheetname", "sheetfile"):
+        km = re.search(r'\n\t\t\(%s "[^"]*"\)' % key, fp)
+        if km:
+            k = km.end()
+    if k is None:
+        k = fp.index("\n", fp.index("\n\t\t(at "))
+    return fp[:k] + line + fp[k:], changed
 
 
 def _footprints(t: str) -> list[tuple[int, int]]:
@@ -460,6 +491,9 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
         new, fields = with_fields(new, c["fields"])
         if fields:
             notes.append(f"{c['ref']}: {', '.join(fields)} from the symbol")
+        new, flags = with_flags(new, c)
+        if flags:
+            notes.append(f"{c['ref']}: {', '.join(flags)}")
         for _s, _e, num, have in _pads(new):
             if num in want and want[num] != have:
                 notes.append(f"{c['ref']}.{num}: net {have or '(none)'} -> {want[num]}")
@@ -482,7 +516,7 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
             text = mod.read_text()
             ex0, ey0, ex1, ey1 = _extent(text)
             fx, fy = round(x - ex0, 2), round(y - ey0, 2)
-            made.append(with_fields(new_footprint(text, c["footprint"], c, path, fx, fy, want), c["fields"])[0])
+            made.append(with_flags(with_fields(new_footprint(text, c["footprint"], c, path, fx, fy, want), c["fields"])[0], c)[0])
             print(f"{c['ref']}: added {c['footprint']} at ({fx:g}, {fy:g}), beside the board: place it")
             y += ey1 - ey0 + 2.54
             row = max(row, ex1 - ex0)
