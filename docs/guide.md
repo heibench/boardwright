@@ -261,6 +261,19 @@ under stale fill. While KiCad is busy (a refill or a check running) it is
 asked again every 0.5 s for up to 30 s, kicad-python 0.8.0's own refill
 defaults; past that the command stops with exit 4.
 
+`apply --save` saves the whole open board, so it first compares the board
+in KiCad with its file and refuses (exit 1, nothing changed) when KiCad
+holds edits the file does not, naming them (`footprint R1`). Save or undo
+them in KiCad, or apply without `--save`. The comparison is item by item,
+ignoring order, whitespace and the version stamp KiCad 10.0.8 adds inside
+each footprint: KiCad writes an unchanged board differently from the file it
+loaded. Measured on one board, KiCad 10.0.8 (#46).
+
+The file edits (`existing apply`, `reroute`, `update`, and every `sch`
+edit) warn when KiCad has the file open, which it shows by keeping
+`~<name>.lck` beside it: KiCad's next save of that file overwrites the
+edit. Close it in KiCad without saving, then reopen it.
+
 With several KiCads running, give `--board FILE` (or `--board=FILE`) to any
 verb. Without it, `live` uses kicad-python's default socket, `api.sock`, and
 the first KiCad holds that one: a second instance gets `api-<pid>.sock`. If
