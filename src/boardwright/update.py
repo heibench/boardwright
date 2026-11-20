@@ -360,6 +360,7 @@ def _library_footprint(d: Path, lib_id: str) -> tuple[Path | None, str]:
 
 
 def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -> int:
+    env.warn_if_open_in_kicad(pcb)
     t = t0 = pcb.read_text()
     if re.search(r'\n\t\(net 0 ""\)', t):
         raise SystemExit(f"{pcb.name} numbers its nets (saved by KiCad 9 or older); open and save it in KiCad 10 first")

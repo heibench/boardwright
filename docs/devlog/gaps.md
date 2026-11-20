@@ -63,6 +63,8 @@
 
 ## Closed
 
+- `live apply --save` saved a person's unsaved edits with the agent's, and file edits went unwarned while KiCad had the file open -> `--save` refuses over edits KiCad holds that the file does not; file edits warn on KiCad's `~<name>.lck`. A byte comparison of `get_as_string()` with the file fails: an untouched board differs by 938 lines (order, formatting, a footprint version stamp). Items compared as a set match on one board, KiCad 10.0.8, both for a pcbnew-generated file and one KiCad saved; a board saved by an older KiCad is not measured (#46).
+
 - `live apply --save` saved without refilling, leaving stale fill over a part moved into a pour -> it refills first when the edit changed copper, waiting at most 30 s on a busy KiCad (#45).
 - No way to re-point a placed footprint's library link, or take a footprint off the board -> `update` swaps footprints with the same pads, `REMOVE` (12, #37, #38).
 - Live apply, selection, refill, move, rip-up and save not run against KiCad -> all run on KiCad 10.0.8 (#4).

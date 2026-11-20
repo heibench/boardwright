@@ -9,6 +9,15 @@ the command line).
 
 ### Fixed
 
+- `live apply --save` refuses (exit 1) when the board open in KiCad has edits
+  that are not in its file, naming them, instead of saving them along with
+  its own. Nothing is changed. The board and file are compared item by item:
+  KiCad 10.0.8 writes an unchanged board differently from the file it
+  loaded, so a byte comparison would refuse every board (#46).
+- `existing apply`, `reroute`, `update` and the `sch` edits warn when KiCad
+  has the file open (its `~<name>.lck` beside it), since KiCad's next save
+  of it overwrites the edit (#46).
+
 - A file or folder boardwright cannot read or write, such as a read-only
   `boardwright_out` next to the board, now exits 4 with one line naming it.
   It exited 2 with a traceback and "internal error". Seen on `live apply`'s

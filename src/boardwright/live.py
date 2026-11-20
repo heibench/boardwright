@@ -14,7 +14,9 @@ SPEC.py uses the names an existing-board boardwright.py uses: MOVE, RIPUP, TRACK
 VIAS, REVIEW. `apply` turns it into an edit list (boardwright/edits.py), or takes
 one as EDITS.json, and runs it as ONE commit: one Ctrl+Z in KiCad undoes all
 of it. It does not save unless --save is given; look at it first. With
---save, an edit that changed copper refills the zones before the save.
+--save, an edit that changed copper refills the zones before the save, and
+a board whose open copy holds edits its file does not is refused (exit 1)
+before anything changes: the save would keep them too.
 A KiCad that stays busy (refilling, checking) is waited on for at most
 BUSY_WAIT_S, then reported as an environment fault (exit 4).
 
@@ -46,9 +48,11 @@ result is read back; no access to the interactive router exists in the API.
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import time
 import types
+from collections import Counter
 from pathlib import Path
 
 from .errors import EnvironmentFault, Outcome, Usage
@@ -270,6 +274,54 @@ def snapshot(b, out: Path) -> Path:
     return f
 
 
+_TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|[()]|[^\s()"]+')
+_FOOTPRINT_STAMP = re.compile(r'\( (?:version \d+|generator "[^"]*"|generator_version "[^"]*") \) ')
+
+
+def _items(text: str) -> Counter:
+    """A board file's top-level items, each as one whitespace-normalised
+    string, counted. KiCad 10.0.8's get_as_string() writes an unchanged board
+    differently from the file it loaded: items in another order, fonts on one
+    line, and a version stamp in each footprint (938 diff lines on
+    examples/boards/ldo_breakout, #46). As items, without the stamp, the two
+    are equal."""
+    toks = _TOKEN.findall(text)
+    out, depth, cur = [], 0, []
+    for t in toks[2:-1]:                    # inside (kicad_pcb ...)
+        depth += t == "("
+        cur.append(t)
+        if t == ")":
+            depth -= 1
+            if depth == 0:
+                item = " ".join(cur)
+                out.append(_FOOTPRINT_STAMP.sub("", item) if item.startswith("( footprint") else item)
+                cur = []
+    return Counter(out)
+
+
+def unsaved_edits(live_text: str, disk_text: str) -> list[str]:
+    """What the board open in KiCad has that its file does not: one line per
+    item, a footprint by its reference. Empty when KiCad holds the file as saved."""
+    def name(item: str) -> str:
+        ref = re.search(r'\( property "Reference" "([^"]*)"', item)
+        return f"footprint {ref.group(1)}" if ref else item.split(" ", 2)[1]
+    return sorted(name(i) for i in (_items(live_text) - _items(disk_text)).elements())
+
+
+def _refuse_unsaved(b, live_file: Path) -> None:
+    """`apply --save` saves the whole open board, so a person's unsaved edits
+    would be saved with ours (#46). Refuse before changing anything."""
+    disk = Path(board_path(b))
+    if not disk.is_file():
+        return
+    extra = unsaved_edits(live_file.read_text(), disk.read_text())
+    if extra:
+        shown = ", ".join(dict.fromkeys(extra[:5])) + (", ..." if len(extra) > 5 else "")
+        raise Outcome(f"refused: the board open in KiCad has edits not saved to {disk.name} ({shown}); "
+                      "--save would save them with mine. Save or undo them in KiCad, or rerun without --save. "
+                      "Nothing was changed.")
+
+
 def _out_default(b) -> Path:
     try:
         return Path(b.get_project().path) / "boardwright_out"
@@ -365,7 +417,9 @@ def apply(k, b, doc: dict, save: bool) -> None:
         _when_idle(b.save, "saving")
         print("saved")
     else:
-        print("not saved: look at it in KiCad, undo if wrong, save it yourself or rerun with --save")
+        # not "rerun with --save": this edit is now unsaved in KiCad, so that rerun is refused (#46)
+        print("not saved: look at it in KiCad, then save it there (Ctrl+S) to keep it, "
+              "or undo it (Ctrl+Z) before applying again")
 
 
 def main(argv: list[str]) -> int:
@@ -467,6 +521,8 @@ def main(argv: list[str]) -> int:
     if cmd == "apply":
         from . import edits
         f = snapshot(b, _out_default(b))
+        if "--save" in flags:
+            _refuse_unsaved(b, f)
         doc = edit_list(args[0], f)
         print("editing", board_path(b))
         print(*("  " + l for l in edits.describe(doc)), sep="\n")

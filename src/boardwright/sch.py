@@ -79,6 +79,7 @@ class Sheet:
         return [(s, e) for s, e in blocks(self.text, ("symbol",)) if re.match(r"\n\t\(symbol\b", self.text[s:s + 12])]
 
     def write(self, new: str) -> None:
+        env.warn_if_open_in_kicad(self.path)
         if hashlib.sha256(self.path.read_text().encode()).hexdigest() != self.digest:
             raise SystemExit(f"{self.path.name} changed on disk since it was read; nothing written")
         if new.count("(") != new.count(")"):

@@ -347,6 +347,7 @@ def remove_footprints(t: str, names: list[str], force: bool = False) -> tuple[st
 
 def apply(d: Path, force: bool = False) -> int:
     pcb, m = find(d), spec(d)
+    env.warn_if_open_in_kicad(pcb)
     rm = list(getattr(m, "REMOVE", []))
     if rm:
         original = pcb.read_text()
@@ -444,6 +445,7 @@ def reroute(d: Path, nets_: list[str]) -> int:
     which are grafted onto the pre-routing file.
     """
     pcb, m = find(d), spec(d)
+    env.warn_if_open_in_kicad(pcb)
     o = out_dir(d)
     b0 = Board(pcb)
     known = {p.net for p in b0.pads}

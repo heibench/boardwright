@@ -336,3 +336,18 @@ def freerouting() -> list[str]:
             'e.g. "java -jar /path/to/freerouting.jar".'
         )
     return cmd
+
+
+_warned_open: set[Path] = set()
+
+
+def warn_if_open_in_kicad(path: Path) -> None:
+    """Warn, once per file, when KiCad has `path` open: KiCad keeps
+    `~<name>.lck` beside an open document (10.0.8, #46), and its next save
+    of that document overwrites what a file edit wrote. A lock left by a
+    crash warns too; the edit still goes ahead."""
+    lock = path.with_name(f"~{path.name}.lck")
+    if lock.exists() and path not in _warned_open:
+        _warned_open.add(path)
+        print(f"warning: KiCad has {path.name} open ({lock.name} is beside it); its next save there "
+              "overwrites this edit, so close it in KiCad without saving, then reopen it", file=sys.stderr)
