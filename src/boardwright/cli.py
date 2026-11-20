@@ -35,7 +35,7 @@ import traceback
 from pathlib import Path
 
 from . import __version__
-from .errors import Outcome, Usage
+from .errors import EnvironmentFault, Outcome, Usage
 
 _BUILD = {"gen", "place", "verify", "pads"}
 _MODULES = {
@@ -85,6 +85,10 @@ def main(argv: list[str] | None = None) -> int:
             print(e.code, file=sys.stderr)
             return 1
         raise
+    except OSError as e:                    # a file or folder it cannot read or write (#86)
+        where = f": {e.filename}" if e.filename is not None else ""
+        print(f"boardwright: {e.strerror or e}{where}", file=sys.stderr)
+        return EnvironmentFault.exit
     except Exception:
         traceback.print_exc()
         print("boardwright: internal error; nothing was checked or written as a result", file=sys.stderr)
