@@ -7,6 +7,20 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing reroute` keeps signals off inner plane layers, those holding a
+  zone and no track, by switching them off for Freerouting as `build` does for
+  `PLANES`; `PLANES` in `boardwright.py` replaces the list. It routed through
+  them and cut the planes (#106).
+
+### Changed
+
+- `existing reroute` refuses (exit 1) and leaves the board as it was read when
+  the router cannot finish a named net. It put that net's old copper back on
+  top of the other named nets' new routes, which shorted on stm32f103_4l
+  (#106).
+
 ## [0.8.4] - 2026-11-20
 
 ### Fixed

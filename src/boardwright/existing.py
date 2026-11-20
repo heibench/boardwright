@@ -43,7 +43,7 @@ from pathlib import Path
 from . import copper, env
 from . import dsn as dsn_
 from . import ses as ses_
-from .errors import CannotTell, EnvironmentFault, Usage
+from .errors import CannotTell, EnvironmentFault, Outcome, Usage
 from .model import Board
 from .preview import ratsnest
 from .preview import write as write_preview
@@ -432,13 +432,6 @@ def dedupe(text: str) -> tuple[str, int]:
     return text, len(drop)
 
 
-def _net_of(blk: str, names: dict) -> str:
-    n = re.search(r'\(net (?:(\d+)(?: "([^"]*)")?|"([^"]*)")', blk)
-    if not n:
-        return ""
-    return n.group(3) if n.group(3) is not None else (n.group(2) or names.get(n.group(1), ""))
-
-
 def reroute(d: Path, nets_: list[str]) -> int:
     """Rip up the named nets and let Freerouting route only them.
 
@@ -455,13 +448,13 @@ def reroute(d: Path, nets_: list[str]) -> int:
         if n not in known:
             raise Usage(f"no net {n!r} (see `nets`)")
     original = pcb.read_text()
-    names0 = dict(re.findall(r'\n\s*\(net (\d+) "([^"]*)"\)', original))
     was_open = {n for *_p, n in ratsnest(b0, set())}
+    planes = plane_layers(b0, m)
     text0, n = copper.ripup(original, set(nets_))
     pcb.write_text(text0)
     print(f"ripped up {n} item(s)")
     try:
-        kept, arcs = _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0)
+        kept, arcs = _route_and_graft(pcb, m, o, nets_, was_open, text0, planes)
     except BaseException:
         # nothing lands unless the route does: a failure leaves the board as it was read (#104)
         if pcb.read_text() != original:
@@ -479,7 +472,32 @@ def reroute(d: Path, nets_: list[str]) -> int:
     return 0
 
 
-def _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0) -> tuple[int, int]:
+def plane_layers(b: Board, m) -> list[str]:
+    """The copper layers reroute keeps signals off (#106): PLANES from the board's
+    boardwright.py (a list of layers, or build's {layer: net}) when it has one,
+    else every inner layer that holds a zone and no track. Outer layers are never
+    taken by default: a two-layer board pours its bottom and still routes there."""
+    given = getattr(m, "PLANES", None)
+    if given is not None:
+        layers = list(given)
+        unknown = [l for l in layers if l not in b.layers]
+        if unknown:
+            raise Usage(f"PLANES names {unknown}, which are not copper layers of the board ({b.layers})")
+        return layers
+    zoned = {l for z in b.zones if not z.keepout for l in z.layers}
+    tracked = {t.layer for t in b.tracks}
+    return [l for l in b.layers if l not in ("F.Cu", "B.Cu") and l in zoned and l not in tracked]
+
+
+def _rules(m, layers: list[str], planes: list[str]) -> str:
+    """A Freerouting rules file that switches the plane layers off for routing, the
+    way build does for PLANES. A keepout zone on them instead also stops
+    Freerouting placing through-vias (reported on a 4-layer board, #106)."""
+    body = "".join(f"    (layer_rule {l}\n      (active {'off' if l in planes else 'on'})\n    )\n" for l in layers)
+    return f"(rules PCB {m.NAME}\n  (autoroute_settings\n{body}  )\n)\n"
+
+
+def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, int]:
     """reroute's routing half, on the board with the named nets ripped up: export,
     Freerouting, and the graft of its result. Any failure raises; reroute then
     puts the board back as it was read. Returns the items grafted and the arcs
@@ -489,6 +507,11 @@ def _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0) -> tup
         ses.unlink()
     arcs = dsn_.export(pcb, dsn)
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", str(getattr(m, "FR_PASSES", 5))]
+    if planes:
+        rules = o / f"{m.NAME}.rules"
+        rules.write_text(_rules(m, ses_.copper_layers(text0), planes))
+        cmd += ["-dr", str(rules)]
+        print(f"  kept off the plane layer(s) {', '.join(planes)}")
     limit = getattr(m, "FR_TIMEOUT", 900)
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
@@ -509,15 +532,13 @@ def _route_and_graft(pcb, m, o, nets_, original, names0, was_open, text0) -> tup
     copper.append(pcb, graft)
     text, dup = dedupe(pcb.read_text())
     pcb.write_text(text)
-    # a net the router could not finish gets its original routing back
+    # A net the router could not finish refuses the whole reroute: its old copper,
+    # put back, lands on the other named nets' new routes (2 shorts on
+    # stm32f103_4l with PA0 and PA1, #106), so reroute puts the board back as read.
     failed = sorted({n for *_p, n in ratsnest(Board(pcb), set())} & set(nets_) - was_open)
     if failed:
-        text, _n = copper.ripup(text, set(failed))
-        old = [original[s0:e0] for s0, e0 in copper.blocks(original, ("segment", "arc", "via"))
-               if _net_of(original[s0:e0], names0) in failed]
-        text = text.rstrip()[:-1].rstrip() + "".join(old) + "\n)\n"
-        pcb.write_text(text)
-        print(f"  the router could not finish {failed}: original routing restored")
+        done = [n for n in nets_ if n not in failed]
+        raise Outcome(f"refused: the router could not finish {failed}" + (f"; reroute {done} without them" if done else ""))
     return len(graft), arcs
 
 

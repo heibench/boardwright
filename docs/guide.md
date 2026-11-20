@@ -144,11 +144,17 @@ place: commit before `apply` or `reroute`.
 - `reroute` rips up only the named nets, gives Freerouting everything else as
   fixed copper (curved tracks included, as polylines), and
   afterwards keeps only the named nets' new copper: every other net is
-  byte-identical to before. A net the router cannot finish gets its original
-  routing back. New tracks are held to the project's own minimum width. When
-  the route cannot run at all (no SES, a timeout past `FR_TIMEOUT`, an
-  Edge.Cuts outline that does not close) the board is left as it was read,
-  and the exit is 4 with the reason.
+  byte-identical to before. New tracks are held to the project's own minimum
+  width. Inner layers that hold a zone and no track are planes, switched off
+  for the router so the planes stay whole; `PLANES = [layers]` in
+  `boardwright.py` (or `build`'s `{layer: net}`) replaces that list. When a
+  named net cannot be finished, the reroute is refused (exit 1) and the board
+  is left as it was read, since that net's old copper would land on the
+  others' new routes: reroute the rest without it. When the route cannot run
+  at all (no SES, a timeout past `FR_TIMEOUT`, an Edge.Cuts outline that does
+  not close) the board is left as it was read, and the exit is 4 with the
+  reason. Zones are not refilled, so DRC checks new copper against the old
+  fill until they are: refill in KiCad, or `kicad-cli pcb drc --refill-zones`.
 - `apply` checks every `VIAS` entry is `(net, x, y[, size, drill])` before
   it changes anything (exit 64 otherwise).
 - `apply` is repeatable: exact duplicates are dropped. A `REMOVE` entry is the
