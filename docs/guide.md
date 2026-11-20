@@ -169,8 +169,9 @@ place: commit before `apply` or `reroute`.
   netlist (`kicad-cli sch export netlist --format kicadsexpr`, made for you
   unless you pass one). Footprints are matched to symbols by their path, or by
   reference where a footprint has none (boards made by kicad-tools). Each
-  matched footprint takes the symbol's reference and value, and each pad its
-  pin's net; a symbol with no footprint on the board gets one from the
+  matched footprint takes the symbol's reference and value, its datasheet,
+  description and user fields (a missing one added hidden on F.Fab, as KiCad
+  does; an empty one not added), and each pad its pin's net; a symbol with no footprint on the board gets one from the
   library (project, global, then stock `fp-lib-table`), beside the board
   outline, for you to place. A footprint changed in the schematic is swapped
   when the new library footprint has the board footprint's pads: the same
@@ -179,7 +180,8 @@ place: commit before `apply` or `reroute`.
   default, changes the link alone, so DRC may report
   `lib_footprint_mismatch` for the old drawing; `--body library` also replaces
   the drawings, texts, 3D models and zones with the library's. The footprint's
-  place, fields, pads and nets stay either way. A swap to a footprint whose
+  place, pads, nets and fields stay either way, apart from the symbol's
+  fields, which it takes as any matched footprint does. A swap to a footprint whose
   pads differ, a symbol with no footprint or a footprint not found stops the
   update with nothing written (exit 1), the first differences listed;
   footprints whose symbol is gone are listed and left (`REMOVE` takes them

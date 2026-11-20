@@ -9,6 +9,12 @@ the command line).
 
 ### Fixed
 
+- `existing update` copies each symbol's datasheet, description and user
+  fields onto its footprint, added, swapped or matched, as KiCad's Update PCB
+  does. Added footprints had only what their library footprint had, so KiCad's
+  schematic parity check reported `footprint_symbol_field_mismatch` on each
+  one with a field set (#95).
+
 - `live apply --save` refuses (exit 1) when the board open in KiCad has edits
   that are not in its file, naming them, instead of saving them along with
   its own. Nothing is changed. The board and file are compared item by item:

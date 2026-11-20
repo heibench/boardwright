@@ -405,3 +405,73 @@ def test_coordinates_keep_kicads_precision():
     turned = fp.replace("\n\t\t(at 130.69 157.1375)", "\n\t\t(at 130.69 157.1375 180)")
     rebuilt = update.swap(turned, "Lib:Thing", MOD, "library")
     assert "(xy 133.69 160.1375) (xy 127.69 160.1375) (xy 127.69 154.1375)" in rebuilt
+
+
+def _with_fields(text: str, ref: str, fields: dict[str, str]) -> str:
+    """NET with `ref`'s Datasheet and Description set, and any user field added,
+    in the form KiCad 10.0.8 writes them."""
+    i = text.index(f'(ref "{ref}")')
+    j = text.index("(fields", i)
+    k = text.index("\n\t\t\t)", j)                                  # the end of that (fields ...)
+    block = text[j:k]
+    for name, val in fields.items():
+        val = val.replace('"', '\\"')
+        empty = f'(field\n\t\t\t\t\t(name "{name}")\n\t\t\t\t)'
+        if empty in block:
+            block = block.replace(empty, f'(field\n\t\t\t\t\t(name "{name}") "{val}")')
+        else:
+            block += f'\n\t\t\t\t(field\n\t\t\t\t\t(name "{name}") "{val}")'
+    return text[:j] + block + text[k:]
+
+
+def test_update_carries_the_symbols_fields_onto_its_footprints(ldo, tmp_path, capsys):
+    """KiCad's Update PCB copies Datasheet, Description and user fields onto the
+    footprint, and its parity check flags any that differ (#95). R50 is added,
+    R1 matched and C1 matched; a second run changes nothing."""
+    _unlink(ldo)
+    text = _with_fields(NET.read_text(), "R50", {"Datasheet": "https://example.com/r50.pdf"})
+    text = _with_fields(text, "R1", {"Description": 'Resistor, "thick film"', "Height": "0.5 mm"})
+    f = tmp_path / "fields.net"
+    f.write_text(text)
+    board = ldo / "ldo_breakout.kicad_pcb"
+    assert main(["existing", str(ldo), "update", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "R1: Description, Height from the symbol" in out
+    new = board.read_text()
+    fp = {update._prop(new[s:e], "Reference"): new[s:e] for s, e in update._footprints(new)}
+    assert update._prop(fp["R50"], "Datasheet") == "https://example.com/r50.pdf"
+    assert update._prop(fp["R1"], "Description") == 'Resistor, \\"thick film\\"'
+    height = fp["R1"][fp["R1"].index('(property "Height"'):]
+    assert height.startswith('(property "Height" "0.5 mm"\n\t\t\t(at 0 0 ') and '(layer "F.Fab")\n\t\t\t(hide yes)' in height
+    assert fp["R1"].index('(property "Height"') < fp["R1"].index("(path ")   # with the properties, before the link
+    assert out.count("from the symbol") == 1                                   # empty fields add nothing
+    assert main(["existing", str(ldo), "update", str(f)]) == 0
+    assert board.read_text() == new
+    assert "from the symbol" not in capsys.readouterr().out
+
+
+def test_tilde_and_empty_are_the_same_empty_datasheet():
+    fp = '\n\t(footprint "X"\n\t\t(at 1 2)\n\t\t(property "Datasheet" "~"\n\t\t)\n\t)'
+    assert update.with_fields(fp, {"Datasheet": ""}) == (fp, [])
+    assert update.with_fields(fp, {"Datasheet": "a.pdf"})[1] == ["Datasheet"]
+
+
+@pytest.mark.kicad
+@needs_kicad
+def test_kicad_finds_no_field_mismatch_after_an_update(ldo, tmp_path):
+    """#95: R1, with a datasheet and a user field, taken off the board and added
+    back by the update, and C1's datasheet changed in place. KiCad's parity
+    check flags both before and neither after."""
+    sch = ldo / "ldo_breakout.kicad_sch"
+    s = sch.read_text()
+    j = s.index('\t\t(property "Datasheet" "~"', s.index('(property "Reference" "R1"'))
+    sch.write_text(s[:j] + '\t\t(property "Height" "0.5 mm"\n\t\t\t(at 213.36 22.86 0)\n\t\t\t(effects\n\t\t\t\t(font\n'
+                   '\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t\t(hide yes)\n\t\t\t)\n\t\t)\n' + s[j:])
+    assert main(["sch", str(ldo), "set", "R1", "Datasheet=https://example.com/r1.pdf"]) == 0
+    assert main(["sch", str(ldo), "set", "C1", "Datasheet=https://example.com/c1.pdf"]) == 0
+    (ldo / "boardwright.py").write_text('REMOVE = ["R1"]\n')
+    assert main(["existing", str(ldo), "apply", "--force"]) == 0
+    before = {v["type"] for v in _gate(ldo, tmp_path, "before")["schematic_parity"]}
+    assert before == {"footprint_symbol_field_mismatch", "missing_footprint"}
+    assert main(["existing", str(ldo), "update"]) == 0
+    assert _gate(ldo, tmp_path, "after")["schematic_parity"] == []
