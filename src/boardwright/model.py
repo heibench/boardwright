@@ -874,7 +874,7 @@ class Board:
                         link(key(v.x, v.y, l1), key(v.x, v.y, l2), via_len, "v")
         def attach(p, tag):
             for node in list(g):
-                if p.on(node[2]) and math.hypot(node[0] - p.x, node[1] - p.y) <= p.reach + 0.05:
+                if node[0] != "pad" and p.on(node[2]) and math.hypot(node[0] - p.x, node[1] - p.y) <= p.reach + 0.05:
                     link(tag, node, math.hypot(node[0] - p.x, node[1] - p.y), "p")
         for p in self.pads:                      # other pads of the net join layers and track ends
             if p.net == net:
