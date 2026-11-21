@@ -126,6 +126,9 @@ The site is at **https://heibench.com/boardwright/**. In this repository:
 - [`docs/guide.md`](docs/guide.md): the full workflow, every `board.py` option, existing
   boards and schematics, the live KiCad client, and what the tool does badly.
 - [`docs/devlog/gaps.md`](docs/devlog/gaps.md): known limits.
+- [`skills/boardwright/SKILL.md`](skills/boardwright/SKILL.md): the agent skill, also
+  installed with the package: `cd "$(boardwright --docs)"` and read
+  `skills/boardwright/SKILL.md`.
 
 ## Known limits
 
