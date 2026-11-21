@@ -66,7 +66,8 @@ def test_module_keepout_matches_its_library_copy(tmp_path, spec):
     d = tmp_path / "esp32c3_min"
     shutil.copytree(ROOT / "examples" / "boards" / "esp32c3_min", d)
     b = d / "board.py"
-    b.write_text(b.read_text().replace('"U1": (MX, MY, 0),', f'"U1": {spec},'))
+    # a geometry case: turned, the module's decouplers miss their REVIEW limits, which place now checks (#47)
+    b.write_text(b.read_text().replace('"U1": (MX, MY, 0),', f'"U1": {spec},') + "\nREVIEW = {}\n")
     assert main(["place", str(d)]) == 0
     report = tmp_path / "drc.json"
     subprocess.run([*env.kicad_cli(), "pcb", "drc", "--format", "json", "--severity-all", "-o", str(report),
