@@ -7,6 +7,11 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+- `existing update`, when it cannot export the netlist (no working kicad-cli,
+  or the export fails), says how to pass one exported elsewhere:
+  `existing DIR update NETLIST.net` (#144).
+
 ## [0.11.0] - 2026-11-21
 
 ### Added
