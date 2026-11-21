@@ -181,7 +181,9 @@ shunt on the series path). Then `boardwright check DIR --quick` for courtyard
 and clearance errors; unconnected items are expected before routing. After
 routing, `loop` (`(CAP, PIN, mm)`) measures what TI ranks above distance: the
 copper from each decoupler pad to its via, and that the pin reaches the
-capacitor before the plane.
+capacitor before the plane. `apart` (`(QUIET, NOISY, mm)`) keeps a feedback
+or crystal net from a switch node, and `clear_under` (`(REF, mm)`) keeps other
+nets' tracks from under a crystal.
 
 This placement guidance is adapted from kistack's layout-placement skill
 (https://github.com/BackplaneWorks/kistack, `skills/layout-placement/`),

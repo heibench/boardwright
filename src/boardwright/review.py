@@ -18,6 +18,8 @@ A board's board.py may declare
         "temp_rise": 10,                                 # deg C allowed for "current" (default 10)
         "via_near": [("C3.2", 1.5)],                     # this pad needs a via of its own net within mm
         "loop":     [("C3", "U1.24", 1.5)],              # decoupler C3 for U1.24: see loop_check
+        "apart":    [("FB", ["SW"], 1.2)],               # quiet net(s) this far from noisy net(s): see apart_check
+        "clear_under": [("Y1", 0.5)],                    # no other net's track or via under a part: see apart_check
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -288,6 +290,76 @@ def loop_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
     return lines, fails
 
 
+def apart_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
+    """REVIEW "apart" and "clear_under" (#125): keeping quiet copper from noise.
+
+    "apart": [(QUIET, NOISY, mm)], QUIET a net or a list of nets, NOISY likewise.
+    The copper of the quiet nets (pads, tracks, vias) keeps mm from the copper
+    of the noisy nets (pads, tracks, vias and pour fills), edge to edge, on the
+    same layer and on each adjacent one (TI SNVA021: feedback away from the
+    inductor and the switch node). Two pads of one part are left out: the
+    pinout fixes that gap, not the layout.
+
+    "clear_under": [(REF, mm)]. No track or via of a net other than REF's own
+    and the ground nets crosses REF's courtyard grown by mm, on any layer
+    (Microchip, TI SZZA009, Espressif: no traces under the crystal). Pours
+    are not counted: a ground pour under a crystal is the usual advice.
+
+    A quiet or noisy side with no copper, and a part with no courtyard, cannot
+    be judged, and fail."""
+    if not (spec.get("apart") or spec.get("clear_under")):
+        return [], []
+    from shapely.geometry import Polygon
+
+    from .placement import Clearance
+    cl = Clearance(b)
+    lines, fails = [], []
+    names = lambda v: [v] if isinstance(v, str) else list(v)  # noqa: E731
+    for quiet, noisy, lim in spec.get("apart", []):
+        q, n = set(names(quiet)), set(names(noisy))
+        qs = [it for it in cl.items if it[1] in q]
+        ns = [it for it in cl.items if it[1] in n]
+        ns += [(None, z.net, {ly}, Polygon(poly)) for z in b.zones if z.net in n and not z.keepout
+               for ly, polys in z.fills.items() for poly in polys if len(poly) >= 3]
+        label = f"apart {'/'.join(sorted(q))} | {'/'.join(sorted(n))}"
+        if not qs or not ns:
+            fails.append(f"{label}: cannot judge, no copper on " + ("/".join(sorted(q)) if not qs else "/".join(sorted(n))))
+            continue
+        best = None
+        for qr, qn, ql, qsh in qs:
+            for nr, nn, nl, nsh in ns:
+                if qr is not None and qr == nr:
+                    continue
+                pairs = [(a, c) for a in ql for c in nl if a in b.layers and c in b.layers
+                         and abs(b.layers.index(a) - b.layers.index(c)) <= 1]
+                if not pairs:
+                    continue
+                d = qsh.distance(nsh)
+                if best is None or d < best[0]:
+                    best = (d, qn, nn, pairs[0], qsh.representative_point())
+        if best is None:
+            lines.append(f"{label}: no copper on the same or an adjacent layer")
+            continue
+        d, qn, nn, (la, lc), at = best
+        where = la if la == lc else f"{la}/{lc}"
+        lines.append(f"{label}: {d:.2f} mm ({qn} to {nn}, {where}) (>= {lim})")
+        if d < lim:
+            fails.append(f"{qn} comes within {d:.2f} mm of {nn} on {where}, near ({at.x:.1f}, {at.y:.1f}), limit {lim}")
+    ground = set(spec.get("ground", ["GND"]))
+    for ref, margin in spec.get("clear_under", []):
+        yard = cl.fps.get(ref, (None, None, None, None))[3]
+        if yard is None:
+            fails.append(f"clear_under {ref}: cannot judge, " + ("no courtyard" if ref in cl.fps else f"no part {ref}"))
+            continue
+        area = yard.buffer(margin)
+        own = {p.net for p in b.pads if p.ref == ref} | ground
+        hits = sorted({net for r, net, _l, sh in cl.items if r is None and net not in own and sh.intersects(area)})
+        lines.append(f"clear_under {ref} (+{margin} mm): " + (", ".join(hits) if hits else "clear"))
+        if hits:
+            fails.append(f"{', '.join(hits)} {'runs' if len(hits) == 1 else 'run'} under {ref} (courtyard + {margin} mm)")
+    return lines, fails
+
+
 def _expand(b: Board, names) -> list[str]:
     """Net names; shell-style wildcards match the board's nets (hierarchical names on existing boards)."""
     import fnmatch
@@ -381,6 +453,10 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += lf
+    lines, af = apart_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += af
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])

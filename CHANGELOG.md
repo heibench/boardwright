@@ -7,6 +7,17 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `REVIEW` `apart` (`(QUIET, NOISY, mm)`, a net or a list of nets each): the
+  quiet nets' pads, tracks and vias keep mm from the noisy nets' copper,
+  pours included, edge to edge on the same and adjacent layers (TI SNVA021:
+  feedback away from the switch node). Two pads of one part are left out.
+- `REVIEW` `clear_under` (`(REF, mm)`): no track or via of a net other than
+  the part's own and ground crosses its courtyard grown by mm, on any layer
+  (no traces under a crystal). Pours do not count.
+- Either fails as "cannot judge" on a side with no copper or a part with no
+  courtyard (#125).
+
 ## [0.10.0] - 2026-11-21
 
 ### Added
