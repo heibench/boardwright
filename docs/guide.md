@@ -262,7 +262,7 @@ schematic open in KiCad has to be closed and reopened to show the change.
 ## Live KiCad (the board that is open on screen)
 
     boardwright live status | snapshot | review [SPEC.py] | selection
-    boardwright live select NET|REF ... | refill
+    boardwright live select NET|REF ... | refill | revert
     boardwright live apply SPEC.py|EDITS.json [--dry-run] [--save]
     boardwright live --board FILE.kicad_pcb VERB ...
     boardwright live open BOARD.kicad_pcb
@@ -289,6 +289,17 @@ them in KiCad, or apply without `--save`. The comparison is item by item,
 ignoring order, whitespace and the version stamp KiCad 10.0.8 adds inside
 each footprint: KiCad writes an unchanged board differently from the file it
 loaded. Measured on one board, KiCad 10.0.8 (#46).
+
+`revert` takes back boardwright's own last `apply` that was not saved: it
+reloads the board from its file (KiCad's RevertDocument), which drops every
+unsaved change, so it does so only when the open board is exactly what that
+apply left, the file is unchanged since, and nothing else was unsaved before
+the apply. Otherwise it refuses (exit 1, nothing changed) and names what is in
+the way; use Ctrl+Z in KiCad then. An `apply` without `--save` records itself
+in `boardwright_out/live.applied.*`; `--save` and `revert` clear the record.
+Measured on KiCad 10.0.8: the revert reloaded the file without anyone
+touching the editor, and a footprint moved outside boardwright after the
+apply made it refuse (#94).
 
 The file edits (`existing apply`, `reroute`, `update`, and every `sch`
 edit) warn when KiCad has the file open, which it shows by keeping

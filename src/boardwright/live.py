@@ -8,6 +8,7 @@ and change it inside one undo step.
     boardwright live select NET|REF ...     # select those items in KiCad, so you can see what I mean
     boardwright live apply SPEC.py|EDITS.json [--dry-run] [--save]
     boardwright live refill                 # refill zones
+    boardwright live revert                 # take back boardwright's own last unsaved apply, and nothing else
     boardwright live open BOARD             # start the PCB editor on BOARD and wait until it answers
 
 SPEC.py uses the names an existing-board boardwright.py uses: MOVE, RIPUP, TRACKS,
@@ -17,6 +18,11 @@ of it. It does not save unless --save is given; look at it first. With
 --save, an edit that changed copper refills the zones before the save, and
 a board whose open copy holds edits its file does not is refused (exit 1)
 before anything changes: the save would keep them too.
+An apply without --save is recorded, so `revert` can take it back: it reloads
+the board from its file (KiCad's RevertDocument), and does so only when the
+open board is exactly what that apply left, the file is unchanged, and
+nothing else was unsaved before it. Anything else is refused (exit 1), since
+a revert would drop it too.
 A KiCad that stays busy (refilling, checking) is waited on for at most
 BUSY_WAIT_S, then reported as an environment fault (exit 4).
 
@@ -322,6 +328,56 @@ def _refuse_unsaved(b, live_file: Path) -> None:
                       "Nothing was changed.")
 
 
+APPLIED = "live.applied.kicad_pcb"     # the board as an unsaved apply left it (#94)
+APPLIED_META = "live.applied.json"
+
+
+def _sha(text: str) -> str:
+    import hashlib
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def record_apply(b, before: Path, out: Path) -> None:
+    """After an apply without --save: what revert needs to tell boardwright's
+    own edit from anyone else's."""
+    import json
+    disk = Path(board_path(b))
+    disk_text = disk.read_text() if disk.is_file() else ""
+    (out / APPLIED).write_text(b.get_as_string())
+    (out / APPLIED_META).write_text(json.dumps({
+        "board": str(disk), "disk_sha256": _sha(disk_text),
+        "clean_before": bool(disk_text) and not unsaved_edits(before.read_text(), disk_text)}, indent=1))
+
+
+def forget_apply(out: Path) -> None:
+    for name in (APPLIED, APPLIED_META):
+        (out / name).unlink(missing_ok=True)
+
+
+def revert_check(b, out: Path, live_text: str) -> None:
+    """Refuse (exit 1) unless the open board holds boardwright's last unsaved
+    apply and nothing else; a revert drops every unsaved change (#94)."""
+    import json
+    meta = out / APPLIED_META
+    disk = Path(board_path(b))
+    if not meta.is_file():
+        raise Outcome(f"refused: no unsaved apply is recorded for {disk.name}; nothing to take back. Nothing was changed.")
+    rec = json.loads(meta.read_text())
+    if rec.get("board") != str(disk):
+        raise Outcome(f"refused: the recorded apply was on {rec.get('board')}, not {disk}. Nothing was changed.")
+    if not rec.get("clean_before"):
+        raise Outcome(f"refused: {disk.name} had edits not saved before the apply; a revert would drop those too. "
+                      "Undo the apply with Ctrl+Z in KiCad instead. Nothing was changed.")
+    if not disk.is_file() or _sha(disk.read_text()) != rec.get("disk_sha256"):
+        raise Outcome(f"refused: {disk.name} changed on disk since the apply; a revert would load that instead. "
+                      "Nothing was changed.")
+    after = (out / APPLIED).read_text()
+    extra = sorted(set(unsaved_edits(live_text, after)) | set(unsaved_edits(after, live_text)))
+    if extra:
+        raise Outcome(f"refused: the board changed in KiCad since the apply ({', '.join(dict.fromkeys(extra[:5]))}"
+                      f"{', ...' if len(extra) > 5 else ''}); a revert would drop that too. Nothing was changed.")
+
+
 def _out_default(b) -> Path:
     try:
         return Path(b.get_project().path) / "boardwright_out"
@@ -475,6 +531,17 @@ def main(argv: list[str]) -> int:
         refill(k, b)
         print("zones refilled")
         return 0
+    if cmd == "revert":
+        out = _out_default(b)
+        revert_check(b, out, b.get_as_string())
+        _when_idle(b.revert, "reverting")
+        disk = Path(board_path(b))
+        left = unsaved_edits(b.get_as_string(), disk.read_text())
+        forget_apply(out)
+        if left:
+            raise EnvironmentFault(f"KiCad reverted {disk.name} but the open board still differs from it ({', '.join(left[:5])})")
+        print(f"reverted {disk.name} to its file: boardwright's last apply is gone")
+        return 0
     if cmd in ("snapshot", "review"):
         out = Path(args[0]) if cmd == "snapshot" and args else _out_default(b)
         if "--refill" in flags or cmd == "review":
@@ -527,6 +594,10 @@ def main(argv: list[str]) -> int:
         print("editing", board_path(b))
         print(*("  " + l for l in edits.describe(doc)), sep="\n")
         apply(k, b, doc, "--save" in flags)
+        if "--save" in flags:
+            forget_apply(_out_default(b))
+        else:
+            record_apply(b, f, _out_default(b))
         return 0
     raise Usage(__doc__)
 
