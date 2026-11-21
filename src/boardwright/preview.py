@@ -1,4 +1,4 @@
-"""Instant picture of a board without KiCad: pads, tracks, zone outlines, ratsnest.
+"""Instant picture of a board without KiCad: pads, tracks, zone fills and outlines, ratsnest.
 
     boardwright preview some/board.kicad_pcb [out.png]
 
@@ -107,7 +107,13 @@ def svg(b: Board, scale: float = 20.0) -> tuple[str, int]:
         else:
             poured.add(z.net)
             c = COL.get(z.layers[0] if z.layers else "", "#888")
-            o.append(f'<polygon points="{pts}" fill="{c}" fill-opacity="0.07" stroke="{c}" stroke-opacity="0.5" stroke-dasharray="3 3"/>')
+            # the fill as KiCad left it, layer by layer (#136); the outline alone where it was never filled
+            for ly, polys in z.fills.items():
+                for poly in polys:
+                    fp = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in poly)
+                    o.append(f'<polygon points="{fp}" fill="{COL.get(ly, "#888")}" fill-opacity="0.28" stroke="none"/>')
+            tint = "0" if z.fills else "0.07"
+            o.append(f'<polygon points="{pts}" fill="{c}" fill-opacity="{tint}" stroke="{c}" stroke-opacity="0.5" stroke-dasharray="3 3"/>')
     order = {l: i for i, l in enumerate(reversed(b.layers))}
     for t in sorted(b.tracks, key=lambda t: order.get(t.layer, 0)):
         pts = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in t.pts)
@@ -125,8 +131,12 @@ def svg(b: Board, scale: float = 20.0) -> tuple[str, int]:
     for (ax, ay), (bx, by), _net in rn:
         o.append(f'<line x1="{X(ax):.1f}" y1="{Y(ay):.1f}" x2="{X(bx):.1f}" y2="{Y(by):.1f}" stroke="#ff3" stroke-width="1.2" stroke-opacity="0.8"/>')
     for fp in b.footprints:
+        # the label finds the part; a reference that does not print (hidden, or
+        # on no silkscreen layer) is dimmed and italic so it does not look printed (#136)
+        prints = any(t.text_type == "reference" and not t.hidden and t.layer.endswith("SilkS") for t in fp.texts)
+        look = 'opacity="0.9"' if prints else 'opacity="0.4" font-style="italic"'
         o.append(f'<text x="{X(fp.position[0]):.1f}" y="{Y(fp.position[1]):.1f}" fill="#fff" font-size="{0.9 * scale:.0f}" '
-                 f'font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" opacity="0.9">{fp.reference}</text>')
+                 f'font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" {look}>{fp.reference}</text>')
     o.append("</svg>")
     return "\n".join(o), len(rn)
 

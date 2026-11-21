@@ -7,6 +7,11 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+- The preview draws each pour as the fill KiCad last saved, under its dashed
+  outline, and dims and italicises the label of a part whose reference does
+  not print, so a reviewer does not take it for silkscreen (#136).
+
 ### Fixed
 - The preview's ratsnest (and the unrouted count in `existing info`, `gen` and
   `reroute`) judges connectivity as KiCad does: copper on a shared layer that
