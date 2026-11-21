@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+
+- `existing apply` is repeatable for `TEXT`, `ZONES` and `KEEPOUTS` too. A
+  second run added every zone and keepout again (2 zones, then 4, then 6),
+  and a text again once KiCad had saved the board, which writes `113` for
+  `113.0`. Items are now compared by what they are: string, position and
+  layer for text; net, layers, outline and keepout rules for a zone (#113).
+
 ## [0.8.5] - 2026-11-20
 
 ### Fixed
