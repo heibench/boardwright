@@ -8,6 +8,18 @@ the command line).
 ## [Unreleased]
 
 ### Added
+- `REVIEW = {"fab": "jlcpcb"}` (or `"oshpark"`, `"pcbway"`): `verify` checks
+  the board's tracks, vias, plated holes and the project's clearance and
+  copper-to-edge rules against that fab's published minimum for the board's
+  layer count and copper weight (`fab_copper_oz`, default 1). Each limit is
+  quoted from the fab's own page with its URL, read 2026-11-21. Below the
+  minimum fails; below the standard-price limit is reported and does not
+  fail; a value the fab has limits for, but none at this board's layers and
+  copper, fails as "cannot judge" (#49).
+- `boardwright impedance` knows JLCPCB's 6-layer stackups JLC06161H-3313,
+  -7628, -1080 and -2116, and OSH Park's 4-layer one (#49).
+
+### Added
 
 - Placement checks as `REVIEW` keys, run by `place` (which now exits 1 on a
   finding) and by `verify`: `orient` (a decoupler's ground pad not facing its
