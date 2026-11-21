@@ -9,6 +9,13 @@ the command line).
 
 ### Added
 
+- Placement checks as `REVIEW` keys, run by `place` (which now exits 1 on a
+  finding) and by `verify`: `orient` (a decoupler's ground pad not facing its
+  pin), `balance` (a crystal's two gaps), `fronts` (a clear channel out of
+  each signal pin, past parts that do not connect to it), `via_site` (room for
+  a via near a pad) and `chain` (an RF shunt's node pad on the series path).
+  A check with nothing to judge fails and says so rather than passing (#47).
+
 - An agent skill, `skills/boardwright/SKILL.md`: when boardwright applies, the
   new-board loop to `verify` PASS, first contact with a board someone else
   made, live editing, and placement guidance adapted from kistack's

@@ -216,12 +216,11 @@ def review(pcb: Path, m) -> list[str]:
                 fails.append(f"{z.net} pour on {layer} covers {cov:.0%} of the board, limit {lim:.0%}")
             print("   ", tag)
     fails += crossings(b, m)
-    for a, c, lim in spec.get("near", []):
-        pa, pc = b.pad(a), b.pad(c)
-        d = math.hypot(pa.x - pc.x, pa.y - pc.y)
-        print(f"    near {a} {c}: {d:.2f} mm (<= {lim})")
-        if d > lim:
-            fails.append(f"{a} is {d:.2f} mm from {c}, limit {lim}")
+    from .placement_review import placement_review
+    lines, pf = placement_review(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += pf
     L = b.net_lengths()
     for net, lim in spec.get("maxlen", {}).items():
         print(f"    len {net}: {L.get(net, 0):.2f} mm (<= {lim})")

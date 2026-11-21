@@ -73,3 +73,14 @@ def test_module_keepout_matches_its_library_copy(tmp_path, spec):
                     str(d / "esp32c3_min.kicad_pcb")], check=True, capture_output=True)
     types = [v["type"] for v in json.loads(report.read_text())["violations"]]
     assert "lib_footprint_mismatch" not in types
+
+
+@needs_libs
+def test_place_refuses_a_placement_finding(ldo_copy, capsys):
+    """`place` runs REVIEW's placement keys and exits 1 on a finding (#47):
+    here C2's ground pad is nearer U1.2 than its +3V3 pad."""
+    spec = ldo_copy / "board.py"
+    spec.write_text(spec.read_text() + '\nREVIEW = {**globals().get("REVIEW", {}), "orient": [("C2", "U1.2")]}\n')
+    assert main(["place", str(ldo_copy)]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL placement" in out and "C2 is turned round" in out

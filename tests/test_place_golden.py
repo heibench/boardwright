@@ -55,7 +55,9 @@ def place(case: str, tmp: Path) -> Path:
         b = d / "board.py"
         t = b.read_text()
         assert '"U1": (MX, MY, 0),' in t
-        b.write_text(t.replace('"U1": (MX, MY, 0),', f'"U1": {spec},'))
+        # the turned module is a geometry case: its decouplers' REVIEW limits no
+        # longer hold, and `place` runs those checks (#47), so the variant drops them
+        b.write_text(t.replace('"U1": (MX, MY, 0),', f'"U1": {spec},') + "\nREVIEW = {}\n")
     assert main(["place", str(d)]) == 0
     return d / name
 
