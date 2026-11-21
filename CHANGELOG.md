@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
 ### Added
 
 - Placement checks as `REVIEW` keys, run by `place` (which now exits 1 on a
@@ -15,13 +17,11 @@ the command line).
   each signal pin, past parts that do not connect to it), `via_site` (room for
   a via near a pad) and `chain` (an RF shunt's node pad on the series path).
   A check with nothing to judge fails and says so rather than passing (#47).
-
 - An agent skill, `skills/boardwright/SKILL.md`: when boardwright applies, the
   new-board loop to `verify` PASS, first contact with a board someone else
   made, live editing, and placement guidance adapted from kistack's
   layout-placement skill (MIT, with its notice). It ships in the package;
   `boardwright --docs` prints the directory that holds it (#48).
-
 - `live revert` takes back boardwright's own last unsaved `live apply`, and
   nothing else. It refuses (exit 1, nothing changed) unless the open board is
   exactly what that apply left, the file is unchanged, and nothing was unsaved
@@ -437,7 +437,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.6...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/heibench/boardwright/compare/v0.8.6...v0.9.0
 [0.8.6]: https://github.com/heibench/boardwright/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/heibench/boardwright/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/heibench/boardwright/compare/v0.8.3...v0.8.4
