@@ -7,25 +7,7 @@ the command line).
 
 ## [Unreleased]
 
-### Changed
-- The preview draws each pour as the fill KiCad last saved, under its dashed
-  outline, and dims and italicises the label of a part whose reference does
-  not print, so a reviewer does not take it for silkscreen (#136).
-
-### Fixed
-- The preview's ratsnest (and the unrouted count in `existing info`, `gen` and
-  `reroute`) judges connectivity as KiCad does: copper on a shared layer that
-  touches, a track's end or body. A track ending off a pad's centre is no
-  longer an open, and tracks on different layers meeting without a via no
-  longer count as joined (#134).
-- `existing apply` checks MOVE for clashes on the board as it will be written,
-  after RIPUP from the same file, so a part moved into copper being ripped up
-  no longer needs `--force` (#135).
-
-### Changed
-- `existing reroute` refuses a named net with a track wider than its net class
-  (exit 1, nothing changed), naming each one: the router would put it back at
-  the class width. `--force` reroutes it anyway (#137).
+## [0.11.0] - 2026-11-21
 
 ### Added
 - `REVIEW` `apart` (`(QUIET, NOISY, mm)`, a net or a list of nets each): the
@@ -37,6 +19,24 @@ the command line).
   (no traces under a crystal). Pours do not count.
 - Either fails as "cannot judge" on a side with no copper or a part with no
   courtyard (#125).
+
+### Changed
+- The preview draws each pour as the fill KiCad last saved, under its dashed
+  outline, and dims and italicises the label of a part whose reference does
+  not print, so a reviewer does not take it for silkscreen (#136).
+- `existing reroute` refuses a named net with a track wider than its net class
+  (exit 1, nothing changed), naming each one: the router would put it back at
+  the class width. `--force` reroutes it anyway (#137).
+
+### Fixed
+- The preview's ratsnest (and the unrouted count in `existing info`, `gen` and
+  `reroute`) judges connectivity as KiCad does: copper on a shared layer that
+  touches, a track's end or body. A track ending off a pad's centre is no
+  longer an open, and tracks on different layers meeting without a via no
+  longer count as joined (#134).
+- `existing apply` checks MOVE for clashes on the board as it will be written,
+  after RIPUP from the same file, so a part moved into copper being ripped up
+  no longer needs `--force` (#135).
 
 ## [0.10.0] - 2026-11-21
 
@@ -493,7 +493,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/heibench/boardwright/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/heibench/boardwright/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/heibench/boardwright/compare/v0.8.6...v0.9.0
 [0.8.6]: https://github.com/heibench/boardwright/compare/v0.8.5...v0.8.6
