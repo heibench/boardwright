@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `boardwright CMD --help` (or `-h`) prints CMD's usage and exits 64 for
+  every command, before anything runs. `check`, `review`, `preview`, `pins`,
+  `impedance`, `live` and `doctor` took the flag as an argument: `check`
+  looked for KiCad and exited 4 (#146).
+
 ### Changed
 - `existing update`, when it cannot export the netlist (no working kicad-cli,
   or the export fails), says how to pass one exported elsewhere:
