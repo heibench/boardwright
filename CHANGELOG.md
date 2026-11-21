@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-11-21
+
 ### Fixed
 
 - `existing apply` is repeatable for `TEXT`, `ZONES` and `KEEPOUTS` too. A
@@ -415,7 +417,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.5...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/heibench/boardwright/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/heibench/boardwright/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/heibench/boardwright/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/heibench/boardwright/compare/v0.8.2...v0.8.3
