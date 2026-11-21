@@ -172,10 +172,13 @@ one.
   gaps should be nearly equal. Rotate it 180 degrees, or slide it along the
   side. Prefer the balanced choice when it costs little length.
 
-**Check each group as you go:** `boardwright place DIR` and the preview, then
-`boardwright check DIR --quick` for courtyard and clearance errors (unconnected
-items are expected before routing), and a `REVIEW` `near` entry for every
-decoupler and crystal, so the check holds the rule from then on.
+**Check each group as you go,** with `REVIEW` keys in `board.py` that
+`boardwright place DIR` runs (it exits 1 on a finding) and `verify` runs again:
+`near` (a pad within mm of a pin), `orient` (a decoupler not turned round),
+`balance` (a crystal's two gaps), `fronts` (no part parked in front of a pin it
+does not connect to), `via_site` (room for a ground via), `chain` (an RF
+shunt on the series path). Then `boardwright check DIR --quick` for courtyard
+and clearance errors; unconnected items are expected before routing.
 
 This placement guidance is adapted from kistack's layout-placement skill
 (https://github.com/BackplaneWorks/kistack, `skills/layout-placement/`),

@@ -79,12 +79,21 @@ def stage_place(d: Path, m) -> Path:
 
 
 def place_only(d: Path) -> int:
-    """`place` step: placed board + hand copper + instant preview, no routing."""
+    """`place` step: placed board + hand copper + instant preview, no routing,
+    and the REVIEW keys that read only placement (#47): exit 1 on a finding."""
     m = load(d)
     pcb = stage_place(d, m)
     from .preview import write
     write(pcb, d / "out" / "preview.png")
-    return 0
+    from .model import Board
+    from .placement_review import KEYS, placement_review
+    spec = getattr(m, "REVIEW", {})
+    if not any(spec.get(k) for k in KEYS):
+        return 0
+    lines, fails = placement_review(Board(pcb), spec)
+    print("placement:", *("    " + ln for ln in lines), sep="\n")
+    print(f"{'OK  ' if not fails else 'FAIL'} placement", *fails, sep="\n    ")
+    return 1 if fails else 0
 
 
 def gen(d: Path) -> None:
