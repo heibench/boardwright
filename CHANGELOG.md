@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-21
+
 ### Added
 - `REVIEW = {"fab": "jlcpcb"}` (or `"oshpark"`, `"pcbway"`): `verify` checks
   the board's tracks, vias, plated holes and the project's clearance and
@@ -25,6 +27,10 @@ the command line).
   the way. A cap with no ground pad fails as "cannot judge" (#122).
 - `boardwright impedance` knows JLCPCB's 6-layer stackups JLC06161H-3313,
   -7628, -1080 and -2116, and OSH Park's 4-layer one (#49).
+
+### Fixed
+- Routed path lengths (`REVIEW` `maxpath` and `match`) raised TypeError on a
+  net with a through-hole pad (#129).
 
 ## [0.9.0] - 2026-11-21
 
@@ -456,7 +462,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/heibench/boardwright/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/heibench/boardwright/compare/v0.8.6...v0.9.0
 [0.8.6]: https://github.com/heibench/boardwright/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/heibench/boardwright/compare/v0.8.4...v0.8.5
