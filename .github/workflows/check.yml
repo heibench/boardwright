@@ -63,15 +63,21 @@ jobs:
           java-version: "25"
       # KiCad's packages come from the kicad-10.0-releases PPA, which answered
       # 503 on 2026-11-17 in runs 44137380840, 44147233321, 44151274245 and
-      # 44154397602, the last for about 5 minutes despite apt's retries. They
-      # are downloaded once per KiCad version and cached; a cached run never asks
-      # the PPA. Bump KICAD_DEB when the PPA moves on (it keeps only the latest).
+      # 44154397602, the last for about 5 minutes despite apt's retries. Their
+      # Ubuntu dependencies come from the runner's mirror, which on the 0.8.0
+      # release PR (run 44419738131) was slow enough to run this job out of its
+      # 30 minutes (#81). Every package is downloaded once per KiCad version and
+      # runner image and cached; a cached run asks neither the PPA nor the
+      # mirror. Bump KICAD_DEB when the PPA moves on (it keeps only the latest).
+      - name: Runner image
+        id: image
+        run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
       - name: Restore KiCad packages
         id: kicad-debs
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ci/kicad-debs
-          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04
+          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04-${{ steps.image.outputs.version }}
       - name: Download KiCad packages
         if: steps.kicad-debs.outputs.cache-hit != 'true'
         run: |
@@ -79,21 +85,28 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 update
           sudo apt-get clean
           sudo apt-get -o Acquire::Retries=5 install -y --download-only --no-install-recommends \
-            kicad="$KICAD_DEB" kicad-symbols="$KICAD_DEB" kicad-footprints="$KICAD_DEB" kicad-demos="$KICAD_DEB"
-          mkdir -p .ci/kicad-debs   # only these four come from the PPA; their dependencies come from Ubuntu
-          cp /var/cache/apt/archives/kicad_*.deb /var/cache/apt/archives/kicad-symbols_*.deb \
-             /var/cache/apt/archives/kicad-footprints_*.deb /var/cache/apt/archives/kicad-demos_*.deb .ci/kicad-debs/
+            kicad="$KICAD_DEB" kicad-symbols="$KICAD_DEB" kicad-footprints="$KICAD_DEB" kicad-demos="$KICAD_DEB" \
+            xvfb librsvg2-bin
+          mkdir -p .ci/kicad-debs   # KiCad's four from the PPA, and everything they and the job need from Ubuntu
+          cp /var/cache/apt/archives/*.deb .ci/kicad-debs/
+          ls .ci/kicad-debs | wc -l
+          du -sh .ci/kicad-debs
       - name: Save KiCad packages
         if: steps.kicad-debs.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ci/kicad-debs
-          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04
+          key: kicad-debs-${{ env.KICAD_DEB }}-ubuntu-24.04-${{ steps.image.outputs.version }}
       - name: Install KiCad 10
         run: |
-          ls .ci/kicad-debs/
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends ./.ci/kicad-debs/*.deb xvfb librsvg2-bin
+          ls .ci/kicad-debs/ | wc -l
+          # from the cached packages alone; only if the image has moved on under
+          # them does apt go to the mirror
+          if ! sudo apt-get install -y --no-install-recommends --no-download ./.ci/kicad-debs/*.deb; then
+            echo "::warning::cached packages did not cover the install; fetching from the mirror"
+            sudo apt-get -o Acquire::Retries=5 update
+            sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends ./.ci/kicad-debs/*.deb xvfb librsvg2-bin
+          fi
           kicad-cli version
       - name: Fetch Freerouting 2.5.0
         run: |
