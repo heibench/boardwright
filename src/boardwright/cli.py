@@ -20,6 +20,7 @@ Lookups:
   boardwright pins LIB:SYMBOL [LIB:FOOTPRINT] [--libs DIR ...]
   boardwright impedance [STACKUP [Z | Z W]]
   boardwright doctor                 what this machine has for each step
+  boardwright --docs                 the directory holding skills/boardwright/SKILL.md, the agent skill
 
 Exit codes: 0 done, 1 refused or violated, 2 could not tell,
 4 environment fault (never a verdict on the design), 64 usage.
@@ -102,6 +103,16 @@ def _run(argv: list[str]) -> int:
     cmd, rest = argv[0], argv[1:]
     if cmd == "--version":
         print(f"boardwright {__version__}")
+        return 0
+    if cmd == "--docs":                 # the path alone on stdout, for cd "$(boardwright --docs)"
+        from .docs import docs_root
+        from .errors import EnvironmentFault
+
+        root = docs_root()
+        if root is None:
+            raise EnvironmentFault("this copy of boardwright carries no skill; read "
+                                   "https://github.com/heibench/boardwright/tree/main/skills")
+        print(root)
         return 0
     if cmd == "doctor":
         return doctor()

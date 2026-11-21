@@ -42,7 +42,13 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+include = ["src", "tests", "skills", "README.md", "CHANGELOG.md", "LICENSE"]
+
+# The agent skill, for `boardwright --docs` (#48). force-include copies what is
+# on disk, not what git tracks; test_skill checks the wheel holds exactly the
+# tracked files.
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "boardwright/_bundled/skills"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.8"]

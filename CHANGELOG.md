@@ -9,6 +9,12 @@ the command line).
 
 ### Added
 
+- An agent skill, `skills/boardwright/SKILL.md`: when boardwright applies, the
+  new-board loop to `verify` PASS, first contact with a board someone else
+  made, live editing, and placement guidance adapted from kistack's
+  layout-placement skill (MIT, with its notice). It ships in the package;
+  `boardwright --docs` prints the directory that holds it (#48).
+
 - `live revert` takes back boardwright's own last unsaved `live apply`, and
   nothing else. It refuses (exit 1, nothing changed) unless the open board is
   exactly what that apply left, the file is unchanged, and nothing was unsaved
