@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+
+- `live revert` takes back boardwright's own last unsaved `live apply`, and
+  nothing else. It refuses (exit 1, nothing changed) unless the open board is
+  exactly what that apply left, the file is unchanged, and nothing was unsaved
+  before the apply, since KiCad's revert drops every unsaved change (#94).
+
 ## [0.8.6] - 2026-11-21
 
 ### Fixed
