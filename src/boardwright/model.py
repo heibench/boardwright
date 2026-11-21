@@ -847,15 +847,11 @@ class Board:
         return out
 
     # ---- connectivity along copper, for path lengths -------------------
-    def route_path(self, a: str, b: str, via_len: float = 0.0):
-        """Shortest routed length from pad a to pad b ('U1.3'); None if not joined by tracks.
-
-        Returns (length_mm, vias, layers_used). Pours are not followed: a net that
-        relies on a zone for the connection has no track path.
-        """
-        import heapq
-        pa, pb = self.pad(a), self.pad(b)
-        net = pa.net
+    def net_graph(self, net: str, via_len: float = 0.0) -> dict:
+        """The net's routed copper as a graph: track ends and via layers as
+        (x, y, layer) nodes, each pad of the net as ("pad", ref, num). Edges are
+        (node, mm, kind), kind "t" track, "v" via barrel, "p" pad to copper.
+        Pours are not followed."""
         tr = [t for t in self.tracks if t.net == net]
         vias = [v for v in self.vias if v.net == net]
         key = lambda x, y, l: (round(x, 2), round(y, 2), l)
@@ -879,6 +875,17 @@ class Board:
         for p in self.pads:                      # other pads of the net join layers and track ends
             if p.net == net:
                 attach(p, ("pad", p.ref, p.num))
+        return g
+
+    def route_path(self, a: str, b: str, via_len: float = 0.0):
+        """Shortest routed length from pad a to pad b ('U1.3'); None if not joined by tracks.
+
+        Returns (length_mm, vias, layers_used). Pours are not followed: a net that
+        relies on a zone for the connection has no track path.
+        """
+        import heapq
+        pa, pb = self.pad(a), self.pad(b)
+        g = self.net_graph(pa.net, via_len)
         src, dst = ("pad", pa.ref, pa.num), ("pad", pb.ref, pb.num)
         if src not in g or dst not in g:
             return None
