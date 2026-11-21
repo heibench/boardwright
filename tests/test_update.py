@@ -537,3 +537,21 @@ def test_kicad_finds_no_flag_mismatch_after_an_update(ldo, tmp_path):
     assert len(before) == 2 and all("settings differ" in d for d in before)
     assert main(["existing", str(ldo), "update"]) == 0
     assert _gate(ldo, tmp_path, "after")["schematic_parity"] == []
+
+
+@pytest.mark.parametrize("cli", ["missing", "fails"])
+def test_without_a_working_kicad_cli_update_names_the_netlist_argument(ldo_copy, monkeypatch, capsys, cli):
+    """update also takes the netlist itself; the error says so (#144)."""
+    import sys
+
+    from boardwright import env
+    from boardwright.errors import EnvironmentFault
+
+    def missing():
+        raise EnvironmentFault("no working kicad-cli found. Set BOARDWRIGHT_KICAD_CLI=/path/to/kicad-cli, or install KiCad.")
+    monkeypatch.setattr(env, "kicad_cli", missing if cli == "missing" else lambda: [sys.executable, "-c", "raise SystemExit(1)"])
+    assert main(["existing", str(ldo_copy), "update"]) == 4
+    err = capsys.readouterr().err
+    assert ("no working kicad-cli found" if cli == "missing" else "kicad-cli could not export the netlist") in err
+    assert "kicad-cli sch export netlist --format kicadsexpr -o NETLIST.net ldo_breakout.kicad_sch" in err
+    assert f"boardwright existing {ldo_copy} update NETLIST.net" in err

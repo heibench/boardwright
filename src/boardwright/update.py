@@ -413,10 +413,17 @@ def _netlist(d: Path, pcb: Path, given: str | None) -> Path:
     out = d / "boardwright_out"
     out.mkdir(exist_ok=True)
     nl = out / "netlist.net"
-    r = subprocess.run([*env.kicad_cli(), "sch", "export", "netlist", "--format", "kicadsexpr", "-o", str(nl), str(sch_file)],
+    # update also takes the netlist itself, which needs no kicad-cli here (#144)
+    hint = (f"\nOr export the netlist where KiCad works and pass it: `kicad-cli sch export netlist --format kicadsexpr "
+            f"-o NETLIST.net {sch_file.name}`, then `boardwright existing {d} update NETLIST.net`.")
+    try:
+        cli = env.kicad_cli()
+    except EnvironmentFault as e:
+        raise EnvironmentFault(f"{e}{hint}") from None
+    r = subprocess.run([*cli, "sch", "export", "netlist", "--format", "kicadsexpr", "-o", str(nl), str(sch_file)],
                        capture_output=True, text=True)
     if r.returncode != 0 or not nl.exists():
-        raise EnvironmentFault(f"kicad-cli could not export the netlist:\n{r.stdout[-1500:]}{r.stderr[-1500:]}")
+        raise EnvironmentFault(f"kicad-cli could not export the netlist:\n{r.stdout[-1500:]}{r.stderr[-1500:]}{hint}")
     return nl
 
 
