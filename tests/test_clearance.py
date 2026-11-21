@@ -199,3 +199,35 @@ def test_a_move_keeps_every_digit_of_the_position(tmp_path):
     o = Board(src).origin
     t = move_footprint(src.read_text(), "U1", 130.69 - o[0], 157.1375 - o[1], 90, o)
     assert "\n\t\t(at 130.69 157.1375 90)" in t
+
+
+def test_a_move_into_copper_that_ripup_removes_is_applied(ldo_copy, capsys):
+    """R1 moved onto the LDO example's long GND track on F.Cu clashes only with
+    that track. With GND in RIPUP the check sees the board as it will be, and
+    the move lands (#135); without, it is refused and nothing is written."""
+    pcb = ldo_copy / "ldo_breakout.kicad_pcb"
+    before = pcb.read_text()
+    _spec(ldo_copy, 'MOVE = {"R1": (23.32, 14.92, 45)}\n')
+    assert main(["existing", str(ldo_copy), "apply"]) == 1
+    out = capsys.readouterr().out
+    assert "CLASH R1's pad on LED_A is 0.00 mm from GND copper (needs 0.2)" in out and "nothing written" in out
+    assert pcb.read_text() == before
+    _spec(ldo_copy, 'MOVE = {"R1": (23.32, 14.92, 45)}\nRIPUP = ["GND"]\n')
+    assert main(["existing", str(ldo_copy), "apply"]) == 0
+    out = capsys.readouterr().out
+    assert "CLASH" not in out and "moved 1 footprint(s)" in out and "ripped up" in out
+    b = Board(pcb)
+    assert not [t for t in b.tracks if t.net == "GND"]
+    assert next(f for f in b.footprints if f.reference == "R1").position == pytest.approx((23.32, 14.92))
+
+
+def test_a_refused_move_leaves_ripup_undone_too(ldo_copy, capsys):
+    """R1 onto the same track but over J2's courtyard: a real clash. The file
+    stays as it was read, GND tracks included."""
+    pcb = ldo_copy / "ldo_breakout.kicad_pcb"
+    before = pcb.read_text()
+    _spec(ldo_copy, 'MOVE = {"R1": (24.37, 13.87, 45)}\nRIPUP = ["GND"]\n')
+    assert main(["existing", str(ldo_copy), "apply"]) == 1
+    out = capsys.readouterr().out
+    assert "CLASH R1 courtyard overlaps J2's" in out and "GND copper" not in out
+    assert pcb.read_text() == before
