@@ -7,6 +7,11 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `existing apply` checks MOVE for clashes on the board as it will be written,
+  after RIPUP from the same file, so a part moved into copper being ripped up
+  no longer needs `--force` (#135).
+
 ### Added
 - `REVIEW` `apart` (`(QUIET, NOISY, mm)`, a net or a list of nets each): the
   quiet nets' pads, tracks and vias keep mm from the noisy nets' copper,
