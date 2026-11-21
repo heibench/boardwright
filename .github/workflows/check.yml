@@ -100,12 +100,15 @@ jobs:
       - name: Install KiCad 10
         run: |
           ls .ci/kicad-debs/ | wc -l
-          # from the cached packages alone; only if the image has moved on under
-          # them does apt go to the mirror
-          if ! sudo apt-get install -y --no-install-recommends --no-download ./.ci/kicad-debs/*.deb; then
+          # From the cached packages alone, with dpkg: apt resolves against its
+          # package lists even with --no-download, and on a cache hit they are
+          # the image's stale ones, so it went to the mirror (run 44928663503).
+          # The key names the image, so these are what it is missing. Only if
+          # they fall short does apt fetch the rest and finish the install.
+          if ! sudo dpkg -i ./.ci/kicad-debs/*.deb; then
             echo "::warning::cached packages did not cover the install; fetching from the mirror"
             sudo apt-get -o Acquire::Retries=5 update
-            sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends ./.ci/kicad-debs/*.deb xvfb librsvg2-bin
+            sudo apt-get -o Acquire::Retries=5 install -y -f --no-install-recommends ./.ci/kicad-debs/*.deb xvfb librsvg2-bin
           fi
           kicad-cli version
       - name: Fetch Freerouting 2.5.0
