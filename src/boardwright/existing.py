@@ -367,6 +367,8 @@ def apply(d: Path, force: bool = False) -> int:
         for g in gone:
             print("removed", g)
     moves = getattr(m, "MOVE", {})
+    rip = set(getattr(m, "RIPUP", []))
+    ripped = None
     if moves:
         from .placement import Clearance
         original = pcb.read_text()
@@ -378,6 +380,8 @@ def apply(d: Path, force: bool = False) -> int:
                 if name is None:
                     raise Usage(f"MOVE {ref}: unknown field {key!r} (ref or value)")
                 t = place_field(t, ref, name, at, origin)
+        if rip:                                      # check the moves against the board as it will be (#135)
+            t, ripped = copper.ripup(t, rip)
         pcb.write_text(t)
         clear = Clearance(Board(pcb))
         found = [c for ref in moves for c in clear.clashes(ref)]
@@ -389,11 +393,11 @@ def apply(d: Path, force: bool = False) -> int:
                   f"`boardwright existing {d} free REF [near REF.PAD]` lists clear spots; --force applies anyway")
             return 1
         print(f"moved {len(moves)} footprint(s)")
-    rip = set(getattr(m, "RIPUP", []))
     if rip:
-        text, n = copper.ripup(pcb.read_text(), rip)
-        pcb.write_text(text)
-        print(f"ripped up {n} track/via item(s) on {sorted(rip)}")
+        if ripped is None:
+            text, ripped = copper.ripup(pcb.read_text(), rip)
+            pcb.write_text(text)
+        print(f"ripped up {ripped} track/via item(s) on {sorted(rip)}")
     if getattr(m, "ROUTES", None):                   # pad-to-pad routes, worked out after the moves and rip-up
         from .route import expand
         rt, rv = expand(m, Board(pcb))
