@@ -7,8 +7,6 @@ the command line).
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-21
-
 ### Added
 - `REVIEW = {"fab": "jlcpcb"}` (or `"oshpark"`, `"pcbway"`): `verify` checks
   the board's tracks, vias, plated holes and the project's clearance and
@@ -20,6 +18,8 @@ the command line).
   copper, fails as "cannot judge" (#49).
 - `boardwright impedance` knows JLCPCB's 6-layer stackups JLC06161H-3313,
   -7628, -1080 and -2116, and OSH Park's 4-layer one (#49).
+
+## [0.9.0] - 2026-11-21
 
 ### Added
 
