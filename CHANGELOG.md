@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- The preview's ratsnest (and the unrouted count in `existing info`, `gen` and
+  `reroute`) judges connectivity as KiCad does: copper on a shared layer that
+  touches, a track's end or body. A track ending off a pad's centre is no
+  longer an open, and tracks on different layers meeting without a via no
+  longer count as joined (#134).
+
 ### Added
 - `REVIEW` `apart` (`(QUIET, NOISY, mm)`, a net or a list of nets each): the
   quiet nets' pads, tracks and vias keep mm from the noisy nets' copper,

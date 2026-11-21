@@ -27,6 +27,41 @@ class Open(tuple):
         return o
 
 
+def _joined(b: Board, net: str, pads: list) -> list[tuple[int, int]]:
+    """Pairs of pads (indices into pads) joined by the net's copper, by KiCad's
+    rule (#134): two pieces of copper connect when they share a copper layer
+    and touch, a track's end or its body. Tracks are their width, vias span
+    their layers, a through-hole pad every copper layer. Pours are not read."""
+    from shapely import STRtree
+    from shapely.geometry import LineString, Point
+
+    from .placement import _copper_layers
+    from .route import pad_shape
+    cu = b.layers
+    items = [(_copper_layers(p.layers, cu) if p.layers else ({p.layer} if p.layer in cu else set(cu)), pad_shape(p))
+             for p in pads]
+    for t in b.tracks:
+        if t.net == net:
+            items.append(({t.layer}, LineString(t.pts).buffer(t.width / 2)))
+    for v in b.vias:
+        if v.net == net:
+            span = cu[cu.index(v.layers[0]):cu.index(v.layers[-1]) + 1] if all(ly in cu for ly in v.layers) else cu
+            items.append((set(span), Point(v.x, v.y).buffer(v.size / 2)))
+    up = list(range(len(items)))
+    def root(i):
+        while up[i] != i:
+            up[i] = up[up[i]]
+            i = up[i]
+        return i
+    tree = STRtree([g for _l, g in items])
+    for i, (layers, g) in enumerate(items):
+        for j in tree.query(g):
+            j = int(j)
+            if j > i and layers & items[j][0] and g.distance(items[j][1]) <= 1e-6:
+                up[root(i)] = root(j)
+    return [(i, j) for i in range(len(pads)) for j in range(i) if root(i) == root(j)]
+
+
 def ratsnest(b: Board, skip: set[str]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     lines = []
     nets: dict[str, list] = {}
@@ -42,31 +77,8 @@ def ratsnest(b: Board, skip: set[str]) -> list[tuple[tuple[float, float], tuple[
                 parent[i] = parent[parent[i]]
                 i = parent[i]
             return i
-        # copper graph: points joined by tracks and vias
-        pts: dict = {}
-        def node(x, y):
-            return pts.setdefault((round(x, 2), round(y, 2)), len(pts))
-        edges = [(node(*t.a), node(*t.b)) for t in b.tracks if t.net == net]
-        cp = list(range(len(pts)))
-        def cfind(i):
-            while cp[i] != i:
-                cp[i] = cp[cp[i]]
-                i = cp[i]
-            return i
-        for u, v in edges:
-            cp[cfind(u)] = cfind(v)
-        comp_of_pad = {}
-        for i, p in enumerate(pads):
-            for (x, y), n in pts.items():
-                if math.hypot(x - p.x, y - p.y) <= p.reach + 0.05:
-                    comp_of_pad.setdefault(i, cfind(n))
-                    break
-        for i in range(len(pads)):
-            for j in range(i):
-                if i in comp_of_pad and j in comp_of_pad and comp_of_pad[i] == comp_of_pad[j]:
-                    parent[find(i)] = find(j)
-                elif (pads[i].ref, pads[i].num) == (pads[j].ref, pads[j].num):
-                    pass
+        for i, j in _joined(b, net, pads):
+            parent[find(i)] = find(j)
         pairs = sorted((math.hypot(pads[i].x - pads[j].x, pads[i].y - pads[j].y), i, j)
                        for i in range(len(pads)) for j in range(i))
         for _d, i, j in pairs:
