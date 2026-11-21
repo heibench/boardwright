@@ -152,3 +152,35 @@ def test_an_outer_pour_with_no_tracks_is_still_routed_on():
     b = SimpleNamespace(layers=["F.Cu", "B.Cu"], zones=[SimpleNamespace(layers=["B.Cu"], keepout=False)],
                         tracks=[SimpleNamespace(layer="F.Cu")])
     assert existing.plane_layers(b, SimpleNamespace()) == []
+
+
+@pytest.fixture
+def buck(tmp_path):
+    import shutil
+
+    from conftest import BOARDS
+    dst = tmp_path / "tps54202_buck"
+    shutil.copytree(BOARDS / "tps54202_buck", dst, ignore=shutil.ignore_patterns("out", "boardwright_out", "__pycache__"))
+    return dst
+
+
+def test_reroute_refuses_to_replace_wide_tracks(buck, monkeypatch, capsys):
+    """The buck's VOUT tracks are 0.5 mm in a 0.4 mm class; the router would
+    put them back at 0.4 mm (#137). Nothing runs, nothing changes."""
+    monkeypatch.setattr(env, "freerouting", lambda: pytest.fail("the router ran"))
+    pcb = buck / "tps54202_buck.kicad_pcb"
+    before = _hash(pcb)
+    assert main(["existing", str(buck), "reroute", "VOUT"]) == 1
+    cap = capsys.readouterr()
+    assert "WIDE VOUT 0.5 mm on F.Cu (class 0.4 mm) from (" in cap.out
+    assert ("refused: " in cap.err and "on ['VOUT'] are wider than their net class" in cap.err
+            and "--force reroutes them anyway" in cap.err)
+    assert _hash(pcb) == before
+
+
+def test_reroute_force_replaces_wide_tracks(buck, monkeypatch, capsys):
+    """--force gets past the check to the router (here one that writes no session)."""
+    monkeypatch.setattr(env, "freerouting", lambda: [sys.executable, "-c", "pass"])
+    assert main(["existing", str(buck), "reroute", "VOUT", "--force"]) == 4
+    cap = capsys.readouterr()
+    assert "WIDE" not in cap.out and "freerouting produced no SES" in cap.err
