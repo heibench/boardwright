@@ -125,8 +125,14 @@ def test_a_net_the_router_cannot_finish_refuses_the_whole_reroute(ldo_copy, boar
     t = ses.read_text()
     i = t.index('      (net "LED_A"')
     j = t.index("\n      (net ", i + 1) if "\n      (net " in t[i + 1:] else t.rindex("\n    )")
+    t = t[:i] + t[j + 1:]
+    # the session was saved from a routed board, so +3V3's via is marked protect,
+    # which reroute leaves out as the board's own; a real router gives a ripped
+    # net's via back unprotected, and without it +3V3 is open too (#134)
+    k = t.index('(via "Via[0-1]_Pad600_um" 1550681 1079552')
+    t = t[:k] + t[k:].replace("\n          (type protect)", "", 1)
     partial = ldo_copy / "partial.ses"
-    partial.write_text(t[:i] + t[j + 1:])
+    partial.write_text(t)
     copy = "import shutil, sys; shutil.copy(sys.argv[1], sys.argv[sys.argv.index('-do') + 1])"
     monkeypatch.setattr(env, "freerouting", lambda: [sys.executable, "-c", copy, str(partial)])
     before = _hash(board)

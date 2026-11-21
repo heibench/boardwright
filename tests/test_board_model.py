@@ -109,3 +109,41 @@ def test_route_path_on_a_net_with_a_through_hole_pad():
     assert b.pad("J4.4").thru and b.pad("J4.4").net == "GND"
     r = b.route_path("C3.2", "J4.4")
     assert r is None or r[0] > 0
+
+
+def _c1_ends(tmp_path, dy=0.0, ends=1, layer=None):
+    """The LDO example with `ends` of the two VIN tracks that end at C1.1's
+    centre changed: that end moved dy mm in y, and/or the track put on `layer`.
+    C1.1 is 1.00 x 1.45 mm turned 90 degrees; the tracks are 0.25 mm wide.
+    Each case's expectation is what `kicad-cli pcb drc` reports for it."""
+    import re
+
+    src = board("ldo_breakout")
+    t = src.read_text()
+    for m in list(re.finditer(r"\((start|end) 142 105\.95\)", t))[:ends][::-1]:
+        if layer:
+            k = t.index('(layer "F.Cu")', m.start())
+            t = t[:k] + f'(layer "{layer}")' + t[k + len('(layer "F.Cu")'):]
+        t = t[:m.start()] + f"({m.group(1)} 142 {105.95 + dy:g})" + t[m.end():]
+    pcb = tmp_path / src.name
+    pcb.write_text(t)
+    b = Board(pcb)
+    return [(o.a, o.b) for o in ratsnest(b, {z.net for z in b.zones})]
+
+
+def test_a_track_ending_off_a_pads_centre_is_connected(tmp_path):
+    """One end 0.3 mm off centre, inside the pad: KiCad 0 unconnected; the
+    preview drew an open VIN line (#134)."""
+    assert _c1_ends(tmp_path, dy=0.3) == []
+
+
+def test_a_track_whose_body_crosses_the_pad_is_connected(tmp_path):
+    """Both ends 1.2 mm off, outside the pad, the tracks still crossing it:
+    KiCad 0 unconnected."""
+    assert _c1_ends(tmp_path, dy=1.2, ends=2) == []
+
+
+def test_a_track_on_the_other_layer_is_not_connected(tmp_path):
+    """Both tracks on B.Cu under the F.Cu-only pad, with no via at either end:
+    KiCad finds C1's pad and both F/B joins unconnected."""
+    assert sorted(_c1_ends(tmp_path, ends=2, layer="B.Cu")) == [("C1.1", "J1.1"), ("C1.1", "U1.3")]
