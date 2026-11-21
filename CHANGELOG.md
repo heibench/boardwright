@@ -16,6 +16,13 @@ the command line).
   minimum fails; below the standard-price limit is reported and does not
   fail; a value the fab has limits for, but none at this board's layers and
   copper, fails as "cannot judge" (#49).
+- `REVIEW` `loop` (`(CAP, PIN, mm)`): after routing, each of a decoupler's
+  ground pads, and its pad on PIN's net when that net has a pour, must reach
+  a via of its own net within mm of copper, along its tracks or across the
+  pour fill it sits in. Where PIN's net has a pour, PIN must reach the
+  capacitor by tracks and vias before any plane via off that path: a pin fed
+  through the plane first fails. A via shared with a cap on the back is on
+  the way. A cap with no ground pad fails as "cannot judge" (#122).
 - `boardwright impedance` knows JLCPCB's 6-layer stackups JLC06161H-3313,
   -7628, -1080 and -2116, and OSH Park's 4-layer one (#49).
 

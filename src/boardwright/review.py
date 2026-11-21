@@ -17,6 +17,7 @@ A board's board.py may declare
         "current":  [("L1.2", "J2.1", 2.0)],             # this path carries amps: one pour piece, or tracks wide enough
         "temp_rise": 10,                                 # deg C allowed for "current" (default 10)
         "via_near": [("C3.2", 1.5)],                     # this pad needs a via of its own net within mm
+        "loop":     [("C3", "U1.24", 1.5)],              # decoupler C3 for U1.24: see loop_check
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -184,6 +185,109 @@ def current_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
     return lines, fails
 
 
+def _paths(g: dict, src) -> tuple[dict, dict]:
+    """Shortest copper distance from src to every node, vias crossed, and each node's predecessor."""
+    import heapq
+    best, prev, heap, n = {src: 0.0}, {}, [(0.0, 0, src)], 0
+    while heap:
+        d, _n, u = heapq.heappop(heap)
+        if d > best[u]:
+            continue
+        for v, w, _kind in g.get(u, []):
+            if d + w < best.get(v, 1e18):
+                best[v], prev[v] = d + w, u
+                n += 1
+                heapq.heappush(heap, (d + w, n, v))
+    return best, prev
+
+
+def _on_plane(b: Board, net: str, u) -> bool:
+    """Whether graph node u is a via of net standing in a fill of the net's pour."""
+    vias = [v for v in b.vias if v.net == net and (round(v.x, 2), round(v.y, 2)) == u[:2]]
+    return any(z.net == net and not z.keepout and z.covers(ly, v.x, v.y) for v in vias for z in b.zones for ly in z.fills)
+
+
+def _to_via(b: Board, p, lim: float) -> tuple[float, int]:
+    """(copper distance from pad p to its nearest own-net via, vias within lim):
+    along its tracks, or across the pour fill the pad sits in."""
+    g = b.net_graph(p.net)
+    node = ("pad", p.ref, p.num)
+    at = {(round(v.x, 2), round(v.y, 2)) for v in b.vias if v.net == p.net}
+    dist = {}
+    for u, d in (_paths(g, node)[0] if node in g else {}).items():
+        if u[0] != "pad" and u[:2] in at:
+            dist[u[:2]] = min(d, dist.get(u[:2], 1e18))
+    layer = next((ly for ly in b.layers if p.on(ly)), None)
+    for z in b.zones:
+        if z.net != p.net or z.keepout:
+            continue
+        for poly in z.fills.get(layer, []):
+            if inside(p.x, p.y, poly):
+                for v in b.vias:
+                    if v.net == p.net and inside(v.x, v.y, poly):
+                        key = (round(v.x, 2), round(v.y, 2))
+                        dist[key] = min(math.hypot(v.x - p.x, v.y - p.y), dist.get(key, 1e18))
+    return min(dist.values(), default=1e18), sum(d <= lim for d in dist.values())
+
+
+def loop_check(b: Board, spec: dict) -> tuple[list[str], list[str]]:
+    """REVIEW "loop": [(CAP, PIN, mm)], a decoupler and the IC pin it serves (#122).
+
+    TI SPRABV2 ranks the capacitor's trace length above its distance from the
+    pin, and says not to feed the pin through the plane before the capacitor:
+    - each of CAP's ground pads, and its pad on PIN's net when that net has a
+      pour, reaches a via of its own net within mm of copper: its tracks, or
+      the pour fill it sits in
+    - when PIN's net has a pour, PIN reaches CAP by tracks and vias, and no
+      via standing in that pour, other than those on the way to CAP, is
+      nearer PIN along copper than CAP is. A via the pin shares with a cap on
+      the back is on the way, and allowed.
+    A cap with no pad on PIN's net or no ground pad cannot be judged, and fails."""
+    lines, fails = [], []
+    ground = spec.get("ground", ["GND"])
+    planes = {z.net for z in b.zones if not z.keepout}
+    for cap, pin, lim in spec.get("loop", []):
+        pp = b.pad(pin)
+        pads = [p for p in b.pads if p.ref == cap]
+        feed = [p for p in pads if p.net == pp.net]
+        gnd = [p for p in pads if p.net in ground]
+        if not feed or not gnd:
+            fails.append(f"loop {cap} -> {pin}: cannot judge, {cap} has no "
+                         + ("pad on " + pp.net if not feed else "/".join(ground) + " pad"))
+            continue
+        for p in gnd + [f for f in feed if f.net in planes]:
+            d, n = _to_via(b, p, lim)
+            lines.append(f"loop {cap}.{p.num} ({p.net}): " + ("no via" if d > 1e17 else f"{d:.2f} mm to a via, {n} within")
+                         + f" (<= {lim})")
+            if d > lim:
+                fails.append(f"{cap}.{p.num} ({p.net}) " + (f"has no {p.net} via on its copper" if d > 1e17 else
+                             f"is {d:.2f} mm of copper from its nearest {p.net} via") + f", limit {lim}")
+        if pp.net not in planes:
+            lines.append(f"loop {pin} -> {cap}: {pp.net} has no pour, no plane to feed through")
+            continue
+        g = b.net_graph(pp.net)
+        src = ("pad", pp.ref, pp.num)
+        dist, prev = _paths(g, src) if src in g else ({}, {})
+        caps = [("pad", cap, f.num) for f in feed if ("pad", cap, f.num) in dist]
+        if not caps:
+            fails.append(f"{pin} reaches {cap} only through the {pp.net} pour: the pin is fed through the plane, "
+                         "not the capacitor")
+            continue
+        end = min(caps, key=dist.get)
+        on_path, u = set(), end
+        while u in prev:
+            on_path.add(u[:2])
+            u = prev[u]
+        fed = [(dist[u], u) for u in dist if u[0] != "pad" and u[:2] not in on_path and _on_plane(b, pp.net, u)]
+        if fed and min(fed)[0] < dist[end]:
+            d, u = min(fed)
+            fails.append(f"{pin} reaches a {pp.net} plane via at ({u[0]:.2f}, {u[1]:.2f}) {d:.2f} mm out, before "
+                         f"{cap} at {dist[end]:.2f} mm: the pin is fed through the plane, not the capacitor")
+        else:
+            lines.append(f"loop {pin} -> {cap}: {dist[end]:.2f} mm, no plane via off that path nearer")
+    return lines, fails
+
+
 def _expand(b: Board, names) -> list[str]:
     """Net names; shell-style wildcards match the board's nets (hierarchical names on existing boards)."""
     import fnmatch
@@ -273,6 +377,10 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += cf
+    lines, lf = loop_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += lf
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])

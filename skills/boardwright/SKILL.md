@@ -178,7 +178,10 @@ one.
 `balance` (a crystal's two gaps), `fronts` (no part parked in front of a pin it
 does not connect to), `via_site` (room for a ground via), `chain` (an RF
 shunt on the series path). Then `boardwright check DIR --quick` for courtyard
-and clearance errors; unconnected items are expected before routing.
+and clearance errors; unconnected items are expected before routing. After
+routing, `loop` (`(CAP, PIN, mm)`) measures what TI ranks above distance: the
+copper from each decoupler pad to its via, and that the pin reaches the
+capacitor before the plane.
 
 This placement guidance is adapted from kistack's layout-placement skill
 (https://github.com/BackplaneWorks/kistack, `skills/layout-placement/`),
