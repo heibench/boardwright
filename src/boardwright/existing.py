@@ -410,20 +410,40 @@ def apply(d: Path, force: bool = False) -> int:
     return 0
 
 
+def _r(v: str) -> float:
+    return round(float(v), 3)
+
+
+def _item_key(blk: str):
+    """What a track, via, text or zone is, read so that the file's layout does
+    not matter: KiCad's save writes 113 for 113.0, a one-line item over several
+    lines, and adds fields and fills of its own to a zone (#113)."""
+    head = re.match(r"\s*\((\w+)", blk).group(1)
+    layer = re.search(r'\(layers? ((?:"[^"]*"\s*)+)\)', blk)
+    layers = frozenset(re.findall(r'"([^"]*)"', layer.group(1))) if layer else frozenset()
+    if head == "gr_text":
+        s = re.match(r'\s*\(gr_text "((?:[^"\\]|\\.)*)"', blk).group(1)
+        at = re.search(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", blk)
+        return ("txt", s, tuple(_r(v or "0") for v in at.groups()) if at else (), layers)
+    if head == "zone":
+        net = re.search(r'\(net_name "((?:[^"\\]|\\.)*)"\)|\(net "((?:[^"\\]|\\.)*)"\)', blk)
+        poly = copper.blocks(blk, ("polygon",))
+        pts = tuple((_r(x), _r(y)) for x, y in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", blk[poly[0][0]:poly[0][1]])) if poly else ()
+        rules = re.search(r"\(keepout((?:\s*\([a-z_]+ [a-z_]+\))*)\s*\)", blk)
+        rule = tuple(re.findall(r"\(([a-z_]+) ([a-z_]+)\)", rules.group(1))) if rules else ()
+        return ("zone", (net.group(1) or net.group(2) or "") if net else "", layers, pts, rule)
+    nums = re.findall(r"\((?:start|end|at) ([-\d.]+) ([-\d.]+)", blk)
+    return (head[:3], frozenset((_r(a), _r(b)) for a, b in nums), layers)
+
+
 def dedupe(text: str) -> tuple[str, int]:
-    """Drop tracks and vias that are exact geometric duplicates of an earlier one."""
+    """Drop tracks, vias, texts and zones that repeat an earlier one, so apply is
+    repeatable however the board was saved in between."""
     seen, drop = set(), []
-    for s0, e0 in copper.blocks(text, ("segment", "via", "gr_text")):
-        blk = text[s0:e0]
-        if blk.lstrip().startswith("(gr_text"):
-            key = ("txt", re.sub(r'\(uuid "[^"]*"\)', "", re.sub(r"\s+", " ", blk)))
-            if key in seen:
-                drop.append((s0, e0))
-            seen.add(key)
+    for s0, e0 in copper.blocks(text, ("segment", "via", "gr_text", "zone")):
+        if text[s0:s0 + 3] != "\n\t(":           # top level only: a footprint's own zone is not one of ours
             continue
-        nums = re.findall(r"\((?:start|end|at) ([-\d.]+) ([-\d.]+)", blk)
-        layer = re.search(r'\(layers? ([^)]*)\)', blk)
-        key = (blk.lstrip()[1:4], frozenset((round(float(a), 3), round(float(b), 3)) for a, b in nums), layer.group(1) if layer else "")
+        key = _item_key(text[s0:e0])
         if key in seen:
             drop.append((s0, e0))
         seen.add(key)

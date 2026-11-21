@@ -157,7 +157,8 @@ place: commit before `apply` or `reroute`.
   fill until they are: refill in KiCad, or `kicad-cli pcb drc --refill-zones`.
 - `apply` checks every `VIAS` entry is `(net, x, y[, size, drill])` before
   it changes anything (exit 64 otherwise).
-- `apply` is repeatable: exact duplicates are dropped. A `REMOVE` entry is the
+- `apply` is repeatable: a track, via, text, zone or keepout it has already
+  written is dropped, even after KiCad has saved the board in its own layout. A `REMOVE` entry is the
   exception: once its footprint is gone it names nothing, which is refused
   (exit 64), so take it out of the spec.
 - `REMOVE` takes footprints off the board, each matched by reference or by
