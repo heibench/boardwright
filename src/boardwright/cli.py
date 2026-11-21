@@ -115,9 +115,14 @@ def _run(argv: list[str]) -> int:
         print(root)
         return 0
     if cmd == "doctor":
+        if rest[:1] in (["-h"], ["--help"]):
+            raise Usage((doctor.__doc__ or "usage: boardwright doctor").strip())
         return doctor()
     if cmd not in _BUILD and cmd not in _MODULES:
         raise Usage(f"unknown command {cmd!r}\n{__doc__}")
+    if cmd in _MODULES and rest and rest[0] in ("-h", "--help"):     # its usage, before anything runs (#146)
+        doc = importlib.import_module(f".{_MODULES[cmd]}", __package__).__doc__
+        raise Usage((doc or f"usage: boardwright {cmd} ...").strip())
     if cmd in _BUILD and not (rest and (Path(rest[0]) / "board.py").exists()):
         raise Usage(f"usage: boardwright {cmd} DIR, where DIR holds a board.py")
     if cmd == "pins" and not rest:
