@@ -221,6 +221,12 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += pf
+    if spec.get("fab"):
+        from .fab import fab_review
+        lines, ff = fab_review(b, Path(pcb), spec["fab"], spec.get("fab_copper_oz", 1))
+        for ln in lines:
+            print("   ", ln)
+        fails += ff
     L = b.net_lengths()
     for net, lim in spec.get("maxlen", {}).items():
         print(f"    len {net}: {L.get(net, 0):.2f} mm (<= {lim})")

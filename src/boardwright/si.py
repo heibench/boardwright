@@ -7,9 +7,15 @@
 The formulas are the closed-form IPC-2141 microstrip ones: good to roughly
 +-10 %, and only for an outer layer over an adjacent plane. Use them to pick
 a starting geometry, then confirm with the fab's own calculator for the
-stackup you order. The two JLCPCB stackups below were checked against
+stackup you order. The JLCPCB 4-layer stackups were checked against
 jlcpcb.com/impedance on 2026-11-14 (prepreg thickness, dielectric constant,
-copper weights); the 2-layer entry is a generic FR-4 figure.
+copper weights), and the 6-layer ones (JLC06161H-3313, -7628, -1080, -2116:
+first prepreg under the outer copper, its dielectric constant, 0.035 mm outer
+copper) on 2026-11-21; that "06161H" names a 6-layer 1.6 mm board is read
+from the name, the page states no thickness per stackup. OSH Park's 4-layer
+stackup is from docs.oshpark.com/services/four-layer/, read 2026-11-21
+(FR408HR 2113 prepreg, dk 3.61 at 1 GHz, 1.7 mil outer copper). The 2-layer
+entry is a generic FR-4 figure (#49).
 """
 
 from __future__ import annotations
@@ -20,6 +26,11 @@ import math
 STACKUPS = {
     "jlc4_7628": {"h": 0.2104, "er": 4.4, "t": 0.035, "note": "JLCPCB 4-layer 1.6 mm, 7628 prepreg"},
     "jlc4_3313": {"h": 0.0994, "er": 4.1, "t": 0.035, "note": "JLCPCB 4-layer 1.6 mm, 3313 prepreg"},
+    "jlc6_3313": {"h": 0.0994, "er": 4.1, "t": 0.035, "note": "JLCPCB 6-layer JLC06161H-3313, 3313 prepreg"},
+    "jlc6_7628": {"h": 0.2104, "er": 4.4, "t": 0.035, "note": "JLCPCB 6-layer JLC06161H-7628, 7628 prepreg"},
+    "jlc6_1080": {"h": 0.0764, "er": 3.91, "t": 0.035, "note": "JLCPCB 6-layer JLC06161H-1080, 1080 prepreg"},
+    "jlc6_2116": {"h": 0.127, "er": 4.16, "t": 0.035, "note": "JLCPCB 6-layer JLC06161H-2116, 2116 prepreg"},
+    "oshpark4": {"h": 0.1999, "er": 3.61, "t": 0.0432, "note": "OSH Park 4-layer 1.6 mm, FR408HR 2113 prepreg"},
     "2layer_1.6": {"h": 1.5, "er": 4.5, "t": 0.035, "note": "2-layer 1.6 mm: plane is the far side"},
 }
 
