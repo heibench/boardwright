@@ -132,7 +132,10 @@ Outputs go to `<project dir>/boardwright_out/`. The board file is edited in
 place: commit before `apply` or `reroute`.
 
 - `info` and the preview work with no KiCad call, on any size of board
-  (a 6-layer, 2000-track demo board reads in 2.5 s).
+  (a 6-layer, 2000-track demo board reads in 2.5 s). The preview draws each
+  pour as the fill KiCad last saved, with its outline dashed; it draws no
+  silkscreen, but labels each part with its reference, dimmed and italic
+  where the reference does not print (hidden, or on no silkscreen layer).
 - The gate for an existing board is **"review passes and DRC shows nothing
   that is not in the baseline"**, not "DRC is zero". Run the DRC into
   `boardwright_out/drc.json`, `baseline` once, then `verify` after every
