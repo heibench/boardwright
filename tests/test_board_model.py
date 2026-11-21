@@ -100,3 +100,12 @@ def test_preview_stays_svg_without_rsvg_convert(tmp_path, monkeypatch, capsys):
     assert preview.write(board("ldo_breakout"), tmp_path / "p.png") == 0
     assert (tmp_path / "p.svg").exists() and not (tmp_path / "p.png").exists()
     assert "preview: " + str(tmp_path / "p.svg") in capsys.readouterr().out
+
+
+def test_route_path_on_a_net_with_a_through_hole_pad():
+    """A through-hole pad is on every layer, so it was once compared with the
+    pad nodes already in the graph, and route_path raised TypeError."""
+    b = Board(board("stm32f103_min"))
+    assert b.pad("J4.4").thru and b.pad("J4.4").net == "GND"
+    r = b.route_path("C3.2", "J4.4")
+    assert r is None or r[0] > 0
