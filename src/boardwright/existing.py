@@ -10,7 +10,7 @@
     boardwright existing <project dir> verify --staged
     boardwright existing <project dir> apply [--force]   # REMOVE, MOVE, RIPUP, TRACKS, VIAS, ZONES, KEEPOUTS, TEXT
     boardwright existing <project dir> free REF [near REF.PAD | near X,Y]   # clear spots for a part, for MOVE
-    boardwright existing <project dir> reroute NET [NET ...]
+    boardwright existing <project dir> reroute NET [NET ...] [--force]
     boardwright existing <project dir> update [NETLIST.net] [--body keep|library]   # the schematic's parts and nets onto the board
 
 The project keeps its own schematic, libraries and rules; nothing is
@@ -452,13 +452,19 @@ def dedupe(text: str) -> tuple[str, int]:
     return text, len(drop)
 
 
-def reroute(d: Path, nets_: list[str]) -> int:
+def reroute(d: Path, args: list[str]) -> int:
     """Rip up the named nets and let Freerouting route only them.
 
     Every other net's copper ends up byte-identical to before: the routed
     result is used only as a source for the named nets' new tracks and vias,
     which are grafted onto the pre-routing file.
+
+    A track wider than its net class is usually wide on purpose (a power
+    path), and the router would put it back at the class width, so reroute
+    refuses, naming each one, unless given --force (#137).
     """
+    force = "--force" in args
+    nets_ = [a for a in args if a != "--force"]
     pcb, m = find(d), spec(d)
     env.warn_if_open_in_kicad(pcb)
     o = out_dir(d)
@@ -467,6 +473,17 @@ def reroute(d: Path, nets_: list[str]) -> int:
     for n in nets_:
         if n not in known:
             raise Usage(f"no net {n!r} (see `nets`)")
+    from .route import net_classes
+    cls = net_classes(b0)
+    wide = [(t, (cls(t.net) or {}).get("width")) for t in b0.tracks if t.net in nets_]
+    wide = [(t, w) for t, w in wide if w and t.width > w + 1e-6]
+    if wide and not force:
+        for t, w in wide:
+            (x1, y1), (x2, y2) = t.a, t.b
+            print(f"WIDE {t.net} {t.width:g} mm on {t.layer} (class {w:g} mm) from ({x1:.2f}, {y1:.2f}) to ({x2:.2f}, {y2:.2f})")
+        raise Outcome(f"refused: {len(wide)} track(s) on {sorted({t.net for t, _w in wide})} are wider than their net "
+                      "class, and the router would replace them at the class width; nothing changed. "
+                      "--force reroutes them anyway")
     original = pcb.read_text()
     was_open = {n for *_p, n in ratsnest(b0, set())}
     planes = plane_layers(b0, m)

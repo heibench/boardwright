@@ -91,7 +91,9 @@ Things to know before editing:
   has the file open: KiCad's next save of it overwrites the edit. Close it in
   KiCad without saving first.
 - `reroute NET ...` leaves the board exactly as it was when the router cannot
-  finish a net or cannot run, and keeps signals off inner plane layers.
+  finish a net or cannot run, and keeps signals off inner plane layers. It
+  refuses a net with tracks wider than its class, which it would narrow;
+  draw those by hand, or pass `--force`.
   Zones are not refilled: refill before judging DRC.
 - `existing apply` is repeatable; running it twice adds nothing.
 

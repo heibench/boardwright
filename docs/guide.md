@@ -118,7 +118,7 @@ multi-unit symbols, and placing and routing the parts a schematic change adds
     boardwright existing <project dir> review | baseline | verify
     boardwright existing <project dir> apply [--force]
     boardwright existing <project dir> free REF [near REF.PAD | near X,Y]
-    boardwright existing <project dir> reroute NET [NET ...]
+    boardwright existing <project dir> reroute NET [NET ...] [--force]
     boardwright existing <project dir> update [NETLIST.net] [--body keep|library]
 
 The project keeps its own schematic, libraries and rules. An optional
@@ -153,7 +153,10 @@ place: commit before `apply` or `reroute`.
   others' new routes: reroute the rest without it. When the route cannot run
   at all (no SES, a timeout past `FR_TIMEOUT`, an Edge.Cuts outline that does
   not close) the board is left as it was read, and the exit is 4 with the
-  reason. Zones are not refilled, so DRC checks new copper against the old
+  reason. A named net with a track wider than its net class (a power path,
+  usually wide on purpose) is refused before anything runs (exit 1), naming
+  each such track, since the router would put it back at the class width;
+  `--force` reroutes it anyway. Zones are not refilled, so DRC checks new copper against the old
   fill until they are: refill in KiCad, or `kicad-cli pcb drc --refill-zones`.
 - `apply` checks every `VIAS` entry is `(net, x, y[, size, drill])` before
   it changes anything (exit 64 otherwise).

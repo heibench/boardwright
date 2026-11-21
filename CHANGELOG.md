@@ -14,6 +14,11 @@ the command line).
   longer an open, and tracks on different layers meeting without a via no
   longer count as joined (#134).
 
+### Changed
+- `existing reroute` refuses a named net with a track wider than its net class
+  (exit 1, nothing changed), naming each one: the router would put it back at
+  the class width. `--force` reroutes it anyway (#137).
+
 ### Added
 - `REVIEW` `apart` (`(QUIET, NOISY, mm)`, a net or a list of nets each): the
   quiet nets' pads, tracks and vias keep mm from the noisy nets' copper,
