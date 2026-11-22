@@ -24,7 +24,7 @@ import math
 
 from .model import Board
 
-KEYS = ("near", "orient", "balance", "fronts", "via_site", "chain")
+KEYS = ("near", "orient", "balance", "fronts", "via_site", "chain", "crossings")
 SHUNT_PREFIXES = ("C", "L", "R", "FB")       # reference prefixes a chain's shunts may have
 
 
@@ -91,7 +91,39 @@ def placement_review(b: Board, spec: dict, project=None) -> tuple[list[str], lis
 
     for entry in spec.get("chain", []):
         fails += _chain(b, entry, ground, rule, lines)
+
+    if spec.get("crossings"):
+        fails += _crossings(b, spec["crossings"], ground, lines)
     return lines, fails
+
+
+def _crossings(b, entries, ground, lines) -> list[str]:
+    """REVIEW "crossings": [(NETS, limit)]. Airwire crossings that involve one
+    of the named nets, each net's pads joined by a minimum spanning tree with
+    copper ignored, poured and ground nets left out (#149). A part turned so its
+    nets loop round it, or a group placed out of the order both its ends share,
+    shows here before any routing."""
+    from .preview import crossings
+    from .review import _expand
+    skip = {z.net for z in b.zones if not z.keepout} | set(ground)
+    found = crossings(b, skip)
+    count = {}
+    for p in b.pads:
+        count[p.net] = count.get(p.net, 0) + 1
+    fails = []
+    for nets, limit in entries:
+        names = _expand(b, [nets] if isinstance(nets, str) else list(nets))
+        label = "/".join(names) if len(names) <= 4 else f"{len(names)} nets"
+        if not names or not any(count.get(n, 0) >= 2 and n not in skip for n in names):
+            fails.append(f"crossings {nets}: cannot judge, no named net with two or more pads outside the pours")
+            continue
+        mine = [f for f in found if f[0] in names or f[1] in names]
+        lines.append(f"crossings {label}: {len(mine)} (<= {limit})")
+        if len(mine) > limit:
+            shown = ", ".join(f"{x} x {y} at ({px:.1f}, {py:.1f})" for x, y, (px, py) in mine[:5])
+            fails.append(f"{label}: {len(mine)} airwire crossings, limit {limit}: {shown}"
+                         + (", ..." if len(mine) > 5 else ""))
+    return fails
 
 
 def _fronts(b, cl, ic, length, ground, rule, lines) -> list[str]:
