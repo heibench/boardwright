@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `REVIEW` `crossings` (`(NETS, limit)`), run by `place` and `verify`: airwire
+  crossings involving the named nets, each net's pads joined by a minimum
+  spanning tree with copper ignored, so the count is the placement's and reads
+  the same before and after routing. Poured and ground nets are left out. The
+  preview's summary line reports the board's total. On rp2040_min, turning R9
+  round takes its two nets from 7 crossings to 11 (#149).
+
 ## [0.13.0] - 2026-11-22
 
 ### Added

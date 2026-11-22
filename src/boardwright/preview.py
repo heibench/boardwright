@@ -88,6 +88,43 @@ def ratsnest(b: Board, skip: set[str]) -> list[tuple[tuple[float, float], tuple[
     return lines
 
 
+def crossings(b: Board, skip: set[str]) -> list[tuple[str, str, tuple[float, float]]]:
+    """Where the nets' airwires cross: each net's pads joined by a minimum
+    spanning tree, copper ignored, so the count is the placement's and reads
+    the same before and after routing (#149). Nets in skip (poured ones) are
+    left out. Returns (net, net, crossing point) per crossing of two nets."""
+    nets: dict[str, list] = {}
+    for p in b.pads:
+        if p.net and p.net not in skip and not p.net.startswith("unconnected-"):
+            nets.setdefault(p.net, []).append((p.x, p.y))
+    wires = []
+    for net, pts in nets.items():
+        pts = sorted(set(pts))
+        if len(pts) < 2:
+            continue
+        inside = {0}
+        while len(inside) < len(pts):
+            i, j = min(((i, j) for i in inside for j in range(len(pts)) if j not in inside),
+                       key=lambda ij: math.dist(pts[ij[0]], pts[ij[1]]))
+            inside.add(j)
+            wires.append((net, pts[i], pts[j]))
+
+    def cross(p1, p2, p3, p4):
+        d = (p2[0] - p1[0]) * (p4[1] - p3[1]) - (p2[1] - p1[1]) * (p4[0] - p3[0])
+        if abs(d) < 1e-12:
+            return None
+        t = ((p3[0] - p1[0]) * (p4[1] - p3[1]) - (p3[1] - p1[1]) * (p4[0] - p3[0])) / d
+        u = ((p3[0] - p1[0]) * (p2[1] - p1[1]) - (p3[1] - p1[1]) * (p2[0] - p1[0])) / d
+        e = 1e-6                                     # touching at an end is not a crossing
+        return (p1[0] + t * (p2[0] - p1[0]), p1[1] + t * (p2[1] - p1[1])) if e < t < 1 - e and e < u < 1 - e else None
+    out = []
+    for i, (na, a1, a2) in enumerate(wires):
+        for nb, b1, b2 in wires[i + 1:]:
+            if at := cross(a1, a2, b1, b2):      # one net's own tree never crosses itself
+                out.append((na, nb, at))
+    return out
+
+
 def svg(b: Board, scale: float = 20.0) -> tuple[str, int]:
     x0, y0, x1, y1 = b.bbox
     m = 2.0
@@ -150,7 +187,9 @@ def write(pcb: Path, out: Path) -> int:
         subprocess.run(["rsvg-convert", "-w", "1500", str(sv), "-o", str(out)], check=False)
     else:                                           # as `doctor` says: without rsvg-convert, previews stay SVG
         out = sv
-    print(f"preview: {out}  ({len(b.pads)} pads, {len(b.tracks)} tracks, {n} unrouted connection(s) on unpoured nets)")
+    cr = len(crossings(b, {z.net for z in b.zones if not z.keepout}))
+    print(f"preview: {out}  ({len(b.pads)} pads, {len(b.tracks)} tracks, {n} unrouted connection(s) on unpoured nets, "
+          f"{cr} airwire crossing(s))")
     return n
 
 
