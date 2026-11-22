@@ -221,6 +221,30 @@ kistack's notice:
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
+## Layout method
+
+Small changes in how the work is ordered changed what a reviewer accepted more
+than anything else in the field work behind this section; `techniques.md`
+beside this file has each move with the conditions it holds under and its
+evidence. The spine:
+
+- **Read the structure before acting.** The route each net wants, the pin
+  order at both ends of a group, the net that encloses a destination, the fill
+  pieces a pad sits in. Do not act on the nearest local thing.
+- **Route series parts first, then put them in line on the routes** (T1),
+  unless their outputs fan out in their order toward one destination (T2).
+- **Re-plan, do not bolt on.** When a part is added or replaced, re-route the
+  nets it touches from scratch; joining new parts onto old copper keeps the
+  old detour and leaves a kink at every join.
+- **Router output is a draft.** Clear the stair-steps at pins, jogs in
+  straight runs, corner entries into pads and tracks squeezed between another
+  net's pads before calling a board done.
+- **Look at KiCad's plots of what you changed,** cropped close. A DRC count
+  says nothing about where text went, and silk on copper, a label over a new
+  route or a reference off the board all passed DRC in the field.
+- **A passing DRC is not a reviewed layout.** Report what was looked at, and
+  what was not.
+
 ## More
 
 The full manual is `docs/guide.md` in the boardwright repository

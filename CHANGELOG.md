@@ -8,6 +8,10 @@ the command line).
 ## [Unreleased]
 
 ### Added
+- The agent skill ships a catalogue of layout techniques,
+  `skills/boardwright/techniques.md`: nine moves from reviewed field work on
+  public boards, each with the conditions it holds under and its commit
+  evidence, and `SKILL.md` gains the method behind them (#153).
 - `REVIEW` `segments` (`(NETS, excess)`): track segments beyond the fewest an
   octilinear route needs. A net through a series part (a two-pad part whose
   nets each join two pads) is judged with its whole chain, pad to pad, plus one
