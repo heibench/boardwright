@@ -8,6 +8,11 @@ the command line).
 ## [Unreleased]
 
 ### Added
+- `existing apply` prints `STALE FILL` for each new track or via that lies in
+  another net's saved zone fill, which overlaps it until the zones are refilled
+  and saved. A DRC run with `--refill-zones` never sees the overlap: a project's
+  CI checking the committed fill failed on it on three heads in the field, and
+  KiCad 10.0.8's own DRC of the saved file did not report it (#154).
 - `REVIEW` `islands` (`[NETS]`): for a net poured on two or more layers, a
   pour piece that no via or track joins to another layer and that reaches the
   net through one pad at most is named, with its bounds and a spot inside it

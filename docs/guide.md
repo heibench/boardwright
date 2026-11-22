@@ -161,6 +161,12 @@ place: commit before `apply` or `reroute`.
   each such track, since the router would put it back at the class width;
   `--force` reroutes it anyway. Zones are not refilled, so DRC checks new copper against the old
   fill until they are: refill in KiCad, or `kicad-cli pcb drc --refill-zones`.
+- `apply` prints `STALE FILL` for each new track or via that lies in another
+  net's saved zone fill: the fill in the file was computed without it and
+  overlaps it until the zones are refilled and saved. A DRC run with
+  `--refill-zones` checks a fresh fill and never sees it; a CI that checks the
+  fill as committed can fail on it, and KiCad 10.0.8's own DRC of the saved
+  file did not report it in testing.
 - `apply` checks every `VIAS` entry is `(net, x, y[, size, drill])` before
   it changes anything (exit 64 otherwise).
 - `apply` is repeatable: a track, via, text, zone or keepout it has already

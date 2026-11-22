@@ -231,3 +231,32 @@ def test_a_refused_move_leaves_ripup_undone_too(ldo_copy, capsys):
     out = capsys.readouterr().out
     assert "CLASH R1 courtyard overlaps J2's" in out and "GND copper" not in out
     assert pcb.read_text() == before
+
+
+def test_new_copper_in_another_nets_saved_fill_is_named(stm, capsys):
+    """A +3V3 via at (5, 5) lands in the GND fill on all four layers. The fill
+    on disk was computed without it and overlaps it until the zones are
+    refilled; apply says so (#154)."""
+    _spec(stm, 'VIAS = [("+3V3", 5.0, 5.0)]\nTRACKS = [("+3V3", [(5.0, 5.0), (5.0, 7.0)], 0.25, "F.Cu")]\n')
+    assert main(["existing", str(stm), "apply"]) == 0
+    out = capsys.readouterr().out
+    assert ("STALE FILL +3V3 via at (5.00, 5.00) lies in the fill of GND on B.Cu, GND on F.Cu, GND on In1.Cu, "
+            "GND on In2.Cu") in out
+    assert "STALE FILL +3V3 track (5.00, 5.00)-(5.00, 7.00) on F.Cu lies in GND's fill" in out
+    assert "Refill the zones and save before committing" in out
+    assert main(["existing", str(stm), "apply"]) == 0              # nothing new the second time
+    assert "STALE FILL" not in capsys.readouterr().out
+
+
+def test_new_copper_of_the_pours_own_net_is_not_named(stm, capsys):
+    _spec(stm, 'VIAS = [("GND", 5.0, 5.0)]\nTRACKS = [("GND", [(5.0, 5.0), (5.0, 7.0)], 0.25, "F.Cu")]\n')
+    assert main(["existing", str(stm), "apply"]) == 0
+    assert "STALE FILL" not in capsys.readouterr().out
+
+
+def test_a_track_is_judged_on_its_own_layer_only(stm, capsys):
+    """At (4, 47.5) GND is poured on B.Cu and both inner layers, but not on F.Cu:
+    an F.Cu track there crosses no fill on its own layer."""
+    _spec(stm, 'TRACKS = [("+3V3", [(4.0, 47.5), (4.0, 48.5)], 0.25, "F.Cu")]\n')
+    assert main(["existing", str(stm), "apply"]) == 0
+    assert "STALE FILL" not in capsys.readouterr().out
