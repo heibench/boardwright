@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-21
+
 ### Added
 - `REVIEW` `segments` (`(NETS, excess)`): track segments beyond the fewest an
   octilinear route needs. A net through a series part (a two-pad part whose
@@ -16,16 +18,16 @@ the command line).
   parts placed on routes drawn first scored 0, 0 and 0, with identical DRC
   results (#148).
 
+### Changed
+- `existing update`, when it cannot export the netlist (no working kicad-cli,
+  or the export fails), says how to pass one exported elsewhere:
+  `existing DIR update NETLIST.net` (#144).
+
 ### Fixed
 - `boardwright CMD --help` (or `-h`) prints CMD's usage and exits 64 for
   every command, before anything runs. `check`, `review`, `preview`, `pins`,
   `impedance`, `live` and `doctor` took the flag as an argument: `check`
   looked for KiCad and exited 4 (#146).
-
-### Changed
-- `existing update`, when it cannot export the netlist (no working kicad-cli,
-  or the export fails), says how to pass one exported elsewhere:
-  `existing DIR update NETLIST.net` (#144).
 
 ## [0.11.0] - 2026-11-21
 
@@ -513,7 +515,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/heibench/boardwright/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/heibench/boardwright/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/heibench/boardwright/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/heibench/boardwright/compare/v0.8.6...v0.9.0
