@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-22
+
 ### Fixed
 - `REVIEW` `segments` overcounted the minimum on four kinds of net, seen on a
   real board where 19 of 53 nets came in under it: pads on one straight line
@@ -562,7 +564,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/heibench/boardwright/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/heibench/boardwright/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/heibench/boardwright/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/heibench/boardwright/compare/v0.11.0...v0.12.0
