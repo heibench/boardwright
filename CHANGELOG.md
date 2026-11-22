@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `REVIEW` `segments` overcounted the minimum on four kinds of net, seen on a
+  real board where 19 of 53 nets came in under it: pads on one straight line
+  now share a segment, a net or chain with an off-45° track is judged at one
+  segment per connection, and a poured net cannot be judged (named, it fails;
+  a pattern leaves it out). A route sharing a segment between connections, at
+  a T-junction or over a pad, can still come in under the minimum, and the
+  guide says so (#167).
+
 ## [0.14.0] - 2026-11-22
 
 ### Added

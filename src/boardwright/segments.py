@@ -16,13 +16,25 @@ The minimum is what an octilinear (0, 45, 90 degree) route needs:
   octilinear line, two otherwise, plus one per part on it (the part splits
   the run), plus one per via (a layer change starts a new run);
 - any other net: the same per connection of its pads (a minimum spanning tree
-  by distance), plus one per via.
+  by distance), where connections that continue each other in a straight line
+  through a pad share one segment, plus one per via.
+
+A net or chain whose own tracks include one off the octilinear grid (more than
+0.5 degrees from a multiple of 45) is routed at any angle, and needs only one
+segment per connection.
 
 Segments are counted after joining straight neighbours: two segments that meet
 end to end in the same direction, with nothing else there, are one run. A bend
 the route has to make round an obstacle counts as excess too, so the number
-compares two layouts of the same nets; it is not a verdict on its own. A named
-net with no track cannot be judged, and fails.
+compares two layouts of the same nets; it is not a verdict on its own.
+
+The minimum is a reference, not a lower bound: a route can share one segment
+between two connections where the tree through the pads does not (a
+T-junction, a via partway along a run, or a run that passes over a pad on the
+way), so excess can go below zero on such a net. The reference only ever
+errs high, so it hides excess rather than inventing it (#167). A poured net cannot be judged, since its pour joins
+pads that tracks otherwise would: named, it fails; matched by a pattern, it is
+left out. A named net with no track cannot be judged either, and fails.
 """
 
 from __future__ import annotations
@@ -36,6 +48,16 @@ TOL = 0.05          # mm: how far off an octilinear line a pair of pads may sit
 def _octilinear(a, b) -> int:
     dx, dy = abs(a[0] - b[0]), abs(a[1] - b[1])
     return 1 if dx < TOL or dy < TOL or abs(dx - dy) < TOL else 2
+
+
+def _any_angle(b, group) -> bool:
+    """Whether any of the group's tracks runs off the octilinear grid."""
+    for t in b.tracks:
+        if t.net in group and t.a != t.b:
+            ang = math.degrees(math.atan2(t.b[1] - t.a[1], t.b[0] - t.a[0])) % 45
+            if min(ang, 45 - ang) > 0.5:
+                return True
+    return False
 
 
 def runs(b, net: str) -> int:
@@ -99,17 +121,43 @@ def _chains(b) -> list[tuple[list, list[str], list[str]]]:
     return out
 
 
-def _tree_minimum(pts) -> int:
-    """Octilinear segments over a minimum spanning tree of the points."""
+def _tree_minimum(pts, any_angle: bool = False) -> int:
+    """Segments over a minimum spanning tree of the points: one per straight
+    connection (on the octilinear grid, or at any angle when any_angle), two
+    per other, where connections that continue each other in a straight line
+    through a point share one segment."""
+    pts = sorted(set(pts))
     if len(pts) < 2:
         return 0
-    inside, total = {0}, 0
+    inside, edges = {0}, []
     while len(inside) < len(pts):
         i, j = min(((i, j) for i in inside for j in range(len(pts)) if j not in inside),
                    key=lambda ij: math.dist(pts[ij[0]], pts[ij[1]]))
         inside.add(j)
-        total += _octilinear(pts[i], pts[j])
-    return total
+        edges.append((i, j))
+    straight = [any_angle or _octilinear(pts[i], pts[j]) == 1 for i, j in edges]
+    up = list(range(len(edges)))
+
+    def root(k):
+        while up[k] != k:
+            up[k] = up[up[k]]
+            k = up[k]
+        return k
+
+    def away(e, k):                                 # unit direction of edge e leaving point k
+        i, j = edges[e]
+        o = j if i == k else i
+        dx, dy = pts[o][0] - pts[k][0], pts[o][1] - pts[k][1]
+        n = math.hypot(dx, dy)
+        return dx / n, dy / n
+    for k in range(len(pts)):
+        at = [e for e, (i, j) in enumerate(edges) if k in (i, j) and straight[e]]
+        for x in range(len(at)):
+            for y in range(x + 1, len(at)):
+                (ux, uy), (vx, vy) = away(at[x], k), away(at[y], k)
+                if ux * vx + uy * vy < -0.9999:     # opposite ways out of k: one straight run through it
+                    up[root(at[x])] = root(at[y])
+    return len({root(e) for e, s in enumerate(straight) if s}) + 2 * straight.count(False)
 
 
 def segments_check(b, spec: dict) -> tuple[list[str], list[str]]:
@@ -118,14 +166,23 @@ def segments_check(b, spec: dict) -> tuple[list[str], list[str]]:
     lines, fails = [], []
     chains = _chains(b)
     known = {t.net for t in b.tracks} | {p.net for p in b.pads}
+    poured = {z.net for z in b.zones if not z.keepout and any(z.fills.values())}
     for nets, limit in spec.get("segments", []):
-        names = _expand(b, [nets] if isinstance(nets, str) else list(nets))
+        names = []
+        for n in [nets] if isinstance(nets, str) else list(nets):
+            if any(c in n for c in "*?["):          # a pattern leaves poured nets out
+                names += [x for x in _expand(b, [n]) if x not in poured]
+            else:
+                names.append(n)
         done = set()
         for net in names:
             if net in done:
                 continue
             if net not in known:
                 fails.append(f"segments {net}: no such net")
+                continue
+            if net in poured:
+                fails.append(f"segments {net}: cannot judge, it is poured")
                 continue
             chain = next((c for c in chains if net in c[2]), None)
             group = chain[2] if chain else [net]
@@ -135,12 +192,13 @@ def segments_check(b, spec: dict) -> tuple[list[str], list[str]]:
                 continue
             vias = sum(1 for v in b.vias if v.net in group)
             actual = sum(runs(b, n) for n in group)
+            free = _any_angle(b, group)
             if chain:
                 (a, z), parts = chain[0], chain[1]
-                least = _octilinear((a.x, a.y), (z.x, z.y)) + len(parts) + vias
+                least = (1 if free else _octilinear((a.x, a.y), (z.x, z.y))) + len(parts) + vias
                 what = f"{a.ref}.{a.num} -> {z.ref}.{z.num} through {', '.join(parts)} ({', '.join(group)})"
             else:
-                least = _tree_minimum([(p.x, p.y) for p in b.pads if p.net == net]) + vias
+                least = _tree_minimum([(p.x, p.y) for p in b.pads if p.net == net], free) + vias
                 what = net
             lines.append(f"segments {what}: {actual}, minimum {least} (excess <= {limit})")
             if actual - least > limit:

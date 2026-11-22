@@ -57,10 +57,11 @@ def test_naming_either_net_of_the_chain_judges_it_once(tmp_path):
 
 
 def test_a_dog_leg_is_excess(tmp_path):
-    """One straight segment replaced by three: two more than the route needs."""
-    lines, fails = _check(tmp_path, [("GPIO25", 7)], _path(A, (155, 105.4), (155.5, 105.9), B))
-    assert lines == ["segments U1.37 -> D2.2 through R9 (GPIO25, LED_25): 12, minimum 3 (excess <= 7)"]
-    assert fails == ["U1.37 -> D2.2 through R9 (GPIO25, LED_25) takes 12 segments where 3 would do, excess 9, limit 7"]
+    """One straight segment replaced by an octilinear dog-leg (out at 45 degrees,
+    along, back at 45 degrees): three more than the route needs."""
+    lines, fails = _check(tmp_path, [("GPIO25", 7)], _path(A, (155, 105.4), (155.5, 105.9), (159.2149, 105.9), B))
+    assert lines == ["segments U1.37 -> D2.2 through R9 (GPIO25, LED_25): 13, minimum 3 (excess <= 7)"]
+    assert fails == ["U1.37 -> D2.2 through R9 (GPIO25, LED_25) takes 13 segments where 3 would do, excess 10, limit 7"]
 
 
 def test_a_straight_run_split_in_two_is_one_run(tmp_path):
@@ -109,3 +110,33 @@ def test_review_runs_the_segments_check(tmp_path):
     pcb.write_text(RP.read_text())
     fails = review(pcb, SimpleNamespace(REVIEW={"segments": [("GPIO25", 0)]}))
     assert any(f.startswith("U1.37 -> D2.2 through R9") for f in fails)
+
+
+def test_pads_on_one_line_share_a_segment():
+    """A straight run through a middle pad serves both connections (#167)."""
+    from boardwright.segments import _tree_minimum
+    assert _tree_minimum([(0, 0), (2, 0), (5, 0)]) == 1
+    assert _tree_minimum([(0, 0), (2, 0), (2, 3)]) == 2        # a corner: two runs, not one
+    assert _tree_minimum([(0, 0), (2, 2), (4, 4), (4, 6)]) == 2
+
+
+def test_an_any_angle_route_needs_one_segment_per_connection():
+    from boardwright.segments import _tree_minimum
+    assert _tree_minimum([(0, 0), (1, 3)]) == 2
+    assert _tree_minimum([(0, 0), (1, 3)], any_angle=True) == 1
+
+
+def test_a_chain_routed_at_any_angle_is_judged_so(tmp_path):
+    """GPIO25's first segment replaced by one straight run off the 45 degree
+    grid: its chain counts as routed at any angle, and the minimum falls by one."""
+    lines = _check(tmp_path, [("GPIO25", 7)], _path(A, (155, 106.0), B))[0]
+    assert lines == ["segments U1.37 -> D2.2 through R9 (GPIO25, LED_25): 11, minimum 2 (excess <= 7)"]
+
+
+def test_a_poured_net_cannot_be_judged_and_a_pattern_leaves_it_out(tmp_path):
+    lines, fails = _check(tmp_path, [("GND", 0)])
+    assert fails == ["segments GND: cannot judge, it is poured"]
+    lines, fails = _check(tmp_path, [("*", 999)])
+    assert lines and not any(line.startswith("segments GND:") for line in lines)
+    assert not any("GND" in f.split(":")[0] for f in fails)
+
