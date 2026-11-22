@@ -99,6 +99,10 @@ Things to know before editing:
   draw those by hand, or pass `--force`.
   Zones are not refilled: refill before judging DRC.
 - `existing apply` is repeatable; running it twice adds nothing.
+- `existing apply` prints `STALE FILL` for new copper that lies in another
+  net's saved zone fill. The fill in the file overlaps it until the zones are
+  refilled and saved, and a DRC run with `--refill-zones` never sees that:
+  refill and save before committing.
 
 What boardwright does badly, so say so instead of trying: re-routing in dense
 areas, anything that needs existing tracks pushed aside, length-tuned pairs,

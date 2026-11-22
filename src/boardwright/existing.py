@@ -405,13 +405,62 @@ def apply(d: Path, force: bool = False) -> int:
         m.VIAS = list(getattr(m, "VIAS", [])) + rv
         print(f"routed {len(m.ROUTES)} connection(s): {len(rt)} track run(s), {len(rv)} via(s)")
     before = len(pcb.read_text())
+    b0 = Board(pcb)
     copper.apply(pcb, m, "pre")
     copper.apply(pcb, m, "post")
     text, n = dedupe(pcb.read_text())
     pcb.write_text(text)
     print(f"applied hand copper ({len(text) - before:+d} bytes; {n} exact duplicate(s) dropped, so apply is repeatable)")
+    stale = stale_fills(b0, Board(pcb))
+    for line in stale:
+        print("STALE FILL", line)
+    if stale:
+        print("  the zone fill saved in the file was computed without this copper and still overlaps it; a DRC run "
+              "with --refill-zones never sees that, and the file is committed with it. Refill the zones and save "
+              "before committing (in KiCad, or `kicad-cli pcb drc --refill-zones --save-board`)")
     write_preview(pcb, out_dir(d) / "preview.png")
     return 0
+
+
+def stale_fills(b0: Board, b1: Board) -> list[str]:
+    """New tracks and vias in b1 (not in b0) that lie inside another net's saved
+    fill. The fill on disk was computed without them, so it overlaps them until
+    the zones are refilled. On Slice_TEMP_NUCL_S4L-r1 a new ground via in a
+    +5VD pour passed every local DRC run with --refill-zones and failed the
+    project's CI DRC, which checked the fill as committed, on three heads
+    (#154). KiCad 10.0.8's own `kicad-cli pcb drc`, with or without
+    --refill-zones, reported nothing for a +3V3 via placed in stm32f103_4l's
+    GND fill, so this may be the only place the overlap shows."""
+    from shapely.geometry import LineString, Point, Polygon
+
+    def tkey(t):
+        return (t.layer, t.net, round(t.width, 4), tuple((round(x, 4), round(y, 4)) for x, y in t.pts))
+
+    def vkey(v):
+        return (round(v.x, 4), round(v.y, 4), v.net)
+    old_t, old_v = {tkey(t) for t in b0.tracks}, {vkey(v) for v in b0.vias}
+    fills = [(z.net, ly, Polygon(poly)) for z in b1.zones if not z.keepout
+             for ly, polys in z.fills.items() for poly in polys if len(poly) >= 3]
+    out = []
+    for t in b1.tracks:
+        if tkey(t) in old_t:
+            continue
+        g = LineString(t.pts).buffer(t.width / 2)
+        for net, ly, poly in fills:
+            if net != t.net and ly == t.layer and poly.intersects(g):
+                (x1, y1), (x2, y2) = t.a, t.b
+                out.append(f"{t.net} track ({x1:.2f}, {y1:.2f})-({x2:.2f}, {y2:.2f}) on {ly} lies in {net}'s fill")
+                break
+    cu = b1.layers
+    for v in b1.vias:
+        if vkey(v) in old_v:
+            continue
+        span = cu[cu.index(v.layers[0]):cu.index(v.layers[-1]) + 1] if all(ly in cu for ly in v.layers) else cu
+        g = Point(v.x, v.y).buffer(v.size / 2)
+        hit = sorted({f"{net} on {ly}" for net, ly, poly in fills if net != v.net and ly in span and poly.intersects(g)})
+        if hit:
+            out.append(f"{v.net} via at ({v.x:.2f}, {v.y:.2f}) lies in the fill of " + ", ".join(hit))
+    return out
 
 
 def _r(v: str) -> float:
