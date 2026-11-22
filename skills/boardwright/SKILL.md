@@ -193,6 +193,8 @@ or crystal net from a switch node, and `clear_under` (`(REF, mm)`) keeps other
 nets' tracks from under a crystal. `segments` (`(NETS, excess)`) counts the
 segments a net or a chain of series parts takes beyond the fewest it needs:
 a dog-leg out to a column of parts placed before routing shows there.
+`islands` (`[NETS]`) names a pour piece cut off from the rest of its net and
+where a via would join it, the cause behind a `starved_thermal` (T5).
 
 This placement guidance is adapted from kistack's layout-placement skill
 (https://github.com/BackplaneWorks/kistack, `skills/layout-placement/`),
