@@ -54,10 +54,10 @@ def islands(b, net: str, via: tuple[float, float] = (0.6, 0.3), clearance: float
                     pieces.append((ly, g if g.is_valid else g.buffer(0)))
     # (layers, shape, kind): pieces first, by index. What anchors a piece to the
     # rest of its net is copper touching it: a stitching via (KiCad connects
-    # same-net vias to a zone solid, without a relief) or a track running into
-    # it, and through them other copper; never another piece directly (two
-    # pieces that touched would be one fill), and never a pad, since a pad's
-    # spokes are what an island feeds, not what joins it.
+    # same-net vias to a zone solid, without a relief), a track running into
+    # it, or another zone's fill overlapping it, and through them other copper;
+    # never a pad, since a pad's spokes are what an island feeds, not what
+    # joins it.
     items = [({ly}, g, "fill") for ly, g in pieces]
     for t in b.tracks:
         if t.net == net:
@@ -74,17 +74,19 @@ def islands(b, net: str, via: tuple[float, float] = (0.6, 0.3), clearance: float
             i = up[i]
         return i
     tree = STRtree([g for _l, g, _k in items])
-    for i, (ls, g, kind) in enumerate(items):
+    for i, (ls, g, _kind) in enumerate(items):
         for j in tree.query(g):
             j = int(j)
             jl, jg, jk = items[j]
-            if j <= i or not ls & jl or (kind, jk) == ("fill", "fill"):
+            if j <= i or not ls & jl:
                 continue
             if g.distance(jg) <= 1e-6:
                 up[root(i)] = root(j)
     reach: dict[int, set] = {}
-    for i, (ls, _g, _k) in enumerate(items):
-        reach.setdefault(root(i), set()).update(ls)
+    for i, (ls, _g, kind) in enumerate(items):
+        # a via joins layers, but reaches only the copper it touches: a stitch
+        # via over no fill on the far side joins nothing there (#170)
+        reach.setdefault(root(i), set()).update(ls if kind != "via" else ())
     pads = [p for p in b.pads if p.net == net]
     out = []
     for i, (ly, g) in enumerate(pieces):
@@ -127,7 +129,11 @@ def islands_check(b, spec: dict) -> tuple[list[str], list[str]]:
         for f in found:
             where = f"{f['layer']} {f['bounds']}, {f['area']} mm2"
             if not f["pads"]:
-                fails.append(f"{net} island on {where} connects to nothing: dead copper")
+                if f["spot"] is None:
+                    via = "no room for a via: remove it"
+                else:
+                    via = f"a via at {f['spot']} joins it" + (f" to {f['plane']}" if f["plane"] else ", but no other layer has its fill there")
+                fails.append(f"{net} island on {where} connects to nothing: dead copper; {via}")
                 continue
             if f["spot"] is None:                  # a sliver: no via fits, and too small to matter
                 lines.append(f"  {net} sliver on {where} through {', '.join(f['pads'])}: no room for a via")

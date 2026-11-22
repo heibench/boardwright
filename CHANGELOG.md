@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `REVIEW` `islands` names a via spot for dead copper too, as it does for a
+  one-pad island. A via counted as reaching every layer it spans, so a stitch
+  via over no fill on the far side cleared an island it does not join; it now
+  reaches only copper it touches. Overlapping fills of the same net join
+  (#170).
+
 ## [0.14.1] - 2026-11-22
 
 ### Fixed
