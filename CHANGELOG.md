@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-22
+
+### Added
+- The agent skill ships a catalogue of layout techniques,
+  `skills/boardwright/techniques.md`: nine moves from reviewed field work on
+  public boards, each with the conditions it holds under and its commit
+  evidence, and `SKILL.md` gains the method behind them (#153).
+
 ### Changed
 - The agent skill follows its sources on decoupling: values from the part's
   datasheet, or where it is silent one 0.1 to 0.2 µF value per two power pins
@@ -15,12 +23,6 @@ the command line).
   before re-running a failed route, and two common rules the sources do not
   support as defaults: splitting the ground plane, and treating a 90° corner
   as an electrical defect below the GHz range (#128).
-
-### Added
-- The agent skill ships a catalogue of layout techniques,
-  `skills/boardwright/techniques.md`: nine moves from reviewed field work on
-  public boards, each with the conditions it holds under and its commit
-  evidence, and `SKILL.md` gains the method behind them (#153).
 
 ## [0.12.0] - 2026-11-21
 
@@ -530,7 +532,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/heibench/boardwright/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/heibench/boardwright/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/heibench/boardwright/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/heibench/boardwright/compare/v0.9.0...v0.10.0
