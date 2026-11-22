@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `REVIEW` `segments` (`(NETS, excess)`): track segments beyond the fewest an
+  octilinear route needs. A net through a series part (a two-pad part whose
+  nets each join two pads) is judged with its whole chain, pad to pad, plus one
+  segment per part and per via. On a field case, a column of series parts
+  placed before routing scored excess 3, 3 and 2 on three chains, and the same
+  parts placed on routes drawn first scored 0, 0 and 0, with identical DRC
+  results (#148).
+
 ### Fixed
 - `boardwright CMD --help` (or `-h`) prints CMD's usage and exits 64 for
   every command, before anything runs. `check`, `review`, `preview`, `pins`,
