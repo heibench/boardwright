@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Changed
+- The agent skill follows its sources on decoupling: values from the part's
+  datasheet, or where it is silent one 0.1 to 0.2 µF value per two power pins
+  plus bulk, not a ladder of small values (TI SPRABV2), replacing "the
+  smallest value closest". It adds a stock check on every part, re-placing
+  before re-running a failed route, and two common rules the sources do not
+  support as defaults: splitting the ground plane, and treating a 90° corner
+  as an electrical defect below the GHz range (#128).
+
 ### Added
 - The agent skill ships a catalogue of layout techniques,
   `skills/boardwright/techniques.md`: nine moves from reviewed field work on

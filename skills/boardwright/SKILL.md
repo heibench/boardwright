@@ -32,7 +32,10 @@ corner of the board outline, y down: what `pads` prints.
 
 1. **Read the vendor's reference** for every IC: the datasheet's typical
    application and layout section, or the hardware design guide. Write down
-   which values came from it and which you chose.
+   which values came from it and which you chose. **Check each part exists
+   and is in stock** at the distributor or assembler you mean to use, and cite
+   the page: agents lean toward old and unavailable parts, and one recent
+   board had parts rejected at order.
 2. **Look up pins and footprints** instead of guessing:
    `boardwright pins LIB:SYMBOL [LIB:FOOTPRINT]`.
 3. **Write `DIR/board.py`.** `NAME`, `W`, `H`; `CIRCUIT` with
@@ -146,8 +149,8 @@ reason and the vendor's reference.
 
 | Job | Placement |
 |---|---|
-| Decoupling capacitor | at its supply pin, supply pad toward the pin; usually the smallest value closest, unless the vendor orders them otherwise |
-| Bulk capacitor | near the pins it feeds, in line behind the small capacitor it backs |
+| Decoupling capacitor | at its supply pin, supply pad toward the pin. Values from the part's datasheet; where it is silent, one 0.1 to 0.2 µF value in the smallest package that can be made, about one per two power pins, plus bulk, not a ladder of small values, which can resonate at unpredictable frequencies (TI SPRABV2 §2, §2.1) |
+| Bulk capacitor | near the pins it feeds, in line behind the small capacitor it backs; where the datasheet is silent, about 15 µF or more per ten or so power pins (TI SPRABV2 §2) |
 | Switching regulator | the switching loop the datasheet names as small as possible; switch node short; output capacitor where the datasheet puts it |
 | Crystal | both pads close to their two pins, at nearly equal distance; nothing routed between |
 | RF matching (pi or T) | series parts in schematic order on one line from the RF pin to the port; each shunt's node pad on that line, turned across it with its ground pad away |
@@ -244,6 +247,28 @@ evidence. The spine:
   route or a reference off the board all passed DRC in the field.
 - **A passing DRC is not a reviewed layout.** Report what was looked at, and
   what was not.
+- **When routing fails, change the placement** before running the router
+  again. Earlier models rarely revised a placement that blocked routing and
+  left boards about 95% complete; in one recent head-to-head on a board, one
+  model spent over 30 iterations fixing autorouter output.
+
+Decide from a sourced rule, not from how the question was put: models have
+endorsed opposite decoupling schemes depending on the framing, and explained
+away a resistor error in review. Two common rules the sources do not support
+as defaults:
+
+- **Do not split the ground plane by default.** One plane, partitioned into
+  analog and digital areas with routing discipline, is preferred; a split is
+  kept for cases such as 20-bit or finer delta-sigma front ends, with any
+  crossing over a bridge (TI SLYT512). A signal crossing a split costs
+  reflections, ground bounce and EMI (Bogatin, Signal Integrity Journal, 2023).
+- **A 90° corner is not an electrical defect below the GHz range.** A 20 mil
+  trace's corner is transparent below about 25 GHz (Bogatin, Signal Integrity
+  Journal, 2021). Reviewers and house styles still mark corners and jogs, so
+  follow the board's style; acute angles are a different matter (etchant traps).
+
+Where these come from: heibench/research `topics/eda-agents/findings.md` and
+its grading capture.
 
 ## More
 
