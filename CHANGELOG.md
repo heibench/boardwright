@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- The agent skill ships a catalogue of layout techniques,
+  `skills/boardwright/techniques.md`: nine moves from reviewed field work on
+  public boards, each with the conditions it holds under and its commit
+  evidence, and `SKILL.md` gains the method behind them (#153).
+
 ## [0.12.0] - 2026-11-21
 
 ### Added
