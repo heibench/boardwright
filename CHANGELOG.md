@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-22
+
 ### Fixed
 - `REVIEW` `islands` names a via spot for dead copper too, as it does for a
   one-pad island. A via counted as reaching every layer it spans, so a stitch
@@ -571,7 +573,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.14.2...HEAD
+[0.14.2]: https://github.com/heibench/boardwright/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/heibench/boardwright/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/heibench/boardwright/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/heibench/boardwright/compare/v0.12.0...v0.13.0
