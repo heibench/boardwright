@@ -20,6 +20,7 @@ A board's board.py may declare
         "loop":     [("C3", "U1.24", 1.5)],              # decoupler C3 for U1.24: see loop_check
         "apart":    [("FB", ["SW"], 1.2)],               # quiet net(s) this far from noisy net(s): see apart_check
         "clear_under": [("Y1", 0.5)],                    # no other net's track or via under a part: see apart_check
+        "segments": [(["/ESTOP", "/INT"], 0)],           # segments beyond the fewest the route needs: see segments.py
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -457,6 +458,11 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += af
+    from .segments import segments_check
+    lines, sf = segments_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += sf
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])
