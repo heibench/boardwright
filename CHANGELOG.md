@@ -8,6 +8,12 @@ the command line).
 ## [Unreleased]
 
 ### Added
+- `REVIEW` `islands` (`[NETS]`): for a net poured on two or more layers, a
+  pour piece that no via or track joins to another layer and that reaches the
+  net through one pad at most is named, with its bounds and a spot inside it
+  where a via of the net fits, and whether another layer's fill lies under
+  it. A piece with no pad is dead copper; a sliver too small for a via is
+  only reported. It names the piece behind a `starved_thermal` (#150).
 - `REVIEW` `crossings` (`(NETS, limit)`), run by `place` and `verify`: airwire
   crossings involving the named nets, each net's pads joined by a minimum
   spanning tree with copper ignored, so the count is the placement's and reads
