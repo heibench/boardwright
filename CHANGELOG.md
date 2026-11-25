@@ -18,6 +18,11 @@ the command line).
   they are escaped as KiCad writes them now. `sch set Reference=` no longer
   drops a backslash from a part's own (reference ...): it was passed to
   `re.sub` as a template, so the property and the reference disagreed.
+- `existing update` matched a multi-unit part only when the board's footprint
+  was linked to its first unit. KiCad may link any unit (a TL072 on
+  feastorg/Slice_AQOR carries its second), and then the part was added again
+  beside the board and the original reported as not in the schematic. It is
+  matched by any of its units now.
 
 ## [0.16.0] - 2026-11-25
 
