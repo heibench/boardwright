@@ -21,6 +21,9 @@ the command line).
 - `REVIEW` `tidy` names a segment that runs over a pad of its net, starting
   and ending outside it, more than 0.05 mm from the pad's centre: what a
   merge of collinear segments leaves when it drops a pad-centre vertex (#138).
+- `sch parts --fields FIELDS` adds each part's properties whose names match
+  the shell pattern FIELDS to its line, as `Name="value"`: `--fields 'Sim.*'`
+  shows a simulation schematic's SPICE fields without reading the file.
 
 ## [0.15.0] - 2026-11-25
 

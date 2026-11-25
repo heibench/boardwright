@@ -1,6 +1,6 @@
 """Edit an existing KiCad schematic in place, a block at a time.
 
-    boardwright sch <project dir> parts [PATTERN]
+    boardwright sch <project dir> parts [PATTERN] [--fields FIELDS]
     boardwright sch <project dir> set REF Field=Value [Field=Value ...]
     boardwright sch <project dir> add SPEC.py
     boardwright sch <project dir> remove REF [REF ...]
@@ -134,7 +134,10 @@ def locked(sh: Sheet) -> bool:
     return (sh.path.parent / f"~{sh.path.name}.lck").exists()
 
 
-def parts(d: Path, pattern: str) -> int:
+def parts(d: Path, pattern: str = "*", fields: str | None = None) -> int:
+    """One line per part. With fields, a shell pattern such as "Sim.*", each of
+    the part's properties whose name matches follows, as Name="value" with the
+    value as the file holds it."""
     for sh in sheets(d):
         for s, e in sh.instances():
             b = sh.text[s:e]
@@ -145,7 +148,9 @@ def parts(d: Path, pattern: str) -> int:
                 if ref.startswith("#") or not fnmatch.fnmatch(ref, pattern):
                     continue
                 also = f"  same symbol as {', '.join(r for r in all_refs if r != ref)}" if len(all_refs) > 1 else ""
-                print(f"{ref:<8}{(prop(b, 'Value') or ''):<26}{(prop(b, 'Footprint') or ''):<44} {lib}  [{sh.path.name}]{flags}{also}")
+                extra = "".join(f'  {n}="{v}"' for n, v in re.findall(r'\(property "([^"]*)" "((?:[^"\\]|\\.)*)"', b)
+                                if fields and fnmatch.fnmatchcase(n, fields))
+                print(f"{ref:<8}{(prop(b, 'Value') or ''):<26}{(prop(b, 'Footprint') or ''):<44} {lib}  [{sh.path.name}]{flags}{also}{extra}")
     return 0
 
 
@@ -832,7 +837,18 @@ def cli(argv: list[str]) -> int:
         if len(args) != 2:
             raise Usage(__doc__)
         return repoint(d, args[0], args[1], mode)
-    return ({"parts": lambda: parts(d, rest[0] if rest else "*"),
+    if cmd == "parts":
+        args, fields = list(rest), None
+        if "--fields" in args:
+            i = args.index("--fields")
+            if i + 1 >= len(args):
+                raise Usage(__doc__)
+            fields = args[i + 1]
+            del args[i:i + 2]
+        if len(args) > 1:
+            raise Usage(__doc__)
+        return parts(d, args[0] if args else "*", fields)
+    return ({
               "set": lambda: set_fields(d, rest[0], rest[1:]),
               "remove": lambda: remove(d, rest),
               "add": lambda: add(d, rest[0])}[cmd]())

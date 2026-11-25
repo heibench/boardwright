@@ -22,6 +22,34 @@ def test_set_value_changes_only_that_property(ldo_copy):
     assert '"1k"' in diff[0] and '"4k7"' in diff[1]
 
 
+def test_parts_with_fields_adds_the_matching_properties(ldo_copy, capsys):
+    """For simulation schematics: the Sim.* fields, or any others, on the part's own line."""
+    sch.parts(ldo_copy, "R1")
+    plain = capsys.readouterr().out.rstrip("\n")
+    sch.parts(ldo_copy, "R1", "Data*")
+    assert capsys.readouterr().out.rstrip("\n") == plain + '  Datasheet="~"'
+    sch.parts(ldo_copy, "R1", "Sim.*")
+    assert capsys.readouterr().out.rstrip("\n") == plain
+
+
+def test_parts_fields_show_a_value_as_the_file_holds_it(ldo_copy, capsys):
+    sch.set_fields(ldo_copy, "R1", ['Value=a "b" c'])
+    capsys.readouterr()
+    sch.parts(ldo_copy, "R1", "Value")
+    assert capsys.readouterr().out.rstrip("\n").endswith('  Value="a \\"b\\" c"')
+
+
+def test_parts_fields_from_the_command_line(ldo_copy, capsys):
+    assert main(["sch", str(ldo_copy), "parts", "R1", "--fields", "Data*"]) == 0
+    assert capsys.readouterr().out.rstrip("\n").endswith('  Datasheet="~"')
+    assert main(["sch", str(ldo_copy), "parts"]) == 0
+    plain = capsys.readouterr().out.splitlines()
+    assert main(["sch", str(ldo_copy), "parts", "--fields", "Data*"]) == 0     # no PATTERN: every part
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == len(plain) and all(line.startswith(p) for line, p in zip(lines, plain))
+    assert main(["sch", str(ldo_copy), "parts", "R1", "--fields"]) == 64        # --fields needs a pattern
+
+
 def test_set_unknown_property_is_refused(ldo_copy):
     with pytest.raises(SystemExit, match="no property"):
         sch.set_fields(ldo_copy, "R1", ["Colour=blue"])
