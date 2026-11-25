@@ -32,7 +32,9 @@ the command line).
   as `U1: Sim.Library -> LM317-N.LIB`, and rewrote the file unchanged. It
   now says `U1: Sim.Library unchanged (already LM317-N.LIB)` and writes
   nothing when no pair changes, so a script running many edits can tell
-  which landed.
+  which landed. Nothing is reported until every pair is accepted, so a
+  refused pair no longer leaves an earlier `->` line for an edit that was
+  never written.
 
 ## [0.15.0] - 2026-11-25
 
