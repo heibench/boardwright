@@ -47,7 +47,32 @@ def test_parts_fields_from_the_command_line(ldo_copy, capsys):
     assert main(["sch", str(ldo_copy), "parts", "--fields", "Data*"]) == 0     # no PATTERN: every part
     lines = capsys.readouterr().out.splitlines()
     assert len(lines) == len(plain) and all(line.startswith(p) for line, p in zip(lines, plain))
-    assert main(["sch", str(ldo_copy), "parts", "R1", "--fields"]) == 64        # --fields needs a pattern
+    assert sum('Datasheet="' in line for line in lines) >= 2                    # the fields are there
+    assert main(["sch", str(ldo_copy), "parts", "--fields=Data*"]) == 0
+    assert capsys.readouterr().out.splitlines() == lines
+
+
+def test_parts_refuses_what_it_cannot_honour(ldo_copy, capsys):
+    for args in (["R1", "--fields"], ["R1", "--fields", ""], ["R1", "D1"], ["R1", "--field", "Data*"], ["--verbose"]):
+        assert main(["sch", str(ldo_copy), "parts", *args]) == 64, args
+
+
+def test_parts_fields_match_names_with_case(ldo_copy, capsys):
+    sch.parts(ldo_copy, "R1", "data*")
+    assert "Datasheet" not in capsys.readouterr().out
+
+
+def test_parts_fields_show_each_uses_own_reference(ldo_copy, capsys):
+    """On a sheet used twice the shared Reference property holds one use's name."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    t = f.read_text()
+    a = '(reference "R1") (unit 1)\n\t\t\t\t)'
+    assert t.count(a) == 1
+    f.write_text(t.replace(a, a + '\n\t\t\t\t(path "/aaaa" (reference "R9") (unit 1)\n\t\t\t\t)'))
+    sch.parts(ldo_copy, "R[19]", "Ref*")
+    lines = capsys.readouterr().out.splitlines()
+    assert [line.split()[0] for line in lines] == ["R1", "R9"]
+    assert lines[0].endswith('Reference="R1"') and lines[1].endswith('Reference="R9"')
 
 
 def test_set_unknown_property_is_refused(ldo_copy):

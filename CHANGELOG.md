@@ -24,6 +24,8 @@ the command line).
 - `sch parts --fields FIELDS` adds each part's properties whose names match
   the shell pattern FIELDS to its line, as `Name="value"`: `--fields 'Sim.*'`
   shows a simulation schematic's SPICE fields without reading the file.
+  `--fields=FIELDS` works too. `parts` now refuses (exit 64) a second
+  PATTERN or an unknown option, which it used to ignore.
 
 ## [0.15.0] - 2026-11-25
 
