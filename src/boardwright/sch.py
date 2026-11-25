@@ -19,7 +19,8 @@ value as the file holds it, except Reference, which is the line's own part
 on a sheet used more than once: `--fields 'Sim.*'` shows the SPICE fields.
 
 `set` changes properties (Value, Footprint, any other the part already has)
-and the flags dnp, in_bom, on_board (yes/no).
+and the flags dnp, in_bom, on_board (yes/no). A pair that is already so is
+reported as unchanged, and a `set` that changes nothing writes nothing.
 
 `add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...] and an
 optional SHEET = "file.kicad_sch" (default: the root sheet). `like` is
@@ -168,11 +169,14 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
     others = shared_with(b, ref)
     if others:
         print(f"note: {ref} is one use of a symbol on a sheet that is used more than once; this also changes {', '.join(others)}")
+    start = b
     for pair in pairs:
         name, _, val = pair.partition("=")
         if name in ("dnp", "in_bom", "on_board"):
             if val not in ("yes", "no"):
                 raise Usage(f"{name} takes yes or no")
+            m = re.search(r"\(%s (yes|no)\)" % name, b)
+            old = m.group(1) if m else None
             nb, n = re.subn(r"\(%s (?:yes|no)\)" % name, f"({name} {val})", b, count=1)
         else:
             old = prop(b, name)
@@ -188,8 +192,11 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
                     nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{esc}")', nb)
         if n != 1:
             raise SystemExit(f"could not set {name} on {ref}")
-        print(f"{ref}: {name} -> {val}")
+        # a script running many edits has to tell the ones that landed from the ones already in place
+        print(f"{ref}: {name} unchanged (already {old})" if nb == b else f"{ref}: {name} -> {val}")
         b = nb
+    if b == start:
+        return 0
     sh.write(sh.text[:s] + b + sh.text[e:])
     if locked(sh):
         print(f"note: {sh.path.name} is open in KiCad; close and reopen it to see the change")

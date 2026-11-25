@@ -74,6 +74,22 @@ def test_parts_fields_show_each_uses_own_reference(ldo_copy, capsys):
     lines = capsys.readouterr().out.splitlines()
     assert [line.split()[0] for line in lines] == ["R1", "R9"]
     assert lines[0].endswith('Reference="R1"') and lines[1].endswith('Reference="R9"')
+def test_set_to_the_value_already_there_says_unchanged_and_writes_nothing(ldo_copy, capsys):
+    """R1's Value is already 1k: a bulk-edit script must be able to tell this
+    from an edit that landed, and the file is not written at all."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before, mtime = f.read_text(), f.stat().st_mtime_ns
+    assert sch.set_fields(ldo_copy, "R1", ["Value=1k", "dnp=no"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: Value unchanged (already 1k)", "R1: dnp unchanged (already no)"]
+    assert f.read_text() == before and f.stat().st_mtime_ns == mtime
+
+
+def test_set_reports_each_pair_for_what_it_did(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    assert sch.set_fields(ldo_copy, "R1", ["Value=1k", "Value=4k7"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: Value unchanged (already 1k)", "R1: Value -> 4k7"]
+    assert len(changed_lines(before, f.read_text())) == 2
 
 
 def test_set_unknown_property_is_refused(ldo_copy):
