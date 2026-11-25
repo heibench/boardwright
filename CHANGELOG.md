@@ -13,6 +13,10 @@ the command line).
   ends, dangling ends, ends off a pad's centre or short of the pad, and ends
   on another track's body. Its thresholds were set against square-by-square
   reviews of three routed boards (#138).
+- `REVIEW` `bends` (`(NETS, FAIL)`): reports each bend with its place and
+  angle as acute (under 90°), square (90°) or off-45 (any angle but 135°),
+  and fails the kinds listed. On the reviewed boards it names 7 of the 8
+  square corners the reviews logged (#138).
 
 ## [0.14.2] - 2026-11-22
 
