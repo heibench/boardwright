@@ -163,6 +163,25 @@ def test_on_a_sheet_used_twice_a_use_keeps_its_own_name(ldo_copy, capsys):
         "R5: Value -> 2k"]
 
 
+def test_a_pair_with_no_equals_is_refused_and_nothing_written(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    assert main(["sch", str(ldo_copy), "set", "R1", "Value=4k7", "Value"]) == 64
+    assert "'Value' has no '=': write Value=VALUE, or Value= to empty it" in capsys.readouterr().err
+    assert main(["sch", str(ldo_copy), "set", "R1", "dnp"]) == 64
+    assert "'dnp' has no '=': write dnp=yes or dnp=no" in capsys.readouterr().err
+    assert main(["sch", str(ldo_copy), "set", "R1", "Colour"]) == 64              # no such property: say so
+    assert "R1 has no property 'Colour'" in capsys.readouterr().err
+    assert f.read_text() == before
+
+
+def test_an_explicit_empty_value_still_empties_the_field(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    assert sch.set_fields(ldo_copy, "R1", ["Value="]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: Value -> "]
+    assert '(property "Value" ""' in f.read_text()
+
+
 def test_set_unknown_property_is_refused(ldo_copy):
     with pytest.raises(SystemExit, match="no property"):
         sch.set_fields(ldo_copy, "R1", ["Colour=blue"])
