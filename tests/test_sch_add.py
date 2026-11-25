@@ -149,6 +149,17 @@ def test_a_net_or_reference_with_a_quote_is_written_escaped(proj, tmp_path):
     _tree(after)
 
 
+def test_a_net_or_reference_with_a_backslash_is_written_escaped(proj, tmp_path):
+    """A backslash survives too: a regex replacement template would have eaten it."""
+    from boardwright.model import _tree
+    f = proj / SCH
+    row = ("R5\\9", "R1", "4.7k", "Resistor_SMD:R_0805_2012Metric", {1: "VIN", 2: "N\\1"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+    after = f.read_text()
+    assert '(global_label "N\\\\1"' in after and '(reference "R5\\\\9")' in after
+    _tree(after)
+
+
 VCC = ('\n\t(symbol\n\t\t(lib_id "power:+3V3")\n\t\t(at 100 100 {r})\n\t\t(unit 1)\n'
        '\t\t(property "Value" "+3V3"\n\t\t\t(at 100 {vy} 0)\n\t\t)\n\t)')
 

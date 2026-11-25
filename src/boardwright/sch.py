@@ -196,13 +196,13 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
             old = re.sub(r"\\(.)", r"\1", old)          # as it was typed, not as the file escapes it
             if name == "Reference" and others:
                 old = ref                                 # this use's own name, not the property all uses share
-            esc = val.replace("\\", "\\\\").replace('"', '\\"')
+            esc = _esc(val)
             nb, n = re.subn(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % re.escape(name), lambda m: f'{m.group(1)}"{esc}"', b, count=1)
             if name == "Reference":
                 if others:                       # rename this use only; the property belongs to all of them
-                    nb, n = re.subn(r'\(reference "%s"\)' % re.escape(ref), f'(reference "{esc}")', b, count=1)
+                    nb, n = re.subn(r'\(reference "%s"\)' % re.escape(ref), lambda m: f'(reference "{esc}")', b, count=1)
                 else:
-                    nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{esc}")', nb)
+                    nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', lambda m: f'(reference "{esc}")', nb)
         if n != 1:
             raise SystemExit(f"could not set {name} on {ref}")
         report.append((nb == b, f"{ref}: {name} unchanged (already {old})" if nb == b else f"{ref}: {name} -> {val}"))
@@ -596,7 +596,7 @@ def add(d: Path, spec_path: str) -> int:
         if path:
             b = _set_path(b, path)
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
-            esc = val.replace("\\", "\\\\").replace('"', '\\"')
+            esc = _esc(val)
             b = re.sub(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda mm: f'{mm.group(1)}"{esc}"', b, count=1)
         b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', lambda mm: f'(reference "{_esc(ref)}")', b)
         new.append(b)

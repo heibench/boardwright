@@ -15,7 +15,9 @@ the command line).
   `existing apply`, which share it (#190).
 - `sch add` wrote a new part's reference and its nets' label names without
   escaping a quote or backslash in them, leaving a sheet KiCad cannot read;
-  they are escaped as KiCad writes them now.
+  they are escaped as KiCad writes them now. `sch set Reference=` no longer
+  drops a backslash from a part's own (reference ...): it was passed to
+  `re.sub` as a template, so the property and the reference disagreed.
 
 ## [0.16.0] - 2026-11-25
 

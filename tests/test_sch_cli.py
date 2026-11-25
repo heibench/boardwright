@@ -182,6 +182,21 @@ def test_an_explicit_empty_value_still_empties_the_field(ldo_copy, capsys):
     assert '(property "Value" ""' in f.read_text()
 
 
+def test_a_reference_with_a_backslash_is_set_alike_in_both_places(ldo_copy):
+    """The property and the instance's (reference ...) both hold R\\1."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    assert sch.set_fields(ldo_copy, "R1", ["Reference=R\\1"]) == 0
+    text = f.read_text()
+    assert '(property "Reference" "R\\\\1"' in text and '(reference "R\\\\1")' in text
+
+
+def test_one_use_of_a_shared_symbol_takes_a_backslash_reference(ldo_copy):
+    f = _two_uses(ldo_copy)
+    assert sch.set_fields(ldo_copy, "R5", ["Reference=R\\7"]) == 0
+    text = f.read_text()
+    assert '(reference "R\\\\7")' in text and '(reference "R1")' in text
+
+
 def test_set_unknown_property_is_refused(ldo_copy):
     with pytest.raises(SystemExit, match="no property"):
         sch.set_fields(ldo_copy, "R1", ["Colour=blue"])

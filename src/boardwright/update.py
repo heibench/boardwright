@@ -46,9 +46,7 @@ from .copper import blocks
 from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
 
-
-def _esc(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+_esc = sch._esc
 
 
 def _str(block: str, key: str) -> str | None:
