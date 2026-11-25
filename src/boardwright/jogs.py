@@ -26,7 +26,7 @@ this names 30 of them in the same or a neighbouring square, on the same net;
 the end jogs also name 29 of the 35 micro-segment findings, which were mostly
 steps of 0.06 to 0.3 mm into a pad. At 0.5 mm it names 17 of the 33 jogs, and
 at 1.5 mm no more than at 1.0. An END of 0.5 mm names one more jog and two
-more micro-segment findings, for 373 flags in all against 275.
+more micro-segment findings, for 405 flags in all against 291.
 
 A step at a pad or via counts as an end jog only; arcs are not checked.
 """
@@ -36,13 +36,13 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 
+from .tidy import _at, _centres, _Points  # one point for ends within SAME; pad or via centres by distance
+
 SAME = 0.001        # mm: segment ends closer than this meet (as in tidy.py)
 END = 0.2           # mm: an end jog is a run that misses its pad's or via's centre by less than this (#138)
 PARALLEL = 0.9999   # cosine: runs this close to parallel, or a step this close to along a run (as tidy.py's split)
 
 
-def _k(p):
-    return (round(p[0] / SAME), round(p[1] / SAME))
 
 
 def _unit(a, b):
@@ -53,11 +53,12 @@ def _unit(a, b):
 def jogs(b, nets: set[str], mm: float) -> list[tuple]:
     """(kind, net, layer, x, y, step, offset) for every jog shorter than mm on the named nets."""
     segs = [t for t in b.tracks if t.net in nets and len(t.pts) == 2 and t.length >= SAME]
+    _k = _Points(q for t in segs for q in (t.a, t.b))
     at = defaultdict(list)
     for t in segs:
         at[(t.net, t.layer, _k(t.a))].append(t)
         at[(t.net, t.layer, _k(t.b))].append(t)
-    stops = {(p.net, _k((p.x, p.y))) for p in b.pads} | {(v.net, _k((v.x, v.y))) for v in b.vias}
+    stops = _centres(b, nets)
 
     def run(s, q):
         """The one other segment meeting s at q, and its far end; None at a junction or an open end."""
@@ -80,7 +81,7 @@ def jogs(b, nets: set[str], mm: float) -> list[tuple]:
                 out.append(("jog", s.net, s.layer, (s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, s.length, off))
             continue
         for q, other, r in ((s.a, s.b, rb), (s.b, s.a, ra)):
-            if r is None or (s.net, _k(q)) not in stops or (s.net, _k(other)) in stops:
+            if r is None or not _at(stops, s.net, q) or _at(stops, s.net, other):
                 continue
             ut, us = _unit(r[1], other), _unit(other, q)
             if abs(us[0] * ut[0] + us[1] * ut[1]) >= PARALLEL:

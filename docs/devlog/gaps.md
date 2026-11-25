@@ -16,8 +16,13 @@
   its job/API mode and the Topola router.
 - **Routed boards keep Freerouting's debris.** `REVIEW` `tidy` names it, but
   nothing removes it: on the example boards, 17 to 31 segments under 0.05 mm
-  and 11 to 18 collinear splits each (`tidy` over `*` on esp32c3_min,
+  and 11 to 15 collinear splits each (`tidy` over `*` on esp32c3_min,
   rp2040_min and stm32f103_min) (#174).
+- **Track ends within 0.001 mm are one point only when the first of them seen
+  is within 0.001 mm of the rest.** The review keys gather ends by distance
+  (`tidy._Points`), so no grid edge splits two ends a hair apart, but a row of
+  ends each within 0.001 mm of the next stays several points rather than one,
+  and which ones depends on the other ends nearby (#189).
 - **Schematic editing is narrow.** `boardwright.sch` changes fields, removes
   parts and adds a part, copied from one on the sheet or taken from a library
   (single-unit only), on the root or a sheet used once, connected by label or

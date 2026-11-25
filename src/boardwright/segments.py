@@ -63,24 +63,28 @@ def _any_angle(b, group) -> bool:
 def runs(b, net: str) -> int:
     """The net's track segments, counting straight neighbours that meet end to
     end with nothing else there as one."""
-    segs = [(round(t.a[0], 3), round(t.a[1], 3), round(t.b[0], 3), round(t.b[1], 3), t.layer)
-            for t in b.tracks if t.net == net and t.a != t.b]
-    stops = {(round(v.x, 3), round(v.y, 3)) for v in b.vias if v.net == net}
-    stops |= {(round(p.x, 3), round(p.y, 3)) for p in b.pads if p.net == net}
-    at = defaultdict(list)
-    for s in segs:
+    from .tidy import _at, _centres, _Points  # one point for ends within SAME; pad or via centres by distance
+
+    ts = [t for t in b.tracks if t.net == net and t.a != t.b]
+    _k = _Points(q for t in ts for q in (t.a, t.b))
+    segs = [(*_k(t.a), *_k(t.b), t.layer) for t in ts]
+    stops = _centres(b, {net})
+    at, ends = defaultdict(list), defaultdict(list)
+    for t, s in zip(ts, segs):
         at[(s[0], s[1], s[4])].append(s)
         at[(s[2], s[3], s[4])].append(s)
+        ends[(s[0], s[1], s[4])].append(t.a)
+        ends[(s[2], s[3], s[4])].append(t.b)
 
     def direction(s):
         dx, dy = s[2] - s[0], s[3] - s[1]
         n = math.hypot(dx, dy)
-        return dx / n, dy / n
+        return (dx / n, dy / n) if n else None              # both ends one point: no direction
     joins = 0
-    for (x, y, _layer), ss in at.items():
-        if len(ss) == 2 and (x, y) not in stops:
-            (ux, uy), (vx, vy) = direction(ss[0]), direction(ss[1])
-            if abs(abs(ux * vx + uy * vy) - 1) < 1e-3:
+    for key, ss in at.items():
+        if len(ss) == 2 and not any(_at(stops, net, q) for q in ends[key]):
+            u, v = direction(ss[0]), direction(ss[1])
+            if u and v and abs(abs(u[0] * v[0] + u[1] * v[1]) - 1) < 1e-3:
                 joins += 1
     return len(segs) - joins
 
