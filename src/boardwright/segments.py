@@ -63,12 +63,12 @@ def _any_angle(b, group) -> bool:
 def runs(b, net: str) -> int:
     """The net's track segments, counting straight neighbours that meet end to
     end with nothing else there as one."""
-    def r(v):                       # snapped to the file's nanometres first, so float noise cannot cross a rounding half
-        return round(round(v, 6), 3)
-    segs = [(r(t.a[0]), r(t.a[1]), r(t.b[0]), r(t.b[1]), t.layer)
-            for t in b.tracks if t.net == net and t.a != t.b]
-    stops = {(r(v.x), r(v.y)) for v in b.vias if v.net == net}
-    stops |= {(r(p.x), r(p.y)) for p in b.pads if p.net == net}
+    from .tidy import _at, _centres, _Points  # one point for ends within SAME; pad or via centres by distance
+
+    ts = [t for t in b.tracks if t.net == net and t.a != t.b]
+    _k = _Points(q for t in ts for q in (t.a, t.b))
+    segs = [(*_k(t.a), *_k(t.b), t.layer) for t in ts]
+    stops = _centres(b, {net})
     at = defaultdict(list)
     for s in segs:
         at[(s[0], s[1], s[4])].append(s)
@@ -80,7 +80,7 @@ def runs(b, net: str) -> int:
         return dx / n, dy / n
     joins = 0
     for (x, y, _layer), ss in at.items():
-        if len(ss) == 2 and (x, y) not in stops:
+        if len(ss) == 2 and not _at(stops, net, (x / 1e6, y / 1e6)):
             (ux, uy), (vx, vy) = direction(ss[0]), direction(ss[1])
             if abs(abs(ux * vx + uy * vy) - 1) < 1e-3:
                 joins += 1

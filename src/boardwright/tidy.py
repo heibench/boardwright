@@ -49,16 +49,56 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 
-SAME = 0.001        # mm: ends closer than this are one point (boardwright rounds to 3 places)
+SAME = 0.001        # mm: points closer than this are one point
 MICRO = 0.05        # mm: a shorter segment is debris (#138)
 NEAR = 0.05         # mm: ends closer than this but not SAME should have been one point (#138)
 OFF = 0.05          # mm: a track end farther than this from its pad's centre is off it
 LINE = 0.02         # mm: how far off a segment's line another may sit and still lie over it
 
 
-def _k(p):
-    # snapped to the file's nanometres first: float noise must not split one point across a cell edge
-    return (round(round(p[0], 6) / SAME), round(round(p[1], 6) / SAME))
+class _Points:
+    """Track ends that are one point: those closer than SAME. A grid key splits two
+    such ends when a cell edge falls between them, and float noise in the model's
+    coordinates puts them on either side of one (feastorg/Slice_AQEC: a pad at y
+    34.0625, its track end at 34.062500000000014). So each point joins the first
+    point seen within SAME of it, found through the neighbouring cells, and is
+    keyed by that one. Only the first point gathers others, so a row of ends
+    each within SAME of the next does not chain into one point."""
+
+    def __init__(self, pts):
+        cells, self.rep = defaultdict(list), {}             # cell -> the first points found in it
+        for p in sorted({self._nm(q) for q in pts}):
+            cx, cy = p[0] // 1000, p[1] // 1000
+            near = [r for dx in (-1, 0, 1) for dy in (-1, 0, 1) for r in cells[(cx + dx, cy + dy)]
+                    if math.dist(p, r) < SAME * 1e6]
+            self.rep[p] = near[0] if near else p
+            if not near:
+                cells[(cx, cy)].append(p)
+
+    @staticmethod
+    def _nm(p):
+        return (round(p[0] * 1e6), round(p[1] * 1e6))
+
+    def __call__(self, p):
+        return self.rep[self._nm(p)]
+
+
+def _centres(b, nets) -> dict:
+    """net -> the centres of its pads and vias."""
+    out = defaultdict(list)
+    for p in b.pads:
+        if p.net in nets:
+            out[p.net].append((p.x, p.y))
+    for v in b.vias:
+        if v.net in nets:
+            out[v.net].append((v.x, v.y))
+    return out
+
+
+def _at(centres: dict, net: str, q) -> bool:
+    """Whether q is at a pad or via centre of net: within SAME, by distance, so a
+    pad centre the model rounds to 0.1 um still holds the track ends on it."""
+    return any(math.dist(q, c) < SAME for c in centres.get(net, ()))
 
 
 def _unit(a, b):
@@ -75,6 +115,7 @@ def findings(b, nets: set[str]) -> list[tuple[str, str, str, float, float, str]]
     out = []
     tracks = [t for t in b.tracks if t.net in nets]
     segs = [t for t in tracks if len(t.pts) == 2]
+    _k = _Points(q for t in tracks for q in (t.a, t.b))
     pads, vias = defaultdict(list), defaultdict(list)
     for p in b.pads:
         if p.net in nets:
@@ -82,8 +123,7 @@ def findings(b, nets: set[str]) -> list[tuple[str, str, str, float, float, str]]
     for v in b.vias:
         if v.net in nets:
             vias[v.net].append(v)
-    stops = {(n, _k((p.x, p.y))) for n, ps in pads.items() for p in ps}
-    stops |= {(n, _k((v.x, v.y))) for n, vs in vias.items() for v in vs}
+    stops = _centres(b, nets)
 
     for t in segs:
         if t.length < MICRO:
@@ -95,8 +135,8 @@ def findings(b, nets: set[str]) -> list[tuple[str, str, str, float, float, str]]
             by[(t.net, t.layer)].append(t)
             for q in (t.a, t.b):
                 joint[(t.net, t.layer, _k(q))].append((t, q))
-    for (net, layer, k), tq in joint.items():
-        if len(tq) == 2 and (net, k) not in stops:
+    for (net, layer, _key), tq in joint.items():
+        if len(tq) == 2 and not _at(stops, net, tq[0][1]):
             (t1, q), (t2, _q) = tq
             u, v = _unit(t1.a, t1.b), _unit(t2.a, t2.b)
             if abs(abs(u[0] * v[0] + u[1] * v[1]) - 1) < 1e-4 and t1.width == t2.width:

@@ -40,11 +40,12 @@ the command line).
   empties the field (#186).
 
 - `REVIEW` `tidy`, `bends`, `jogs` and `segments` could take a track end on
-  a pad centre, or two segment ends at one point, as different points when
-  float noise in the board's coordinates fell either side of a rounding half
-  (feastorg/Slice_AQEC: R2.2 at y 34.0625, its track end at
-  34.062500000000014). `tidy` then called a run stopping at the pad centre a
-  split. Points are snapped to the board file's nanometres first.
+  a pad centre, or two track ends 0.001 mm apart or less, as different points
+  when a grid cell edge fell between them (feastorg/Slice_AQEC: R2.2 at y
+  34.0625, its track end at 34.062500000000014). `tidy` then called a run
+  stopping at the pad centre a split. Track ends within 0.001 mm are now
+  joined by distance, without a grid, and a track end is at a pad or via when
+  within 0.001 mm of its centre.
 
 ## [0.15.0] - 2026-11-25
 

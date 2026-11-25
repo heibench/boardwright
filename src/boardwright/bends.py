@@ -66,10 +66,9 @@ def bends(b, nets: set[str]) -> list[tuple[str, float, str, str, float, float]]:
     from shapely.geometry import Point
 
     from .route import pad_shape
-    from .tidy import MICRO
+    from .tidy import MICRO, _Points
 
-    def key(p):                     # snapped to the file's nanometres first, as tidy._k
-        return (round(round(p[0], 6) / SAME), round(round(p[1], 6) / SAME))
+    key = _Points(q for t in b.tracks if t.net in nets for q in (t.a, t.b))   # one point for ends within SAME
     at = defaultdict(list)
     arcs = set()
     for t in b.tracks:
