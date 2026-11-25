@@ -109,6 +109,29 @@ def test_a_track_ending_on_another_tracks_body_is_named(tmp_path):
     assert f"on-track on GPIO25 F.Cu at {_at(155, 105.4)}: ends on the body of another track, not at its end" in fails
 
 
+def test_a_segment_running_over_its_pad_off_centre_is_named(tmp_path):
+    """GPIO25 re-laid 0.07 mm north of U1.37's centre, starting west of the pad
+    and ending east of it: it crosses the pad with no vertex at its centre."""
+    fails = _check(tmp_path, _edit(((151.4, 105.47), (152.6, 105.47)), ((152.6, 105.47), B)))[1]
+    assert f"crosses on GPIO25 F.Cu at {_at(151.9375, 105.47)}: runs over U1.37 0.070 mm from its centre, with no vertex there" in fails
+
+
+def test_a_straight_run_through_its_pad_centre_is_not_named(tmp_path):
+    fails = _check(tmp_path, _edit(((151.4, 105.4), (152.6, 105.4)), ((152.6, 105.4), B)))[1]
+    assert not any(f.startswith("crosses") for f in fails)
+
+
+def test_a_segment_under_a_pad_on_another_layer_is_not_named(tmp_path):
+    """The same off-centre run on B.Cu passes under U1.37, an F.Cu pad: no crossing."""
+    seg = _seg((151.4, 105.47), (152.6, 105.47), 9).replace('(layer "F.Cu")', '(layer "B.Cu")')
+
+    def edit(t):
+        end = t.rstrip().rfind(")")
+        return t[:end] + seg + t[end:]
+    fails = _check(tmp_path, edit)[1]
+    assert not any(f.startswith("crosses") for f in fails)
+
+
 def test_an_unknown_net_fails(tmp_path):
     assert _check(tmp_path, nets=("NOPE",))[1] == ["tidy NOPE: no such net"]
 
