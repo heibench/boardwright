@@ -17,6 +17,13 @@ Each finding names its place. On each named net and copper layer:
 - short-of-pad: a track end outside the pad it serves, joined to it only by
   the track's own width overlapping the pad.
 - on-track: a track end on the body of another track of its net, not at an end.
+- crosses: a segment that runs over a pad of its net, starting and ending
+  outside it, with its line more than OFF from the pad's centre. The copper
+  joins them, so DRC passes it, but the route was meant to stop at the pad. A
+  straight run through the centre is not named: one segment serving pads on
+  its line is a fair route. A merge of collinear segments that dropped a
+  pad-centre vertex leaves this (feastorg/Slice_FPSG dd208b7, a GNDD bar
+  0.513 mm from C1.1's centre, gone in 802a2d8).
 
 These are what DRC cannot see because the copper is legal. The thresholds come
 from square-by-square reviews of three routed boards (#138): every 10 mm square
@@ -118,6 +125,20 @@ def findings(b, nets: set[str]) -> list[tuple[str, str, str, float, float, str]]
                 own = any(id(t) in ti and id(t) in tj and len(t.pts) == 2 for t in tracks)
                 if SAME <= d < NEAR and not own:
                     out.append(("near-miss", net, layer, *p, f"two track ends {d:.3f} mm apart"))
+
+    for t in segs:
+        line = LineString(t.pts)
+        for p in pads[t.net]:
+            if not p.on(t.layer):
+                continue
+            sh = pad_shape(p).buffer(1e-4)
+            if not line.intersects(sh) or sh.contains(Point(t.a)) or sh.contains(Point(t.b)):
+                continue
+            c = Point(p.x, p.y)
+            if (d := line.distance(c)) > OFF:
+                q = line.interpolate(line.project(c))
+                out.append(("crosses", t.net, t.layer, q.x, q.y,
+                            f"runs over {p.ref}.{p.num} {d:.3f} mm from its centre, with no vertex there"))
 
     degree = defaultdict(int)
     for t in tracks:

@@ -18,6 +18,9 @@ the command line).
   its line misses by under 0.2 mm, with the step and the offset. On five
   square-reviewed board passes, at 1.0 mm, it names 30 of the 33 jogs logged
   (#138).
+- `REVIEW` `tidy` names a segment that runs over a pad of its net, starting
+  and ending outside it, more than 0.05 mm from the pad's centre: what a
+  merge of collinear segments leaves when it drops a pad-centre vertex (#138).
 
 ## [0.15.0] - 2026-11-25
 
