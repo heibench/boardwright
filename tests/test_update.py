@@ -50,8 +50,8 @@ def test_the_netlist_keeps_net_names_as_the_board_writes_them(tmp_path):
     f = tmp_path / "n.net"
     f.write_text(NETLIST)
     comps, pins = update.read_netlist(f)
-    # a multi-unit symbol lists one uuid per unit; the board links the first
-    assert list(comps) == ["/aaaa/u1"]
+    # a multi-unit symbol lists one uuid per unit: keyed by the first, matched by any
+    assert list(comps) == ["/aaaa/u1"] and comps["/aaaa/u1"]["paths"] == ["/aaaa/u1", "/aaaa/u2"]
     assert comps["/aaaa/u1"]["ref"] == "U2" and comps["/aaaa/u1"]["skip"] is True
     assert comps["/aaaa/u1"]["value"] == '74HC00 "quad"'       # read as the text it stands for
     assert comps["/aaaa/u1"]["sheetname"] == "/sub/"          # the sheet path, as KiCad writes it on the board
@@ -567,3 +567,18 @@ def test_the_update_writes_through_the_board_writers_check(ldo, monkeypatch, cap
     assert main(["existing", str(ldo), "update", str(NET)]) == 1
     assert "unbalance" in capsys.readouterr().err
     assert pcb.read_text() == before
+
+
+def test_a_multi_unit_part_linked_by_its_middle_unit_is_matched(ldo, tmp_path, capsys):
+    """KiCad lists one uuid per unit and may link the footprint to any of them;
+    on feastorg/Slice_AQOR the board's TL072 carries the second of three. R1 is
+    given three units here, the board's link naming the middle one: it is
+    matched, not added again beside the board and reported as missing."""
+    net = tmp_path / "two_units.net"
+    text = NET.read_text()
+    uid = "16c8d81a-175f-58ff-85b5-197783b8950f"
+    assert text.count(f'(tstamps "{uid}")') == 1
+    net.write_text(text.replace(f'(tstamps "{uid}")', f'(tstamps "00000000-0000-4000-8000-0000000000a1" "{uid}"\n\t\t\t\t"00000000-0000-4000-8000-0000000000a3")'))
+    assert main(["existing", str(ldo), "update", str(net)]) == 0
+    out = capsys.readouterr().out
+    assert "R1: added" not in out and "R1: not in the schematic" not in out

@@ -68,12 +68,16 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
     for s, e in blocks(text, ("comp",)):
         c = text[s:e]
         sp = re.search(r'\(sheetpath\s*\(names "((?:[^"\\]|\\.)*)"\)\s*\(tstamps "([^"]*)"\)', c)
-        ts = re.search(r'\n\s*\(tstamps "([^"]*)"', c[sp.end():] if sp else c)   # one uuid per unit; the board links the first
+        ts = re.search(r'\n\s*\(tstamps((?:\s*"[^"]*")+)\s*\)', c[sp.end():] if sp else c)
         if not sp or not ts:
             continue
+        # one uuid per unit, and KiCad may link the footprint to any of them (a TL072
+        # on feastorg/Slice_AQOR carries its second): keyed by the first, matched by any
+        units = re.findall(r'"([^"]*)"', ts.group(1))
         props = dict(re.findall(r'\(property\s*\(name "((?:[^"\\]|\\.)*)"\)(?:\s*\(value "((?:[^"\\]|\\.)*)"\))?', c))
         fields = {_unesc(k): _unesc(v) for k, v in _FIELD.findall(c) if k not in ("Reference", "Value", "Footprint")}
-        comps[sp.group(2) + ts.group(1)] = {
+        comps[sp.group(2) + units[0]] = {
+            "paths": [sp.group(2) + u for u in units],
             "ref": _str(c, "ref"), "value": _str(c, "value") or "", "footprint": _str(c, "footprint") or "",
             "sheetname": re.sub(r"\\(.)", r"\1", sp.group(1)), "sheetfile": props.get("Sheetfile", ""),
             "skip": "exclude_from_board" in props, "fields": fields,
@@ -456,7 +460,8 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
         if c["skip"]:
             continue
         want = {num: net for (ref, num), net in pins.items() if ref == c["ref"]}
-        span = by_path.get(path) or unlinked.get(c["ref"])  # unlinked: matched by reference, as KiCad does
+        span = (next((by_path[p] for p in c["paths"] if p in by_path), None)
+                or unlinked.get(c["ref"]))                  # unlinked: matched by reference, as KiCad does
         if span is None:
             if not c["footprint"]:
                 blockers.append(f"{c['ref']}: no footprint in the schematic")
