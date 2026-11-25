@@ -17,6 +17,11 @@ the command line).
   angle as acute (under 90°) or square (90°), and each segment off the 45°
   grid as off-45, and fails the kinds listed. On five square-reviewed board
   passes it names 17 of the 18 square corners logged (#138).
+- `REVIEW` `margin` (`(NETS, mm)`): names each pair of nets whose copper
+  comes within the clearance rule plus mm, which KiCad's DRC passes, with the
+  smallest gap, its place, how long the track runs that close, and whether it
+  is squeezed between two pads of a part. On five square-reviewed board passes
+  it names 12 of the 16 tight places logged at 0.05 mm (#176).
 
 ## [0.14.2] - 2026-11-22
 
