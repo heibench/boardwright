@@ -23,6 +23,13 @@ the command line).
   is squeezed between two pads of a part. On five square-reviewed board passes
   it names 12 of the 16 tight places logged at 0.05 mm (#176).
 
+### Fixed
+- `REVIEW` `islands` called a pour piece dead copper when its only join was a
+  via down onto a pad of the net on the other layer (a buck's B.Cu piece
+  stitched to a heatsink pad on F.Cu, which KiCad's DRC counts connected). A
+  via standing in a pad now joins them. A pad still never joins a fill or a
+  track, so a pocket fed through one pad stays an island.
+
 ## [0.14.2] - 2026-11-22
 
 ### Fixed
