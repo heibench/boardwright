@@ -199,6 +199,13 @@ def test_a_part_with_a_lib_name_is_copied(proj, tmp_path, capsys):
     _tree(after)
 
 
+def test_a_missing_pin_names_the_symbol_not_its_alias(proj, tmp_path, capsys):
+    _alias(proj / SCH, "Device:R", "R_1")
+    row = ("R9", "R1", "1k", "", {7: "X"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 64
+    assert "Device:R has no pin 7" in capsys.readouterr().err
+
+
 def test_a_cached_entry_of_the_same_name_but_other_pins_is_refused():
     """A lib_name is local to a sheet: another sheet's R_1 can be a different
     symbol. Copying in a body whose pins differ from the one cached is refused."""
