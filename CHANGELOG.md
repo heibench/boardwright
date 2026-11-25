@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-11-25
+
 ### Fixed
 - `sch add` stopped with an internal error (exit 2, TypeError) when a pin
   went to a power net whose power symbol, or a copied part, carries a
@@ -669,7 +671,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.16.2...HEAD
+[0.16.2]: https://github.com/heibench/boardwright/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/heibench/boardwright/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/heibench/boardwright/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/heibench/boardwright/compare/v0.14.2...v0.15.0
