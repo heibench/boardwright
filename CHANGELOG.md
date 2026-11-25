@@ -27,6 +27,15 @@ the command line).
   `--fields=FIELDS` works too. `parts` now refuses (exit 64) a second
   PATTERN or any option it does not know, which it used to ignore.
 
+### Fixed
+- `sch set` reported a change for a field it set to the value already there,
+  as `U1: Sim.Library -> LM317-N.LIB`, and rewrote the file unchanged. It
+  now says `U1: Sim.Library unchanged (already LM317-N.LIB)` and writes
+  nothing when no pair changes, so a script running many edits can tell
+  which landed. Nothing is reported until every pair is accepted, so a
+  refused pair no longer leaves an earlier `->` line for an edit that was
+  never written.
+
 ## [0.15.0] - 2026-11-25
 
 ### Added

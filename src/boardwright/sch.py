@@ -19,7 +19,10 @@ value as the file holds it, except Reference, which is the line's own part
 on a sheet used more than once: `--fields 'Sim.*'` shows the SPICE fields.
 
 `set` changes properties (Value, Footprint, any other the part already has)
-and the flags dnp, in_bom, on_board (yes/no).
+and the flags dnp, in_bom, on_board (yes/no). Each pair is reported once all
+are accepted and the file is written, as `->`, or as unchanged (with the
+value as typed) when it is already so. A `set` that changes nothing writes
+nothing, and says so when its pairs cancel out.
 
 `add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...] and an
 optional SHEET = "file.kicad_sch" (default: the root sheet). `like` is
@@ -166,19 +169,23 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
     sh, s, e = find(d, ref)
     b = sh.text[s:e]
     others = shared_with(b, ref)
-    if others:
-        print(f"note: {ref} is one use of a symbol on a sheet that is used more than once; this also changes {', '.join(others)}")
+    start, report = b, []
     for pair in pairs:
         name, _, val = pair.partition("=")
         if name in ("dnp", "in_bom", "on_board"):
             if val not in ("yes", "no"):
                 raise Usage(f"{name} takes yes or no")
+            m = re.search(r"\(%s (yes|no)\)" % name, b)
+            old = m.group(1) if m else None
             nb, n = re.subn(r"\(%s (?:yes|no)\)" % name, f"({name} {val})", b, count=1)
         else:
             old = prop(b, name)
             if old is None:
                 have = ", ".join(re.findall(r'\(property "([^"]*)"', b))
                 raise Usage(f"{ref} has no property {name!r} (it has: {have})")
+            old = re.sub(r"\\(.)", r"\1", old)          # as it was typed, not as the file escapes it
+            if name == "Reference" and others:
+                old = ref                                 # this use's own name, not the property all uses share
             esc = val.replace("\\", "\\\\").replace('"', '\\"')
             nb, n = re.subn(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % re.escape(name), lambda m: f'{m.group(1)}"{esc}"', b, count=1)
             if name == "Reference":
@@ -188,9 +195,22 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
                     nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{esc}")', nb)
         if n != 1:
             raise SystemExit(f"could not set {name} on {ref}")
-        print(f"{ref}: {name} -> {val}")
+        report.append((nb == b, f"{ref}: {name} unchanged (already {old})" if nb == b else f"{ref}: {name} -> {val}"))
         b = nb
+    # Nothing is printed until every pair is accepted and the file is written, so each line says
+    # what happened: a script running many edits has to tell the ones that landed from the rest.
+    if b == start:
+        for same, line in report:
+            if same:
+                print(line)
+        if not all(same for same, _line in report):
+            print(f"{ref}: nothing written: the pairs leave every field as it was")
+        return 0
     sh.write(sh.text[:s] + b + sh.text[e:])
+    if others:
+        print(f"note: {ref} is one use of a symbol on a sheet that is used more than once; this also changes {', '.join(others)}")
+    for _same, line in report:
+        print(line)
     if locked(sh):
         print(f"note: {sh.path.name} is open in KiCad; close and reopen it to see the change")
     return 0

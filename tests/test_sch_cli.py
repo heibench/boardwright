@@ -74,6 +74,93 @@ def test_parts_fields_show_each_uses_own_reference(ldo_copy, capsys):
     lines = capsys.readouterr().out.splitlines()
     assert [line.split()[0] for line in lines] == ["R1", "R9"]
     assert lines[0].endswith('Reference="R1"') and lines[1].endswith('Reference="R9"')
+def test_set_to_the_value_already_there_says_unchanged_and_writes_nothing(ldo_copy, capsys):
+    """R1's Value is already 1k: a bulk-edit script must be able to tell this
+    from an edit that landed, and the file is not written at all."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before, mtime = f.read_text(), f.stat().st_mtime_ns
+    assert sch.set_fields(ldo_copy, "R1", ["Value=1k", "dnp=no"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: Value unchanged (already 1k)", "R1: dnp unchanged (already no)"]
+    assert f.read_text() == before and f.stat().st_mtime_ns == mtime
+
+
+def test_set_reports_each_pair_for_what_it_did(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    assert sch.set_fields(ldo_copy, "R1", ["Value=1k", "Value=4k7"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: Value unchanged (already 1k)", "R1: Value -> 4k7"]
+    assert len(changed_lines(before, f.read_text())) == 2
+
+
+def test_set_flags_already_so_are_unchanged_and_a_flag_change_lands(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    assert main(["sch", str(ldo_copy), "set", "R1", "in_bom=yes", "on_board=yes"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: in_bom unchanged (already yes)", "R1: on_board unchanged (already yes)"]
+    assert f.read_text() == before
+    assert main(["sch", str(ldo_copy), "set", "R1", "dnp=yes"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: dnp -> yes"]
+    assert len(changed_lines(before, f.read_text())) == 2
+
+
+def test_pairs_that_cancel_out_say_nothing_was_written(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    assert sch.set_fields(ldo_copy, "R1", ["Value=4k7", "Value=1k"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R1: nothing written: the pairs leave every field as it was"]
+    assert f.read_text() == before
+
+
+def test_a_refused_pair_reports_no_other_pair_as_done(ldo_copy, capsys):
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    before = f.read_text()
+    with pytest.raises(SystemExit, match="no property"):
+        sch.set_fields(ldo_copy, "R1", ["Value=4k7", "Colour=blue"])
+    assert capsys.readouterr().out == "" and f.read_text() == before
+
+
+def test_a_refused_write_reports_nothing_as_done(ldo_copy, capsys, monkeypatch):
+    """The file changed on disk between read and write: the write refuses, and
+    no line claims an edit."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    real = sch.Sheet.write
+
+    def changed_meanwhile(self, new):
+        f.write_text(f.read_text() + "\n")
+        return real(self, new)
+    monkeypatch.setattr(sch.Sheet, "write", changed_meanwhile)
+    with pytest.raises(SystemExit, match="changed on disk"):
+        sch.set_fields(ldo_copy, "R1", ["Value=4k7"])
+    assert capsys.readouterr().out == ""
+
+
+def test_unchanged_shows_a_value_as_typed_not_as_escaped(ldo_copy, capsys):
+    sch.set_fields(ldo_copy, "R1", ['Value=a "b" c'])
+    capsys.readouterr()
+    sch.set_fields(ldo_copy, "R1", ['Value=a "b" c'])
+    assert capsys.readouterr().out.splitlines() == ['R1: Value unchanged (already a "b" c)']
+
+
+def _two_uses(ldo_copy):
+    """R1's symbol given a second use, R5, as on a sheet placed twice."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    t = f.read_text()
+    a = '(reference "R1") (unit 1)\n\t\t\t\t)'
+    assert t.count(a) == 1
+    f.write_text(t.replace(a, a + '\n\t\t\t\t(path "/aaaa" (reference "R5") (unit 1)\n\t\t\t\t)'))
+    return f
+
+
+def test_on_a_sheet_used_twice_a_use_keeps_its_own_name(ldo_copy, capsys):
+    f = _two_uses(ldo_copy)
+    before = f.read_text()
+    assert sch.set_fields(ldo_copy, "R5", ["Reference=R5", "Value=1k"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["R5: Reference unchanged (already R5)", "R5: Value unchanged (already 1k)"]
+    assert f.read_text() == before
+    assert sch.set_fields(ldo_copy, "R5", ["Value=2k"]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "note: R5 is one use of a symbol on a sheet that is used more than once; this also changes R1",
+        "R5: Value -> 2k"]
 
 
 def test_set_unknown_property_is_refused(ldo_copy):
