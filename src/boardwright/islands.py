@@ -55,10 +55,15 @@ def islands(b, net: str, via: tuple[float, float] = (0.6, 0.3), clearance: float
     # (layers, shape, kind): pieces first, by index. What anchors a piece to the
     # rest of its net is copper touching it: a stitching via (KiCad connects
     # same-net vias to a zone solid, without a relief), a track running into
-    # it, or another zone's fill overlapping it, and through them other copper;
-    # never a pad, since a pad's spokes are what an island feeds, not what
-    # joins it.
+    # it, or another zone's fill overlapping it, and through them other copper.
+    # A pad joins only a via standing in it: a via down onto a heatsink pad on
+    # the far side joins the piece to the net there. Never a fill, since a
+    # pad's spokes are what an island feeds, and never a track, since a pocket
+    # fed through one pad and its own track is the island this looks for.
     items = [({ly}, g, "fill") for ly, g in pieces]
+    for p in b.pads:
+        if p.net == net:
+            items.append(({ly for ly in cu if p.on(ly)}, pad_shape(p), "pad"))
     for t in b.tracks:
         if t.net == net:
             items.append(({t.layer}, LineString(t.pts).buffer(t.width / 2), "track"))
@@ -78,7 +83,7 @@ def islands(b, net: str, via: tuple[float, float] = (0.6, 0.3), clearance: float
         for j in tree.query(g):
             j = int(j)
             jl, jg, jk = items[j]
-            if j <= i or not ls & jl:
+            if j <= i or not ls & jl or ("pad" in (_kind, jk) and {_kind, jk} != {"pad", "via"}):
                 continue
             if g.distance(jg) <= 1e-6:
                 up[root(i)] = root(j)

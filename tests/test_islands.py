@@ -112,6 +112,27 @@ def test_review_runs_the_islands_check(tmp_path):
     assert D2 in fails
 
 
+def _pad_under(x, y):
+    """A GND pad on B.Cu at board (x, y): a heatsink tab, say, with no fill around it."""
+    return (f'\t(footprint "Test:Tab" (layer "B.Cu") (uuid "00000000-0000-0000-0000-000000000500") (at {x + 118.5:g} {y + 82:g})\n'
+            f'\t\t(property "Reference" "HS9" (at 0 0 0) (layer "B.SilkS") (uuid "00000000-0000-0000-0000-000000000501"))\n'
+            f'\t\t(pad "1" smd rect (at 0 0) (size 1.5 1.5) (layers "B.Cu" "B.Mask") (net "GND") '
+            f'(uuid "00000000-0000-0000-0000-000000000502"))\n\t)\n')
+
+
+def test_a_via_onto_a_pad_on_the_far_side_joins_dead_copper(tmp_path):
+    """A via from the square down to a GND pad on B.Cu, with no B.Cu fill there:
+    the pad is the net's copper on another layer, so the square is joined. This
+    is a buck's B.Cu piece stitched to a heatsink pad on F.Cu, which DRC counts
+    connected. Without the via the pad joins nothing: pads never join a fill
+    directly, since their spokes are what an island feeds."""
+    dead = "(1.5, 2.0, 3.5, 4.0), 4.0 mm2 connects to nothing"
+    b = _own_pours(tmp_path, SQUARE, FAR, _pad_under(2.5, 3.0), _via(2.5, 3.0))
+    assert not any(dead in f for f in islands_check(b, {"islands": ["GND"]})[1])
+    b = _own_pours(tmp_path, SQUARE, FAR, _pad_under(2.5, 3.0))
+    assert any(dead in f for f in islands_check(b, {"islands": ["GND"]})[1])
+
+
 def test_stitching_vias_in_their_reliefs_join_their_pieces(tmp_path):
     """stm32f103_min's pours are held by stitching vias that sit in thermal-relief
     cut-outs, not touching the fill: across that gap they still join."""
