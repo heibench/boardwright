@@ -57,7 +57,8 @@ LINE = 0.02         # mm: how far off a segment's line another may sit and still
 
 
 def _k(p):
-    return (round(p[0] / SAME), round(p[1] / SAME))
+    # snapped to the file's nanometres first: float noise must not split one point across a cell edge
+    return (round(round(p[0], 6) / SAME), round(round(p[1], 6) / SAME))
 
 
 def _unit(a, b):

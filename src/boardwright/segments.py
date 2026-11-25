@@ -63,10 +63,12 @@ def _any_angle(b, group) -> bool:
 def runs(b, net: str) -> int:
     """The net's track segments, counting straight neighbours that meet end to
     end with nothing else there as one."""
-    segs = [(round(t.a[0], 3), round(t.a[1], 3), round(t.b[0], 3), round(t.b[1], 3), t.layer)
+    def r(v):                       # snapped to the file's nanometres first, so float noise cannot cross a rounding half
+        return round(round(v, 6), 3)
+    segs = [(r(t.a[0]), r(t.a[1]), r(t.b[0]), r(t.b[1]), t.layer)
             for t in b.tracks if t.net == net and t.a != t.b]
-    stops = {(round(v.x, 3), round(v.y, 3)) for v in b.vias if v.net == net}
-    stops |= {(round(p.x, 3), round(p.y, 3)) for p in b.pads if p.net == net}
+    stops = {(r(v.x), r(v.y)) for v in b.vias if v.net == net}
+    stops |= {(r(p.x), r(p.y)) for p in b.pads if p.net == net}
     at = defaultdict(list)
     for s in segs:
         at[(s[0], s[1], s[4])].append(s)

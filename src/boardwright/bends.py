@@ -68,8 +68,8 @@ def bends(b, nets: set[str]) -> list[tuple[str, float, str, str, float, float]]:
     from .route import pad_shape
     from .tidy import MICRO
 
-    def key(p):
-        return (round(p[0] / SAME), round(p[1] / SAME))
+    def key(p):                     # snapped to the file's nanometres first, as tidy._k
+        return (round(round(p[0], 6) / SAME), round(round(p[1], 6) / SAME))
     at = defaultdict(list)
     arcs = set()
     for t in b.tracks:

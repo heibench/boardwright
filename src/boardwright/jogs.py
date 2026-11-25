@@ -26,7 +26,7 @@ this names 30 of them in the same or a neighbouring square, on the same net;
 the end jogs also name 29 of the 35 micro-segment findings, which were mostly
 steps of 0.06 to 0.3 mm into a pad. At 0.5 mm it names 17 of the 33 jogs, and
 at 1.5 mm no more than at 1.0. An END of 0.5 mm names one more jog and two
-more micro-segment findings, for 373 flags in all against 275.
+more micro-segment findings, for 377 flags in all against 277.
 
 A step at a pad or via counts as an end jog only; arcs are not checked.
 """
@@ -42,7 +42,8 @@ PARALLEL = 0.9999   # cosine: runs this close to parallel, or a step this close 
 
 
 def _k(p):
-    return (round(p[0] / SAME), round(p[1] / SAME))
+    # snapped to the file's nanometres first: float noise must not split one point across a cell edge
+    return (round(round(p[0], 6) / SAME), round(round(p[1], 6) / SAME))
 
 
 def _unit(a, b):
