@@ -439,14 +439,32 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     return _retarget(head + "".join(fields) + "".join(pins) + tail, x, y, tidy=False)   # the library placed the fields
 
 
+def _cache_key(block: str) -> str:
+    """The name a placed symbol's cache entry goes by: its lib_name when KiCad
+    gave it one (an entry that differs from the library, such as GND_1 for
+    power:GND), else its lib_id."""
+    m = re.search(r'\(lib_name "([^"]*)"', block) or re.search(r'\(lib_id "([^"]*)"', block)
+    return m.group(1)
+
+
+def _lib_id(block: str) -> str:
+    return re.search(r'\(lib_id "([^"]*)"', block).group(1)
+
+
 def _cached_entry(text: str, lib_id: str) -> str | None:
     cache = blocks(text, ("lib_symbols",))
     return _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
 
 
 def _with_cached(t: str, lib_id: str, entry: str) -> str:
-    """t with `entry` (a symbol already in cache form) in its symbol cache, unless there."""
-    if _cached_entry(t, lib_id) is not None:
+    """t with `entry` (a symbol already in cache form) in its symbol cache, unless there.
+    An entry of that name already there must be the same symbol: a lib_name is
+    local to a sheet, so another sheet's GND_1 can be a different body."""
+    have = _cached_entry(t, lib_id)
+    if have is not None:
+        if _pin_numbers(have) != _pin_numbers(entry):
+            raise SystemExit(f"the sheet already caches a different {lib_id} (pins {_pin_numbers(have)}, the copy's "
+                             f"{_pin_numbers(entry)}); add this part in KiCad. Nothing written.")
         return t
     cache = blocks(t, ("lib_symbols",))
     if not cache:
@@ -556,7 +574,7 @@ def add(d: Path, spec_path: str) -> int:
                 for k, v in pins.items()}
         if like in by_ref and not like.startswith("#"):
             src_text, src = by_ref[like]
-            lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
+            lib_id = _cache_key(src)
             t = _with_cached(t, lib_id, _cached_entry(src_text, lib_id))
         elif ":" in like:
             src, lib_id = None, like
@@ -573,7 +591,7 @@ def add(d: Path, spec_path: str) -> int:
         lp = _lib_pins(t, lib_id)
         for num, net in pins.items():
             if num not in lp:
-                raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+                raise Usage(f"{_lib_id(src) if src is not None else lib_id} has no pin {num} (it has {sorted(lp)})")
             if net not in power and net not in labels | hier | globals_ and net in elsewhere:
                 raise SystemExit(f"{ref}.{num}: net {net!r} is local to another sheet and cannot be reached from "
                                  f"{sh.path.name} by a label; connect it through a sheet pin in KiCad. Nothing written.")
@@ -581,7 +599,7 @@ def add(d: Path, spec_path: str) -> int:
                      _extent(lp, pins)))
     for net in {n for p in plan for n in p[4].values() if n in power}:
         src_text, pb = power[net]
-        lid = re.search(r'\(lib_id "([^"]*)"', pb).group(1)
+        lid = _cache_key(pb)
         t = _with_cached(t, lid, _cached_entry(src_text, lid))
     width = sum(ex[2] - ex[0] for *_, ex in plan)
     height = max(ex[3] - ex[1] for *_, ex in plan)
@@ -613,7 +631,7 @@ def add(d: Path, spec_path: str) -> int:
             if net in power:
                 pwr_n += 1
                 src_p = _fresh(power[net][1])
-                ppin = _lib_pins(t, re.search(r'\(lib_id "([^"]*)"', src_p).group(1))
+                ppin = _lib_pins(t, _cache_key(src_p))
                 pb = _place_power(src_p, ex, ey, rot, next(iter(ppin.values()), (0.0, 0.0, rot)))
                 if path:
                     pb = _set_path(pb, path)
@@ -640,7 +658,7 @@ def add(d: Path, spec_path: str) -> int:
                 kind = head.replace("_", " ") + ("" if net in labels | hier | globals_ else " (new net)")
             print(f"{ref}.{num} -> {net}  [{kind}]")
         how = "from its library" if from_lib else f"copied from {like}"
-        print(f"added {ref} ({lib_id}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
+        print(f"added {ref} ({lib_id if from_lib else _lib_id(src)}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
     # insert before the sheet_instances / embedded_fonts tail, or before the final parenthesis
     tail = re.search(r"\n\t\((?:sheet_instances|embedded_fonts)\b", t)
     k = tail.start() if tail else t.rstrip().rfind(")")

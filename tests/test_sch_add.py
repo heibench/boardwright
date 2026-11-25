@@ -160,6 +160,64 @@ def test_a_net_or_reference_with_a_backslash_is_written_escaped(proj, tmp_path):
     _tree(after)
 
 
+def _alias(f, lib_id, name):
+    """Give lib_id's cache entry and placed symbols the name KiCad gives an entry
+    that differs from the library (GND_1 for power:GND): (symbol "NAME" ...) in
+    the cache, (lib_name "NAME") on each placed symbol."""
+    t = f.read_text()
+    bare = lib_id.split(":", 1)[1]
+    assert t.count(f'(symbol "{lib_id}"') == 1
+    t = t.replace(f'(symbol "{lib_id}"', f'(symbol "{name}"', 1)
+    t = re.sub(r'\(symbol "%s_(\d+_\d+)"' % re.escape(bare), lambda m: f'(symbol "{name}_{m.group(1)}"', t)
+    t = t.replace(f'\t\t(lib_id "{lib_id}")', f'\t\t(lib_name "{name}")\n\t\t(lib_id "{lib_id}")')
+    f.write_text(t)
+
+
+def test_a_power_symbol_with_a_lib_name_is_copied_with_it(proj, tmp_path):
+    """The sheet's PWR_FLAG goes by lib_name PWR_FLAG_1: a pin on its net gets a
+    copy under the same name, and the cache keeps the one entry."""
+    from boardwright.model import _tree
+    f = proj / SCH
+    _alias(f, "power:PWR_FLAG", "PWR_FLAG_1")
+    row = ("R9", "R1", "1k", "", {1: "PWR_FLAG", 2: "X"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+    after = f.read_text()
+    assert after.count('(lib_name "PWR_FLAG_1")') == 3 and after.count('(symbol "PWR_FLAG_1"') == 1
+    _tree(after)
+
+
+def test_a_part_with_a_lib_name_is_copied(proj, tmp_path, capsys):
+    from boardwright.model import _tree
+    f = proj / SCH
+    _alias(f, "Device:R", "R_1")
+    row = ("R9", "R1", "1k", "", {1: "X", 2: "Y"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+    assert "added R9 (Device:R, copied from R1)" in capsys.readouterr().out     # the symbol, not its alias
+    after = f.read_text()
+    part = next(after[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R9")' in after[s:e])
+    assert '(lib_name "R_1")' in part and after.count('(symbol "R_1"') == 1
+    _tree(after)
+
+
+def test_a_missing_pin_names_the_symbol_not_its_alias(proj, tmp_path, capsys):
+    _alias(proj / SCH, "Device:R", "R_1")
+    row = ("R9", "R1", "1k", "", {7: "X"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 64
+    assert "Device:R has no pin 7" in capsys.readouterr().err
+
+
+def test_a_cached_entry_of_the_same_name_but_other_pins_is_refused():
+    """A lib_name is local to a sheet: another sheet's R_1 can be a different
+    symbol. Copying in a body whose pins differ from the one cached is refused."""
+    pin = '\n\t\t\t(pin passive line (at 0 0 0) (length 1) (number "{}"))'
+    def entry(*nums):
+        return '\n\t\t(symbol "R_1"' + "".join(pin.format(n) for n in nums) + '\n\t\t)'
+    t = '(kicad_sch\n\t(lib_symbols' + entry("1", "2") + '\n\t)\n)\n'
+    assert sch._with_cached(t, "R_1", entry("1", "2")) == t
+    with pytest.raises(SystemExit, match="already caches a different R_1"):
+        sch._with_cached(t, "R_1", entry("1", "2", "3"))
+
+
 VCC = ('\n\t(symbol\n\t\t(lib_id "power:+3V3")\n\t\t(at 100 100 {r})\n\t\t(unit 1)\n'
        '\t\t(property "Value" "+3V3"\n\t\t\t(at 100 {vy} 0)\n\t\t)\n\t)')
 
