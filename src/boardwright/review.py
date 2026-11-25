@@ -22,6 +22,7 @@ A board's board.py may declare
         "clear_under": [("Y1", 0.5)],                    # no other net's track or via under a part: see apart_check
         "segments": [(["/ESTOP", "/INT"], 0)],           # segments beyond the fewest the route needs: see segments.py
         "islands":  ["GND"],                             # pour pieces cut off from the net: see islands.py
+        "tidy":     ["*"],                               # track debris: micro segments, splits, stray ends: see tidy.py
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -469,6 +470,11 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += isf
+    from .tidy import tidy_check
+    lines, tf = tidy_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += tf
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])
