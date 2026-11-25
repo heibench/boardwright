@@ -167,7 +167,12 @@ def test_a_pair_with_no_equals_is_refused_and_nothing_written(ldo_copy, capsys):
     f = ldo_copy / "ldo_breakout.kicad_sch"
     before = f.read_text()
     assert main(["sch", str(ldo_copy), "set", "R1", "Value=4k7", "Value"]) == 64
-    assert "Value" in capsys.readouterr().err and f.read_text() == before
+    assert "'Value' has no '=': write Value=VALUE, or Value= to empty it" in capsys.readouterr().err
+    assert main(["sch", str(ldo_copy), "set", "R1", "dnp"]) == 64
+    assert "'dnp' has no '=': write dnp=yes or dnp=no" in capsys.readouterr().err
+    assert main(["sch", str(ldo_copy), "set", "R1", "Colour"]) == 64              # no such property: say so
+    assert "R1 has no property 'Colour'" in capsys.readouterr().err
+    assert f.read_text() == before
 
 
 def test_an_explicit_empty_value_still_empties_the_field(ldo_copy, capsys):

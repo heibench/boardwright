@@ -172,7 +172,9 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
     start, report = b, []
     for pair in pairs:
         name, eq, val = pair.partition("=")
-        if not eq:                              # a lost "=" would silently empty the field
+        if not eq and name in ("dnp", "in_bom", "on_board"):     # a lost "=" would silently empty the field
+            raise Usage(f"{pair!r} has no '=': write {name}=yes or {name}=no")
+        if not eq and prop(b, name) is not None:
             raise Usage(f"{pair!r} has no '=': write {name}=VALUE, or {name}= to empty it")
         if name in ("dnp", "in_bom", "on_board"):
             if val not in ("yes", "no"):
