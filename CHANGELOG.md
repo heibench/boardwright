@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `sch move REF.PIN NET` puts one pin on another net without redrawing: the
+  label on the pin's own stub is renamed, or its power symbol is swapped for
+  the new net's (#193). A stub that reaches another pin or a sheet pin is
+  refused, since splitting that net needs geometry; so is a pin common to
+  several units, a stub with two labels, and a part on a sheet used more than
+  once. Pins are placed as KiCad places them: turned, then mirrored.
+
 ## [0.16.2] - 2026-11-25
 
 ### Fixed
