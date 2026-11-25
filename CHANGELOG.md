@@ -14,9 +14,9 @@ the command line).
   on another track's body. Its thresholds were set against square-by-square
   reviews of three routed boards (#138).
 - `REVIEW` `bends` (`(NETS, FAIL)`): reports each bend with its place and
-  angle as acute (under 90°), square (90°) or off-45 (any angle but 135°),
-  and fails the kinds listed. On the reviewed boards it names 7 of the 8
-  square corners the reviews logged (#138).
+  angle as acute (under 90°) or square (90°), and each segment off the 45°
+  grid as off-45, and fails the kinds listed. On five square-reviewed board
+  passes it names 17 of the 18 square corners logged (#138).
 
 ## [0.14.2] - 2026-11-22
 

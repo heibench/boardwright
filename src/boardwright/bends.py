@@ -8,22 +8,31 @@ layer, outside any pad or via of that net (there the copper covers the inside
 corner). Its angle is the angle between the two segments, 180 degrees for a
 straight run. Kinds:
 
-- acute: under 90 degrees. The inside corner can trap etchant during
+- acute: a bend under 90 degrees. The inside corner can trap etchant during
   fabrication (an acid trap); usually worth failing.
-- square: 90 degrees. Harmless electrically below the GHz range (#128), but a
-  reviewer's convention marks it: report it, and fail it when the board asks.
-- off-45: any other angle except 135, the turn of an octilinear (0, 45, 90
-  degree) route, which is not reported. On a board routed at any angle every
-  bend is off-45, so fail it only on an octilinear one.
+- square: a bend of 90 degrees. Harmless electrically below the GHz range
+  (#128), but a reviewer's convention marks it: report it, and fail it when
+  the board asks.
+- off-45: a segment that runs off the octilinear (0, 45, 90 degree) grid,
+  wherever it is, at a pad or via too: the direction shows however the corner
+  is covered. Every bend that is neither acute, square nor 135 degrees has one.
+  Segments shorter than tidy.MICRO are left to "tidy", since their direction
+  is noise. On a board routed at any angle every segment is off-45, so fail it
+  only on an octilinear one.
 
-Every bend found is reported with its place; only the kinds in FAIL fail.
+Every place found is reported; only the kinds in FAIL fail.
 Square-by-square reviews of three routed boards (#138) logged 8 square
 corners, and this check names 7 of them in the same or a neighbouring square,
 on the same net. It names both 45 degree acute corners on those boards, which
 the reviews logged under other names (a hook that overshoots a pad and turns
 back, an acute join in a stair-step). The reviews' "acute" findings were mostly
-turns off the 45 degree grid, which is off-45 here. Arcs are not bends and are
-not checked.
+turns off the 45 degree grid, which is off-45 here: it names 3 of those 4.
+Arcs are not bends and are not checked.
+
+On two passes of a fourth board, not used to set any of this, it named all 10
+square corners logged; none of the 5 off-grid findings, which were segments
+at a via, a pad or a T-junction. off-45 was then made a property of the
+segment, which names 4 of those 5.
 """
 
 from __future__ import annotations
@@ -37,21 +46,27 @@ KINDS = ("acute", "square", "off-45")
 
 
 def kind(angle: float) -> str | None:
-    """The kind of a bend of this angle in degrees, or None for a 45 degree turn or a straight run."""
+    """The kind of a bend of this angle in degrees: "acute", "square", or None."""
     if angle < 90 - TOL:
         return "acute"
     if abs(angle - 90) <= TOL:
         return "square"
-    if abs(angle - 135) <= TOL or angle >= 180 - TOL:
-        return None
-    return "off-45"
+    return None
+
+
+def off_grid(t) -> float | None:
+    """A straight segment's direction in degrees (0 to 180) when it runs off the 45 degree grid, else None."""
+    d = math.degrees(math.atan2(t.b[1] - t.a[1], t.b[0] - t.a[0])) % 180
+    return d if min(d % 45, 45 - d % 45) > TOL else None
 
 
 def bends(b, nets: set[str]) -> list[tuple[str, float, str, str, float, float]]:
-    """(kind, angle, net, layer, x, y) for every reported bend on the named nets."""
+    """(kind, angle, net, layer, x, y) for every reported bend on the named nets, and
+    every off-45 segment with its direction and start."""
     from shapely.geometry import Point
 
     from .route import pad_shape
+    from .tidy import MICRO
 
     def key(p):
         return (round(p[0] / SAME), round(p[1] / SAME))
@@ -66,6 +81,9 @@ def bends(b, nets: set[str]) -> list[tuple[str, float, str, str, float, float]]:
             at[(t.net, t.layer, key(t.a))].append((t.a, t.b))
             at[(t.net, t.layer, key(t.b))].append((t.b, t.a))
     out = []
+    for t in b.tracks:
+        if t.net in nets and len(t.pts) == 2 and t.length >= MICRO and (d := off_grid(t)) is not None:
+            out.append(("off-45", d, t.net, t.layer, *t.a))
     for (net, layer, k), ends in at.items():
         if len(ends) != 2 or (net, layer, k) in arcs:
             continue
@@ -102,6 +120,7 @@ def bends_check(b, spec: dict) -> tuple[list[str], list[str]]:
         lines.append(f"bends {len(names)} net(s): " + ", ".join(f"{k} {n}" for k, n in counts.items())
                      + f" (failing: {', '.join(fail) or 'none'})")
         for kd, a, net, layer, x, y in found:
-            where = f"{kd} bend on {net} {layer} at ({x:.2f}, {y:.2f}), {a:.1f} degrees"
+            where = (f"off-45 segment on {net} {layer} from ({x:.2f}, {y:.2f}), running at {a:.1f} degrees" if kd == "off-45"
+                     else f"{kd} bend on {net} {layer} at ({x:.2f}, {y:.2f}), {a:.1f} degrees")
             (fails if kd in fail else lines).append(where)
     return lines, fails

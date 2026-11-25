@@ -66,11 +66,25 @@ def test_a_square_bend_is_reported_and_fails_only_when_asked(tmp_path):
     assert len(_check(tmp_path, _path(*SQUARE), fail=("square",))[1]) == 2
 
 
-def test_a_bend_off_the_45_degree_grid_is_off_45(tmp_path):
-    lines, fails = _check(tmp_path, _path(A, (155, 105.4), (156, 104.9), (157, 104.9), (157.5, 105.4), B),
-                          fail=("off-45",))
-    assert lines[0] == "bends 1 net(s): acute 0, square 0, off-45 2 (failing: off-45)"
-    assert fails[0] == f"off-45 bend on GPIO25 F.Cu at {_at(155, 105.4)}, 153.4 degrees"
+OFF = (A, (155, 105.4), (156, 104.9), (157, 104.9), (157.5, 105.4), B)   # one segment at 153.4 degrees
+
+
+def test_a_segment_off_the_45_degree_grid_is_off_45(tmp_path):
+    lines, fails = _check(tmp_path, _path(*OFF), fail=("off-45",))
+    assert lines == ["bends 1 net(s): acute 0, square 0, off-45 1 (failing: off-45)"]
+    assert fails == [f"off-45 segment on GPIO25 F.Cu from {_at(155, 105.4)}, running at 153.4 degrees"]
+
+
+def test_an_off_45_segment_at_a_via_is_still_named(tmp_path):
+    """The via covers the corner but not the segment's direction."""
+    assert _check(tmp_path, _path(*OFF, via=True), fail=("off-45",))[1] == [
+        f"off-45 segment on GPIO25 F.Cu from {_at(155, 105.4)}, running at 153.4 degrees"]
+
+
+def test_a_segment_shorter_than_micro_has_no_direction(tmp_path):
+    """A 0.03 mm piece at 26.6 degrees is left to tidy."""
+    path = (A, (155, 105.4), (155.0268, 105.3866), (155.0268 + 0.0134, 105.4), B)
+    assert _check(tmp_path, _path(*path), fail=("off-45",))[1] == []
 
 
 def test_a_bend_at_a_via_is_not_judged(tmp_path):
