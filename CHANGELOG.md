@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- A write refused a value with an unmatched bracket, such as
+  `sch set R1 'Value=a(b'` ("edit would unbalance the file"): the check
+  counted brackets inside quoted strings too. It counts only those outside
+  strings now, in `sch`, the board writer, `existing update` and
+  `existing apply`, which share it (#190).
+
 ## [0.16.0] - 2026-11-25
 
 ### Added

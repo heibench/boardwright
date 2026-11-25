@@ -73,6 +73,7 @@ from . import env
 from .copper import blocks
 from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
+from .model import balanced
 
 GRID = 1.27
 
@@ -91,7 +92,7 @@ class Sheet:
         env.warn_if_open_in_kicad(self.path)
         if hashlib.sha256(self.path.read_text().encode()).hexdigest() != self.digest:
             raise SystemExit(f"{self.path.name} changed on disk since it was read; nothing written")
-        if new.count("(") != new.count(")"):
+        if not balanced(new):
             raise SystemExit("edit would unbalance the file; nothing written")
         self.path.write_text(new)
         self.text, self.digest = new, hashlib.sha256(new.encode()).hexdigest()

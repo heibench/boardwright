@@ -11,6 +11,7 @@ import uuid
 from pathlib import Path
 
 from . import copper
+from .model import balanced
 
 _LAYERS = {
     2: '\t\t(0 "F.Cu" signal)\n\t\t(31 "B.Cu" signal)\n',
@@ -104,7 +105,7 @@ def create(sch: Path, pcb: Path, w: float, h: float, layers: int, circuit) -> No
 
 
 def _write(pcb_path: Path, t0: str, t: str) -> None:
-    if t.count("(") != t.count(")"):
+    if not balanced(t):
         raise SystemExit(f"the edit would unbalance {pcb_path.name}; nothing written")
     if pcb_path.read_text() != t0:
         raise SystemExit(f"{pcb_path.name} changed on disk since it was read; nothing written")
