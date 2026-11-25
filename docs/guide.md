@@ -220,7 +220,7 @@ with KiCad; its README says where to copy them from.
 
 ### Existing schematics
 
-    boardwright sch <project dir> parts [PATTERN]
+    boardwright sch <project dir> parts [PATTERN] [--fields FIELDS]   # FIELDS: properties to show, e.g. 'Sim.*'
     boardwright sch <project dir> set REF Field=Value ...      # Value, Footprint, any property; dnp/in_bom/on_board
     boardwright sch <project dir> add SPEC.py                  # ADD = [(ref, like, value, footprint, {pin: net})]
     boardwright sch <project dir> remove REF ...

@@ -1,6 +1,6 @@
 """Edit an existing KiCad schematic in place, a block at a time.
 
-    boardwright sch <project dir> parts [PATTERN]
+    boardwright sch <project dir> parts [PATTERN] [--fields FIELDS]
     boardwright sch <project dir> set REF Field=Value [Field=Value ...]
     boardwright sch <project dir> add SPEC.py
     boardwright sch <project dir> remove REF [REF ...]
@@ -11,6 +11,12 @@ Nothing is parsed and rewritten: the file is searched for the exact block to
 change, only that span is replaced, and the result is written only if the
 file on disk is still what was read. Everything else stays byte-identical, so
 a diff shows exactly the edit.
+
+`parts` lists each part matching PATTERN (a shell pattern on the reference,
+default all). `--fields FIELDS` adds, on the part's line, each property whose
+name matches the shell pattern FIELDS (case counts), as Name="value" with the
+value as the file holds it, except Reference, which is the line's own part
+on a sheet used more than once: `--fields 'Sim.*'` shows the SPICE fields.
 
 `set` changes properties (Value, Footprint, any other the part already has)
 and the flags dnp, in_bom, on_board (yes/no).
@@ -134,7 +140,10 @@ def locked(sh: Sheet) -> bool:
     return (sh.path.parent / f"~{sh.path.name}.lck").exists()
 
 
-def parts(d: Path, pattern: str) -> int:
+def parts(d: Path, pattern: str = "*", fields: str | None = None) -> int:
+    """One line per part. With fields, a shell pattern such as "Sim.*" (case
+    counts), each of the part's properties whose name matches follows, as
+    Name="value" with the value as the file holds it; Reference is the line's own."""
     for sh in sheets(d):
         for s, e in sh.instances():
             b = sh.text[s:e]
@@ -145,7 +154,11 @@ def parts(d: Path, pattern: str) -> int:
                 if ref.startswith("#") or not fnmatch.fnmatch(ref, pattern):
                     continue
                 also = f"  same symbol as {', '.join(r for r in all_refs if r != ref)}" if len(all_refs) > 1 else ""
-                print(f"{ref:<8}{(prop(b, 'Value') or ''):<26}{(prop(b, 'Footprint') or ''):<44} {lib}  [{sh.path.name}]{flags}{also}")
+                # on a sheet used more than once the Reference property is one use's name; show this use's own
+                extra = "".join(f'  {n}="{ref if n == "Reference" else v}"'
+                                for n, v in re.findall(r'\(property "([^"]*)" "((?:[^"\\]|\\.)*)"', b)
+                                if fields and fnmatch.fnmatchcase(n, fields))
+                print(f"{ref:<8}{(prop(b, 'Value') or ''):<26}{(prop(b, 'Footprint') or ''):<44} {lib}  [{sh.path.name}]{flags}{also}{extra}")
     return 0
 
 
@@ -832,7 +845,22 @@ def cli(argv: list[str]) -> int:
         if len(args) != 2:
             raise Usage(__doc__)
         return repoint(d, args[0], args[1], mode)
-    return ({"parts": lambda: parts(d, rest[0] if rest else "*"),
+    if cmd == "parts":
+        args, fields = list(rest), None
+        for i, x in enumerate(args):
+            if x.startswith("--fields="):
+                args[i:i + 1] = ["--fields", x.partition("=")[2]]
+                break
+        if "--fields" in args:
+            i = args.index("--fields")
+            if i + 1 >= len(args) or not args[i + 1] or args[i + 1].startswith("-"):
+                raise Usage(__doc__)
+            fields = args[i + 1]
+            del args[i:i + 2]
+        if len(args) > 1 or any(x.startswith("-") for x in args):       # no reference starts with "-"
+            raise Usage(__doc__)
+        return parts(d, args[0] if args else "*", fields)
+    return ({
               "set": lambda: set_fields(d, rest[0], rest[1:]),
               "remove": lambda: remove(d, rest),
               "add": lambda: add(d, rest[0])}[cmd]())
