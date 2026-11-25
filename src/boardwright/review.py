@@ -23,6 +23,7 @@ A board's board.py may declare
         "segments": [(["/ESTOP", "/INT"], 0)],           # segments beyond the fewest the route needs: see segments.py
         "islands":  ["GND"],                             # pour pieces cut off from the net: see islands.py
         "tidy":     ["*"],                               # track debris: micro segments, splits, stray ends: see tidy.py
+        "bends":    [("*", ["acute"])],                  # bends under 90 (or at 90, or off 45) fail: see bends.py
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -475,6 +476,11 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += tf
+    from .bends import bends_check
+    lines, bf = bends_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += bf
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])
