@@ -1,6 +1,6 @@
 [project]
 name = "boardwright"
-version = "0.16.0"
+version = "0.16.1"
 description = "Generate and edit KiCad boards and schematics from a short Python description, checked by KiCad itself."
 readme = "README.md"
 license = "Apache-2.0"
