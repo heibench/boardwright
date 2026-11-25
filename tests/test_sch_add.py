@@ -186,14 +186,29 @@ def test_a_power_symbol_with_a_lib_name_is_copied_with_it(proj, tmp_path):
     _tree(after)
 
 
-def test_a_part_with_a_lib_name_is_copied(proj, tmp_path):
+def test_a_part_with_a_lib_name_is_copied(proj, tmp_path, capsys):
+    from boardwright.model import _tree
     f = proj / SCH
     _alias(f, "Device:R", "R_1")
     row = ("R9", "R1", "1k", "", {1: "X", 2: "Y"})
     assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+    assert "added R9 (Device:R, copied from R1)" in capsys.readouterr().out     # the symbol, not its alias
     after = f.read_text()
     part = next(after[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R9")' in after[s:e])
     assert '(lib_name "R_1")' in part and after.count('(symbol "R_1"') == 1
+    _tree(after)
+
+
+def test_a_cached_entry_of_the_same_name_but_other_pins_is_refused():
+    """A lib_name is local to a sheet: another sheet's R_1 can be a different
+    symbol. Copying in a body whose pins differ from the one cached is refused."""
+    pin = '\n\t\t\t(pin passive line (at 0 0 0) (length 1) (number "{}"))'
+    def entry(*nums):
+        return '\n\t\t(symbol "R_1"' + "".join(pin.format(n) for n in nums) + '\n\t\t)'
+    t = '(kicad_sch\n\t(lib_symbols' + entry("1", "2") + '\n\t)\n)\n'
+    assert sch._with_cached(t, "R_1", entry("1", "2")) == t
+    with pytest.raises(SystemExit, match="already caches a different R_1"):
+        sch._with_cached(t, "R_1", entry("1", "2", "3"))
 
 
 VCC = ('\n\t(symbol\n\t\t(lib_id "power:+3V3")\n\t\t(at 100 100 {r})\n\t\t(unit 1)\n'

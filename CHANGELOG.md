@@ -13,6 +13,9 @@ the command line).
   `lib_name`: KiCad's name for a cache entry that differs from the library,
   such as GND_1 for power:GND. The cache was searched by lib_id. It is
   searched by the lib_name when there is one, and the copy keeps it.
+- `sch add` reused a symbol already cached under the copy's name even when its
+  pins differed, giving the new part another symbol's body; it refuses that
+  now. A lib_name is local to a sheet, so another sheet's GND_1 can differ.
 
 ## [0.16.1] - 2026-11-25
 

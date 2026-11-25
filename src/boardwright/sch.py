@@ -447,14 +447,24 @@ def _cache_key(block: str) -> str:
     return m.group(1)
 
 
+def _lib_id(block: str) -> str:
+    return re.search(r'\(lib_id "([^"]*)"', block).group(1)
+
+
 def _cached_entry(text: str, lib_id: str) -> str | None:
     cache = blocks(text, ("lib_symbols",))
     return _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
 
 
 def _with_cached(t: str, lib_id: str, entry: str) -> str:
-    """t with `entry` (a symbol already in cache form) in its symbol cache, unless there."""
-    if _cached_entry(t, lib_id) is not None:
+    """t with `entry` (a symbol already in cache form) in its symbol cache, unless there.
+    An entry of that name already there must be the same symbol: a lib_name is
+    local to a sheet, so another sheet's GND_1 can be a different body."""
+    have = _cached_entry(t, lib_id)
+    if have is not None:
+        if _pin_numbers(have) != _pin_numbers(entry):
+            raise SystemExit(f"the sheet already caches a different {lib_id} (pins {_pin_numbers(have)}, the copy's "
+                             f"{_pin_numbers(entry)}); add this part in KiCad. Nothing written.")
         return t
     cache = blocks(t, ("lib_symbols",))
     if not cache:
@@ -581,7 +591,7 @@ def add(d: Path, spec_path: str) -> int:
         lp = _lib_pins(t, lib_id)
         for num, net in pins.items():
             if num not in lp:
-                raise Usage(f"{lib_id} has no pin {num} (it has {sorted(lp)})")
+                raise Usage(f"{_lib_id(src) if src is not None else lib_id} has no pin {num} (it has {sorted(lp)})")
             if net not in power and net not in labels | hier | globals_ and net in elsewhere:
                 raise SystemExit(f"{ref}.{num}: net {net!r} is local to another sheet and cannot be reached from "
                                  f"{sh.path.name} by a label; connect it through a sheet pin in KiCad. Nothing written.")
@@ -648,7 +658,7 @@ def add(d: Path, spec_path: str) -> int:
                 kind = head.replace("_", " ") + ("" if net in labels | hier | globals_ else " (new net)")
             print(f"{ref}.{num} -> {net}  [{kind}]")
         how = "from its library" if from_lib else f"copied from {like}"
-        print(f"added {ref} ({lib_id}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
+        print(f"added {ref} ({lib_id if from_lib else _lib_id(src)}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
     # insert before the sheet_instances / embedded_fonts tail, or before the final parenthesis
     tail = re.search(r"\n\t\((?:sheet_instances|embedded_fonts)\b", t)
     k = tail.start() if tail else t.rstrip().rfind(")")
