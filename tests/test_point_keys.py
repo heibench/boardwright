@@ -107,3 +107,10 @@ def test_a_pad_near_either_end_of_a_point_stops_it():
     board = _board(tracks, pad=(1.0018, 7.0))
     assert [f for f in tidy.findings(board, {"N"}) if f[0] == "split"] == []
     assert segments.runs(board, "N") == 2
+
+
+def test_a_straight_run_whose_joint_straddles_a_rounding_half_is_one_run():
+    """Two collinear segments meeting at y 34.0623 and 34.0627, 0.4 um apart and
+    either side of 34.0625, where rounding to 3 places splits them: one run."""
+    tracks = [((5.0, 30.0), (5.0, 34.0623)), ((5.0, 34.0627), (5.0, 38.0))]
+    assert segments.runs(_board(tracks, pad=(0, 0)), "N") == 1
