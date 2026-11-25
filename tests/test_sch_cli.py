@@ -53,7 +53,8 @@ def test_parts_fields_from_the_command_line(ldo_copy, capsys):
 
 
 def test_parts_refuses_what_it_cannot_honour(ldo_copy, capsys):
-    for args in (["R1", "--fields"], ["R1", "--fields", ""], ["R1", "D1"], ["R1", "--field", "Data*"], ["--verbose"]):
+    for args in (["R1", "--fields"], ["R1", "--fields", ""], ["R1", "D1"], ["R1", "--field", "Data*"], ["--verbose"],
+                 ["-h"], ["R1", "--fields", "--fields=Data*"], ["--fields", "-x"]):
         assert main(["sch", str(ldo_copy), "parts", *args]) == 64, args
 
 

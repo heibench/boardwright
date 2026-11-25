@@ -15,7 +15,8 @@ a diff shows exactly the edit.
 `parts` lists each part matching PATTERN (a shell pattern on the reference,
 default all). `--fields FIELDS` adds, on the part's line, each property whose
 name matches the shell pattern FIELDS (case counts), as Name="value" with the
-value as the file holds it: `--fields 'Sim.*'` shows the SPICE fields.
+value as the file holds it, except Reference, which is the line's own part
+on a sheet used more than once: `--fields 'Sim.*'` shows the SPICE fields.
 
 `set` changes properties (Value, Footprint, any other the part already has)
 and the flags dnp, in_bom, on_board (yes/no).
@@ -852,11 +853,11 @@ def cli(argv: list[str]) -> int:
                 break
         if "--fields" in args:
             i = args.index("--fields")
-            if i + 1 >= len(args) or not args[i + 1]:
+            if i + 1 >= len(args) or not args[i + 1] or args[i + 1].startswith("-"):
                 raise Usage(__doc__)
             fields = args[i + 1]
             del args[i:i + 2]
-        if len(args) > 1 or any(x.startswith("--") for x in args):
+        if len(args) > 1 or any(x.startswith("-") for x in args):       # no reference starts with "-"
             raise Usage(__doc__)
         return parts(d, args[0] if args else "*", fields)
     return ({
