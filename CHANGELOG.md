@@ -35,6 +35,9 @@ the command line).
   which landed. Nothing is reported until every pair is accepted, so a
   refused pair no longer leaves an earlier `->` line for an edit that was
   never written.
+- `sch set R1 Value`, a pair with no `=`, set the field empty and exited 0.
+  It is a usage error now (64), and nothing is written; `Value=` still
+  empties the field (#186).
 
 ## [0.15.0] - 2026-11-25
 

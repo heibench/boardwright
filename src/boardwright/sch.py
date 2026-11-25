@@ -171,7 +171,9 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
     others = shared_with(b, ref)
     start, report = b, []
     for pair in pairs:
-        name, _, val = pair.partition("=")
+        name, eq, val = pair.partition("=")
+        if not eq:                              # a lost "=" would silently empty the field
+            raise Usage(f"{pair!r} has no '=': write {name}=VALUE, or {name}= to empty it")
         if name in ("dnp", "in_bom", "on_board"):
             if val not in ("yes", "no"):
                 raise Usage(f"{name} takes yes or no")
