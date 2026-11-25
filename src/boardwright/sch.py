@@ -98,6 +98,11 @@ class Sheet:
         self.text, self.digest = new, hashlib.sha256(new.encode()).hexdigest()
 
 
+def _esc(s: str) -> str:
+    """A value as a quoted string in the file holds it."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def prop(block: str, name: str) -> str | None:
     m = re.search(r'\(property "%s" "((?:[^"\\]|\\.)*)"' % re.escape(name), block)
     return m.group(1) if m else None
@@ -593,7 +598,7 @@ def add(d: Path, spec_path: str) -> int:
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
             esc = val.replace("\\", "\\\\").replace('"', '\\"')
             b = re.sub(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda mm: f'{mm.group(1)}"{esc}"', b, count=1)
-        b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{ref}")', b)
+        b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', lambda mm: f'(reference "{_esc(ref)}")', b)
         new.append(b)
         for num, net in pins.items():
             px, py, ang = lp[num]
@@ -627,7 +632,7 @@ def add(d: Path, spec_path: str) -> int:
                 else:
                     head, tpl = "global_label", glabel_t
                 lb = _fresh(tpl)
-                lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{net}"', lb, count=1)
+                lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{_esc(net)}"', lb, count=1)
                 lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {mm_(ex)} {mm_(ey)} {rot})", lb, count=1)
                 side = "right" if rot in (180, 270) else "left"
                 lb = re.sub(r"\(justify [^)]*\)", f"(justify {side} bottom)" if head == "label" else f"(justify {side})", lb, count=1)

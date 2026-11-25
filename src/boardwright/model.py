@@ -196,7 +196,8 @@ def balanced(text: str) -> bool:
     """Whether every bracket outside a quoted string closes, in order. A bracket
     inside a string ("10k (1%)") is text, not structure, and does not count."""
     depth = 0
-    for tok in _TOKEN.findall(text):
+    for m in _TOKEN.finditer(text):                # one token at a time: a large board is never held as a list
+        tok = m[0]
         if tok == "(":
             depth += 1
         elif tok == ")":

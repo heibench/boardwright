@@ -13,6 +13,9 @@ the command line).
   counted brackets inside quoted strings too. It counts only those outside
   strings now, in `sch`, the board writer, `existing update` and
   `existing apply`, which share it (#190).
+- `sch add` wrote a new part's reference and its nets' label names without
+  escaping a quote or backslash in them, leaving a sheet KiCad cannot read;
+  they are escaped as KiCad writes them now.
 
 ## [0.16.0] - 2026-11-25
 
