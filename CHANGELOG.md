@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `sch add` stopped with an internal error (exit 2, TypeError) when a pin
+  went to a power net whose power symbol, or a copied part, carries a
+  `lib_name`: KiCad's name for a cache entry that differs from the library,
+  such as GND_1 for power:GND. The cache was searched by lib_id. It is
+  searched by the lib_name when there is one, and the copy keeps it.
+
 ## [0.16.1] - 2026-11-25
 
 ### Fixed

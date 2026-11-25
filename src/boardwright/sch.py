@@ -439,6 +439,14 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     return _retarget(head + "".join(fields) + "".join(pins) + tail, x, y, tidy=False)   # the library placed the fields
 
 
+def _cache_key(block: str) -> str:
+    """The name a placed symbol's cache entry goes by: its lib_name when KiCad
+    gave it one (an entry that differs from the library, such as GND_1 for
+    power:GND), else its lib_id."""
+    m = re.search(r'\(lib_name "([^"]*)"', block) or re.search(r'\(lib_id "([^"]*)"', block)
+    return m.group(1)
+
+
 def _cached_entry(text: str, lib_id: str) -> str | None:
     cache = blocks(text, ("lib_symbols",))
     return _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
@@ -556,7 +564,7 @@ def add(d: Path, spec_path: str) -> int:
                 for k, v in pins.items()}
         if like in by_ref and not like.startswith("#"):
             src_text, src = by_ref[like]
-            lib_id = re.search(r'\(lib_id "([^"]*)"', src).group(1)
+            lib_id = _cache_key(src)
             t = _with_cached(t, lib_id, _cached_entry(src_text, lib_id))
         elif ":" in like:
             src, lib_id = None, like
@@ -581,7 +589,7 @@ def add(d: Path, spec_path: str) -> int:
                      _extent(lp, pins)))
     for net in {n for p in plan for n in p[4].values() if n in power}:
         src_text, pb = power[net]
-        lid = re.search(r'\(lib_id "([^"]*)"', pb).group(1)
+        lid = _cache_key(pb)
         t = _with_cached(t, lid, _cached_entry(src_text, lid))
     width = sum(ex[2] - ex[0] for *_, ex in plan)
     height = max(ex[3] - ex[1] for *_, ex in plan)
@@ -613,7 +621,7 @@ def add(d: Path, spec_path: str) -> int:
             if net in power:
                 pwr_n += 1
                 src_p = _fresh(power[net][1])
-                ppin = _lib_pins(t, re.search(r'\(lib_id "([^"]*)"', src_p).group(1))
+                ppin = _lib_pins(t, _cache_key(src_p))
                 pb = _place_power(src_p, ex, ey, rot, next(iter(ppin.values()), (0.0, 0.0, rot)))
                 if path:
                     pb = _set_path(pb, path)
