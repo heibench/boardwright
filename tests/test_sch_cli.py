@@ -119,6 +119,21 @@ def test_a_refused_pair_reports_no_other_pair_as_done(ldo_copy, capsys):
     assert capsys.readouterr().out == "" and f.read_text() == before
 
 
+def test_a_refused_write_reports_nothing_as_done(ldo_copy, capsys, monkeypatch):
+    """The file changed on disk between read and write: the write refuses, and
+    no line claims an edit."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    real = sch.Sheet.write
+
+    def changed_meanwhile(self, new):
+        f.write_text(f.read_text() + "\n")
+        return real(self, new)
+    monkeypatch.setattr(sch.Sheet, "write", changed_meanwhile)
+    with pytest.raises(SystemExit, match="changed on disk"):
+        sch.set_fields(ldo_copy, "R1", ["Value=4k7"])
+    assert capsys.readouterr().out == ""
+
+
 def test_unchanged_shows_a_value_as_typed_not_as_escaped(ldo_copy, capsys):
     sch.set_fields(ldo_copy, "R1", ['Value=a "b" c'])
     capsys.readouterr()

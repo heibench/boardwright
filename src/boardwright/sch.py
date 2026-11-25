@@ -20,8 +20,9 @@ on a sheet used more than once: `--fields 'Sim.*'` shows the SPICE fields.
 
 `set` changes properties (Value, Footprint, any other the part already has)
 and the flags dnp, in_bom, on_board (yes/no). Each pair is reported once all
-are accepted, as `->` or as unchanged when it is already so; a `set` that
-changes nothing writes nothing.
+are accepted and the file is written, as `->`, or as unchanged (with the
+value as typed) when it is already so. A `set` that changes nothing writes
+nothing, and says so when its pairs cancel out.
 
 `add` takes ADD = [(ref, like, value, footprint, {pin: net}), ...] and an
 optional SHEET = "file.kicad_sch" (default: the root sheet). `like` is
@@ -196,8 +197,8 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
             raise SystemExit(f"could not set {name} on {ref}")
         report.append((nb == b, f"{ref}: {name} unchanged (already {old})" if nb == b else f"{ref}: {name} -> {val}"))
         b = nb
-    # Nothing is printed until every pair is accepted, so each line says what happened: a script
-    # running many edits has to tell the ones that landed from the ones already in place.
+    # Nothing is printed until every pair is accepted and the file is written, so each line says
+    # what happened: a script running many edits has to tell the ones that landed from the rest.
     if b == start:
         for same, line in report:
             if same:
@@ -205,11 +206,11 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
         if not all(same for same, _line in report):
             print(f"{ref}: nothing written: the pairs leave every field as it was")
         return 0
+    sh.write(sh.text[:s] + b + sh.text[e:])
     if others:
         print(f"note: {ref} is one use of a symbol on a sheet that is used more than once; this also changes {', '.join(others)}")
     for _same, line in report:
         print(line)
-    sh.write(sh.text[:s] + b + sh.text[e:])
     if locked(sh):
         print(f"note: {sh.path.name} is open in KiCad; close and reopen it to see the change")
     return 0
