@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `REVIEW` `via_in_pad` (`[NETS]`): names each via standing in an SMD pad
+  of its net, or overlapping such a pad's edge, where an open drill wicks
+  solder. Heatsink tabs, exposed pads and net ties are left out. On two
+  square-reviewed passes of Slice_FPSG it names every via the reviews logged
+  and none of the 28 per pass in heatsink, exposed and net-tie pads (#177).
+
 ## [0.15.0] - 2026-11-25
 
 ### Added

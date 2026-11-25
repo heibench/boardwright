@@ -25,6 +25,7 @@ A board's board.py may declare
         "tidy":     ["*"],                               # track debris: micro segments, splits, stray ends: see tidy.py
         "bends":    [("*", ["acute"])],                  # bends under 90 (or at 90, or off 45) fail: see bends.py
         "margin":   [("*", 0.05)],                       # copper within the clearance rule + mm of another net: see margin.py
+        "via_in_pad": ["*"],                             # vias in or on an SMD pad, which wick solder: see via_in_pad.py
     }
 
 Always checked for polygons declared in ZONES: each fills as ONE piece and no
@@ -487,6 +488,11 @@ def review(pcb: Path, m) -> list[str]:
     for ln in lines:
         print("   ", ln)
     fails += mf
+    from .via_in_pad import via_in_pad_check
+    lines, vf = via_in_pad_check(b, spec)
+    for ln in lines:
+        print("   ", ln)
+    fails += vf
     for name, lim in spec.get("via_near", []):
         p = b.pad(name)
         d = min([math.hypot(v.x - p.x, v.y - p.y) for v in b.vias if v.net == p.net] or [1e9])

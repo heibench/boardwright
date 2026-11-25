@@ -335,6 +335,7 @@ class Footprint:
     pads: list[FootprintPad]
     texts: list[Text]
     graphics: list[Graphic]
+    net_tie: bool = False               # KiCad's net_tie_pad_groups: a footprint that joins two nets on purpose
 
 
 def _arc_of(node):
@@ -425,6 +426,7 @@ def _footprint(node, names: dict[int, str]) -> Footprint:
         elif _s(n, 0) == "Value":
             fp.texts.append(_text(n, "value", _s(n, 1) or "", prop=True))
     fp.pads = [_pad(n, names) for n in _find_all(node, "pad")]
+    fp.net_tie = _kid(node, "net_tie_pad_groups") is not None
     fp.graphics = [_graphic(n, kind, True) for kind in ("line", "rect", "circle", "arc", "poly")
                    for n in _find_all(node, f"fp_{kind}")]
     return fp
