@@ -192,6 +192,21 @@ class _Q(str):
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}     # any other escaped character stands for itself
 
 
+def balanced(text: str) -> bool:
+    """Whether every bracket outside a quoted string closes, in order. A bracket
+    inside a string ("10k (1%)") is text, not structure, and does not count."""
+    depth = 0
+    for m in _TOKEN.finditer(text):                # one token at a time: a large board is never held as a list
+        tok = m[0]
+        if tok == "(":
+            depth += 1
+        elif tok == ")":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
 def _tree(text: str) -> list:
     stack: list[list] = [[]]
     for tok in _TOKEN.findall(text):

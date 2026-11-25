@@ -41,13 +41,12 @@ import uuid
 from pathlib import Path
 
 from . import env, sch
+from .board import _write
 from .copper import blocks
 from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
 
-
-def _esc(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+_esc = sch._esc
 
 
 def _str(block: str, key: str) -> str | None:
@@ -537,11 +536,6 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
         print(f"{r}: not in the schematic; left on the board")
     for s, e, new in sorted(edits, key=lambda x: x[0], reverse=True):
         t = t[:s] + new + t[e:]
-    if t.count("(") != t.count(")"):
-        raise SystemExit("the update would unbalance the board file; nothing written")
-    if pcb.read_text() != t0:
-        raise SystemExit(f"{pcb.name} changed on disk since it was read; nothing written")
-    if t != t0:
-        pcb.write_text(t)
+    _write(pcb, t0, t)                  # refuses an unbalanced edit or a file changed since it was read
     print(f"{len(adds)} added, {len(edits) - (1 if adds else 0)} footprint(s) changed, {len(gone)} left without a symbol")
     return 0

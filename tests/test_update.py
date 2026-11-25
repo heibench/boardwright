@@ -555,3 +555,15 @@ def test_without_a_working_kicad_cli_update_names_the_netlist_argument(ldo_copy,
     assert ("no working kicad-cli found" if cli == "missing" else "kicad-cli could not export the netlist") in err
     assert "kicad-cli sch export netlist --format kicadsexpr -o NETLIST.net ldo_breakout.kicad_sch" in err
     assert f"boardwright existing {ldo_copy} update NETLIST.net" in err
+
+
+def test_the_update_writes_through_the_board_writers_check(ldo, monkeypatch, capsys):
+    """With the bracket check saying no, nothing is written (#190)."""
+    from boardwright import board
+    _unlink(ldo)
+    pcb = ldo / "ldo_breakout.kicad_pcb"
+    before = pcb.read_text()
+    monkeypatch.setattr(board, "balanced", lambda t: False)
+    assert main(["existing", str(ldo), "update", str(NET)]) == 1
+    assert "unbalance" in capsys.readouterr().err
+    assert pcb.read_text() == before

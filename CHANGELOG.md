@@ -7,6 +7,18 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- A write refused a value with an unmatched bracket, such as
+  `sch set R1 'Value=a(b'` ("edit would unbalance the file"): the check
+  counted brackets inside quoted strings too. It counts only those outside
+  strings now, in `sch`, the board writer, `existing update` and
+  `existing apply`, which share it (#190).
+- `sch add` wrote a new part's reference and its nets' label names without
+  escaping a quote or backslash in them, leaving a sheet KiCad cannot read;
+  they are escaped as KiCad writes them now. `sch set Reference=` no longer
+  drops a backslash from a part's own (reference ...): it was passed to
+  `re.sub` as a template, so the property and the reference disagreed.
+
 ## [0.16.0] - 2026-11-25
 
 ### Added

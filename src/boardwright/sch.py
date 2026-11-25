@@ -73,6 +73,7 @@ from . import env
 from .copper import blocks
 from .copper import num as mm_
 from .errors import EnvironmentFault, Usage
+from .model import balanced
 
 GRID = 1.27
 
@@ -91,10 +92,15 @@ class Sheet:
         env.warn_if_open_in_kicad(self.path)
         if hashlib.sha256(self.path.read_text().encode()).hexdigest() != self.digest:
             raise SystemExit(f"{self.path.name} changed on disk since it was read; nothing written")
-        if new.count("(") != new.count(")"):
+        if not balanced(new):
             raise SystemExit("edit would unbalance the file; nothing written")
         self.path.write_text(new)
         self.text, self.digest = new, hashlib.sha256(new.encode()).hexdigest()
+
+
+def _esc(s: str) -> str:
+    """A value as a quoted string in the file holds it."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def prop(block: str, name: str) -> str | None:
@@ -190,13 +196,13 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
             old = re.sub(r"\\(.)", r"\1", old)          # as it was typed, not as the file escapes it
             if name == "Reference" and others:
                 old = ref                                 # this use's own name, not the property all uses share
-            esc = val.replace("\\", "\\\\").replace('"', '\\"')
+            esc = _esc(val)
             nb, n = re.subn(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % re.escape(name), lambda m: f'{m.group(1)}"{esc}"', b, count=1)
             if name == "Reference":
                 if others:                       # rename this use only; the property belongs to all of them
-                    nb, n = re.subn(r'\(reference "%s"\)' % re.escape(ref), f'(reference "{esc}")', b, count=1)
+                    nb, n = re.subn(r'\(reference "%s"\)' % re.escape(ref), lambda m: f'(reference "{esc}")', b, count=1)
                 else:
-                    nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{esc}")', nb)
+                    nb = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', lambda m: f'(reference "{esc}")', nb)
         if n != 1:
             raise SystemExit(f"could not set {name} on {ref}")
         report.append((nb == b, f"{ref}: {name} unchanged (already {old})" if nb == b else f"{ref}: {name} -> {val}"))
@@ -590,9 +596,9 @@ def add(d: Path, spec_path: str) -> int:
         if path:
             b = _set_path(b, path)
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
-            esc = val.replace("\\", "\\\\").replace('"', '\\"')
+            esc = _esc(val)
             b = re.sub(r'(\(property "%s" )"(?:[^"\\]|\\.)*"' % name, lambda mm: f'{mm.group(1)}"{esc}"', b, count=1)
-        b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', f'(reference "{ref}")', b)
+        b = re.sub(r'\(reference "(?:[^"\\]|\\.)*"\)', lambda mm: f'(reference "{_esc(ref)}")', b)
         new.append(b)
         for num, net in pins.items():
             px, py, ang = lp[num]
@@ -626,7 +632,7 @@ def add(d: Path, spec_path: str) -> int:
                 else:
                     head, tpl = "global_label", glabel_t
                 lb = _fresh(tpl)
-                lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{net}"', lb, count=1)
+                lb = re.sub(r'\(%s "(?:[^"\\]|\\.)*"' % head, lambda mm: f'({head} "{_esc(net)}"', lb, count=1)
                 lb = re.sub(r"\(at [-\d.]+ [-\d.]+ [-\d.]+\)", f"(at {mm_(ex)} {mm_(ey)} {rot})", lb, count=1)
                 side = "right" if rot in (180, 270) else "left"
                 lb = re.sub(r"\(justify [^)]*\)", f"(justify {side} bottom)" if head == "label" else f"(justify {side})", lb, count=1)

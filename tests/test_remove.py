@@ -120,3 +120,15 @@ def test_a_name_on_no_footprint_is_a_usage_error(ldo, capsys):
     assert main(["existing", str(ldo), "apply"]) == 64
     assert "REMOVE 'G2': no footprint" in capsys.readouterr().err
     assert pcb.read_text() == before
+
+
+def test_the_removal_writes_through_the_board_writers_check(ldo, monkeypatch, capsys):
+    """With the bracket check saying no, nothing is written (#190)."""
+    from boardwright import board
+    pcb = ldo / f"{NAME}.kicad_pcb"
+    before = pcb.read_text()
+    _spec(ldo, 'REMOVE = ["G***"]\n')
+    monkeypatch.setattr(board, "balanced", lambda t: False)
+    assert main(["existing", str(ldo), "apply"]) == 1
+    assert "unbalance" in capsys.readouterr().err
+    assert pcb.read_text() == before

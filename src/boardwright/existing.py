@@ -43,6 +43,7 @@ from pathlib import Path
 from . import copper, env
 from . import dsn as dsn_
 from . import ses as ses_
+from .board import _write
 from .errors import CannotTell, EnvironmentFault, Outcome, Usage
 from .model import Board
 from .preview import ratsnest
@@ -359,11 +360,7 @@ def apply(d: Path, force: bool = False) -> int:
         if refused:
             print("nothing written: REMOVE takes a footprint with a pad on a net or a schematic symbol only with --force")
             return 1
-        if t.count("(") != t.count(")"):
-            raise SystemExit("the removal would unbalance the board file; nothing written")
-        if pcb.read_text() != original:
-            raise SystemExit(f"{pcb.name} changed on disk since it was read; nothing written")
-        pcb.write_text(t)
+        _write(pcb, original, t)        # refuses an unbalanced edit or a file changed since it was read
         for g in gone:
             print("removed", g)
     moves = getattr(m, "MOVE", {})
