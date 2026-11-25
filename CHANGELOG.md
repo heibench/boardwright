@@ -13,6 +13,11 @@ the command line).
   solder. Heatsink tabs, exposed pads and net ties are left out. On two
   square-reviewed passes of Slice_FPSG it names every via the reviews logged
   and none of the 28 per pass in heatsink, exposed and net-tie pads (#177).
+- `REVIEW` `jogs` (`(NETS, mm)`): names each sideways step shorter than mm
+  between two parallel runs, and each short step from a run into a pad or via
+  its line misses by under 0.2 mm, with the step and the offset. On five
+  square-reviewed board passes, at 1.0 mm, it names 30 of the 33 jogs logged
+  (#138).
 
 ## [0.15.0] - 2026-11-25
 
