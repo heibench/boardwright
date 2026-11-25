@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- `REVIEW` `tidy` (`[NETS]`): names track debris that DRC passes, with its
+  place: micro segments, collinear splits, overlapping segments, near-miss
+  ends, dangling ends, ends off a pad's centre or short of the pad, and ends
+  on another track's body. Its thresholds were set against square-by-square
+  reviews of three routed boards (#138).
+
 ## [0.14.2] - 2026-11-22
 
 ### Fixed
