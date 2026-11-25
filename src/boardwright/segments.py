@@ -69,20 +69,22 @@ def runs(b, net: str) -> int:
     _k = _Points(q for t in ts for q in (t.a, t.b))
     segs = [(*_k(t.a), *_k(t.b), t.layer) for t in ts]
     stops = _centres(b, {net})
-    at = defaultdict(list)
-    for s in segs:
+    at, ends = defaultdict(list), defaultdict(list)
+    for t, s in zip(ts, segs):
         at[(s[0], s[1], s[4])].append(s)
         at[(s[2], s[3], s[4])].append(s)
+        ends[(s[0], s[1], s[4])].append(t.a)
+        ends[(s[2], s[3], s[4])].append(t.b)
 
     def direction(s):
         dx, dy = s[2] - s[0], s[3] - s[1]
         n = math.hypot(dx, dy)
-        return dx / n, dy / n
+        return (dx / n, dy / n) if n else None              # both ends one point: no direction
     joins = 0
-    for (x, y, _layer), ss in at.items():
-        if len(ss) == 2 and not _at(stops, net, (x / 1e6, y / 1e6)):
-            (ux, uy), (vx, vy) = direction(ss[0]), direction(ss[1])
-            if abs(abs(ux * vx + uy * vy) - 1) < 1e-3:
+    for key, ss in at.items():
+        if len(ss) == 2 and not any(_at(stops, net, q) for q in ends[key]):
+            u, v = direction(ss[0]), direction(ss[1])
+            if u and v and abs(abs(u[0] * v[0] + u[1] * v[1]) - 1) < 1e-3:
                 joins += 1
     return len(segs) - joins
 

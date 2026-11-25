@@ -5,8 +5,8 @@ so a pad centre and the track end on it can differ by float noise: on
 feastorg/Slice_AQEC, R2.2 at y 34.0625 and the track ends at
 34.062500000000014. 34.0625 sits exactly on a half of the 0.001 mm grid the
 keys used, so the two fell into different cells and the track end was not seen
-as a stop at the pad. KiCad stores nanometres, so both are snapped to 1e-6 mm
-first."""
+as a stop at the pad. Track ends within 0.001 mm are now one point by distance,
+and a stop is a pad or via centre within 0.001 mm."""
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -81,3 +81,29 @@ def test_a_row_of_close_points_does_not_chain_into_one():
     a, b, c, d = (1.0, 2.0), (1.0006, 2.0), (1.0012, 2.0), (1.0016, 2.0)
     key = tidy._Points([a, b, c, d])
     assert key(a) == key(b) and key(c) != key(a) and key(d) == key(c)
+
+
+def test_a_jog_whose_joint_straddles_a_rounding_half_is_still_a_jog():
+    """The run ends at y 34.0623, the step starts at 34.0627: 0.4 um apart, either
+    side of 34.0625, where a rounded key splits them."""
+    tracks = [((0.0, 34.0623), (5.0, 34.0623)), ((5.0, 34.0627), (5.5, 34.5627)), ((5.5, 34.5627), (10.0, 34.5627))]
+    assert [f[0] for f in jogs.jogs(_board(tracks, pad=(0, 0)), {"N"}, 1.0)] == ["jog"]
+
+
+def test_points_get_the_same_keys_in_any_order():
+    pts = [(1.0, 2.0), (1.0006, 2.0), (1.0012, 2.0), (1.0016, 2.0), (3.0, 3.0003), (3.0, 3.0)]
+    one, other = tidy._Points(pts), tidy._Points(reversed(pts))
+    assert [one(p) for p in pts] == [other(p) for p in pts]
+
+
+def test_a_lone_segment_shorter_than_SAME_is_one_run():
+    """Its two ends are one point: no direction, and no division by zero."""
+    assert segments.runs(_board([((5.0, 5.0), (5.0009, 5.0))], pad=(0, 0)), "N") == 1
+
+
+def test_a_pad_near_either_end_of_a_point_stops_it():
+    """Ends 0.9 um apart are one point; the pad is within 0.001 mm of the second only."""
+    tracks = [((0.0, 7.0), (1.0, 7.0)), ((1.0009, 7.0), (2.0, 7.0))]
+    board = _board(tracks, pad=(1.0018, 7.0))
+    assert [f for f in tidy.findings(board, {"N"}) if f[0] == "split"] == []
+    assert segments.runs(board, "N") == 2

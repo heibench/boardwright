@@ -83,22 +83,26 @@ class _Points:
         return self.rep[self._nm(p)]
 
 
+def _cell(p):
+    return (math.floor(p[0] / SAME), math.floor(p[1] / SAME))
+
+
 def _centres(b, nets) -> dict:
-    """net -> the centres of its pads and vias."""
+    """(net, cell) -> the centres of the net's pads and vias in that SAME-sized cell."""
     out = defaultdict(list)
-    for p in b.pads:
-        if p.net in nets:
-            out[p.net].append((p.x, p.y))
-    for v in b.vias:
-        if v.net in nets:
-            out[v.net].append((v.x, v.y))
+    for c in [(p.net, (p.x, p.y)) for p in b.pads] + [(v.net, (v.x, v.y)) for v in b.vias]:
+        if c[0] in nets:
+            out[(c[0], _cell(c[1]))].append(c[1])
     return out
 
 
 def _at(centres: dict, net: str, q) -> bool:
     """Whether q is at a pad or via centre of net: within SAME, by distance, so a
-    pad centre the model rounds to 0.1 um still holds the track ends on it."""
-    return any(math.dist(q, c) < SAME for c in centres.get(net, ()))
+    pad centre the model rounds to 0.1 um still holds the track ends on it. Only
+    the neighbouring cells are searched, so a large net costs no more per end."""
+    cx, cy = _cell(q)
+    return any(math.dist(q, c) < SAME for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+               for c in centres.get((net, (cx + dx, cy + dy)), ()))
 
 
 def _unit(a, b):
@@ -136,7 +140,7 @@ def findings(b, nets: set[str]) -> list[tuple[str, str, str, float, float, str]]
             for q in (t.a, t.b):
                 joint[(t.net, t.layer, _k(q))].append((t, q))
     for (net, layer, _key), tq in joint.items():
-        if len(tq) == 2 and not _at(stops, net, tq[0][1]):
+        if len(tq) == 2 and not any(_at(stops, net, q) for _t, q in tq):     # any end of the point at a pad or via
             (t1, q), (t2, _q) = tq
             u, v = _unit(t1.a, t1.b), _unit(t2.a, t2.b)
             if abs(abs(u[0] * v[0] + u[1] * v[1]) - 1) < 1e-4 and t1.width == t2.width:
