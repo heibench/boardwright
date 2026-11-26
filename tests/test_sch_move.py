@@ -58,6 +58,7 @@ def test_a_pin_already_on_the_net_writes_nothing(ldo_copy, capsys):
     (["R1.9", "X"], "R1 has no pin 9 (it has ['1', '2'])"),
     (["R1.2"], "move REF.PIN NET"),
     (["R1.2", "X", "Y"], "move REF.PIN NET"),
+    (["R1.2", "/X"], "without a sheet path"),
 ])
 def test_a_bad_pin_or_argument_is_a_usage_error(ldo_copy, capsys, args, says):
     before = (ldo_copy / SCH).read_text()
@@ -127,6 +128,14 @@ def test_a_pin_is_turned_then_mirrored():
     assert sch._placed_pins(CACHE, b) == {"8": (100.0, 102.54, 90.0), "1": (100.0, 103.81, 90.0)}
 
 
+def test_a_pin_comes_from_its_body_style():
+    """A De Morgan part draws its second body style's pins only with (body_style 2)."""
+    alt = CACHE.replace('\t\t\t(symbol "P_2_1"', '\t\t\t(symbol "P_1_2"\n\t\t\t\t(pin passive line (at 0 5.08 270) '
+                                                 '(length 2.54) (number "9"))\n\t\t\t)\n\t\t\t(symbol "P_2_1"')
+    assert set(sch._placed_pins(alt, _placed("0 0 0", "\n\t\t(unit 1)"))) == {"8", "1"}
+    assert "9" in sch._placed_pins(alt, _placed("0 0 0", "\n\t\t(unit 1)\n\t\t(body_style 2)"))
+
+
 def test_a_pin_comes_from_its_own_unit_and_the_common_one():
     b = _placed("50 50 270", "\n\t\t(unit 2)")
     assert sch._placed_pins(CACHE, b) == {"8": (50.0, 52.54, 90.0), "5": (47.46, 50.0, 0.0)}
@@ -138,6 +147,27 @@ def test_wires_that_cross_join_only_at_a_junction():
     assert sorted(sch._stub(t, (0, 0))) == [((0, 0), (10, 0)), ((10, 0), (10, 8))]   # an end on it joins; a crossing does not
     dotted = t[:-2] + "\n\t(junction (at 5 0) (diameter 0))\n)"
     assert len(sch._stub(dotted, (0, 0))) == 3
+
+
+def test_a_wire_ending_on_a_wires_middle_joins_only_at_a_junction():
+    """KiCad joins a T only where a junction is drawn."""
+    wire = '\n\t(wire\n\t\t(pts (xy {} {}) (xy {} {}))\n\t)'
+    t = "(kicad_sch" + wire.format(0, 0, 10, 0) + wire.format(5, 0, 5, 8) + "\n)"
+    assert sch._stub(t, (0, 0)) == [((0, 0), (10, 0))]
+    assert len(sch._stub(t[:-2] + "\n\t(junction (at 5 0) (diameter 0))\n)", (0, 0))) == 2
+
+
+def test_a_sheet_pin_on_the_stub_is_refused(ldo_copy, capsys):
+    f = ldo_copy / SCH
+    t = f.read_text()
+    sheet = ('\n\t(sheet\n\t\t(at 300 300)\n\t\t(size 10 10)\n\t\t(property "Sheetfile" "none.kicad_sch")'
+             '\n\t\t(pin "P" input\n\t\t\t(at 222.25 22.86 0)\n\t\t)\n\t)')
+    k = sch._tail(t)
+    f.write_text(t[:k] + sheet + t[k:])
+    before = f.read_text()
+    assert _move(ldo_copy, "R1.2", "X") == 1
+    assert "R1.2 is wired to sheet pin P" in capsys.readouterr().err
+    assert f.read_text() == before
 
 
 def test_pwr_flag_names_no_net(ldo_copy):
@@ -183,6 +213,47 @@ def test_a_symbol_with_a_hidden_power_pin_names_its_net(tmp_path, capsys):
     pic = demo_copy(tmp_path, "pic_programmer")
     assert _move(pic, "Q2.3", "X") == 0
     assert capsys.readouterr().out == "Q2.3: VPP -> X  [label (new net)]\n"
+
+
+@needs_demos
+def test_the_new_power_symbol_points_along_the_stub(tmp_path):
+    """pic_sockets' GND on C6.2 has its pin pointing up, body drawn below; the
+    VCC that replaces it hangs below the stub's end too, away from C6."""
+    pic = demo_copy(tmp_path, "pic_programmer")
+    sub = sch.Sheet(pic / "pic_sockets.kicad_sch")
+    before = sub.text
+    assert _move(pic, "C6.2", "VCC") == 0
+    after = sch.Sheet(pic / "pic_sockets.kicad_sch")
+    new = [after.text[s:e] for s, e in after.instances() if after.text[s:e] not in before]
+    assert len(new) == 1 and sch.prop(new[0], "Value") == "VCC"
+    assert next(iter(sch._placed_pins(after.text, new[0]).values())) == (60.96, 176.53, 270.0)
+
+
+@needs_demos
+def test_a_hidden_power_pin_is_a_usage_error_that_says_so(tmp_path, capsys):
+    d = demo_copy(tmp_path, "video")
+    assert _move(d, "U2.10", "X") == 64
+    assert "U2.10 is a hidden power pin, joined to its net by name" in capsys.readouterr().err
+
+
+@needs_demos
+def test_a_hierarchical_label_is_refused(tmp_path, capsys):
+    """Renaming a sheet's hierarchical label would leave its sheet pin unmatched."""
+    d = demo_copy(tmp_path, "video")
+    before = {f.name: f.read_text() for f in d.glob("*.kicad_sch")}
+    assert _move(d, "U22.13", "HNEW") == 1
+    assert "through hierarchical label ACQ_ON" in capsys.readouterr().err
+    assert {f.name: f.read_text() for f in d.glob("*.kicad_sch")} == before
+
+
+@needs_demos
+def test_a_net_is_named_as_kicad_shows_it(tmp_path, capsys):
+    """KiCad writes / in a label as {slash}; typed with /, the name joins the
+    existing global label."""
+    d = demo_copy(tmp_path, "tiny_tapeout")
+    assert _move(d, "U6.56", "SDI/out0") == 0
+    assert capsys.readouterr().out == "U6.56: QSPI_SS -> SDI/out0  [global label]\n"
+    assert '(global_label "SDI{slash}out0"' in (d / "rp2040.kicad_sch").read_text()
 
 
 @needs_demos

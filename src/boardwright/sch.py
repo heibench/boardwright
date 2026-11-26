@@ -43,14 +43,16 @@ compare after (`netspec diff`), and compare ERC reports with `ercdiff`. An edit
 is right when the difference is the change you meant and nothing else.
 
 `move` puts one pin on another net by renaming the label on that pin's own
-stub (the pin, its wires and what they touch), or by swapping its power
-symbol: `move U1.3 N2` prints `U1.3: In -> N2  [global label]`. The new
-net's kind follows the rules for `add`; a new net keeps the label's kind. A
-stub that joins another pin or a sheet pin is refused: splitting that net
-needs geometry. So is a stub with more than one label or power symbol, a pin
-common to several units of a part (each unit draws it, all one pin), and a
-part on a sheet used more than once. A pin with no label or power symbol on
-its stub is a usage error.
+stub (the pin, the wires joined to it end to end or at a junction, and what
+they touch), or by swapping its power symbol: `move U1.3 N2` prints
+`U1.3: In -> N2  [global label]`. NET is named as KiCad shows it (`SDI/out0`,
+not the file's `SDI{slash}out0`). The new net's kind follows the rules for
+`add`; a new net keeps the label's kind. A stub that joins another pin or a
+sheet pin is refused: splitting that net needs geometry. So is a stub with
+more than one label or power symbol, a hierarchical label (the sheet pin's
+own), a pin common to several units of a part (each unit draws it, all one
+pin), and a part on a sheet used more than once. A pin with no label or power
+symbol on its stub, or a hidden power pin, is a usage error.
 
 `repoint` points every part that uses one library symbol at another, on every
 sheet: the symbol cache entry, its units and each part's lib_id are renamed
@@ -759,8 +761,9 @@ def _on(p, a, b) -> bool:
 
 
 def _stub(t: str, p: tuple[float, float]) -> list:
-    """The wires joined to point p: a wire touching p, then any wire with an end
-    on one of them, or crossing one at a junction."""
+    """The wires joined to point p: a wire touching p, then any wire sharing an
+    end with one of them, or meeting one at a junction. A wire that ends on
+    another's middle without a junction is not joined, as in KiCad."""
     segs = []
     for s, e in blocks(t, ("wire",)):
         xy = re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", t[s:e])
@@ -772,7 +775,7 @@ def _stub(t: str, p: tuple[float, float]) -> list:
     while grown:
         grown = False
         for w in list(rest):
-            if any(_on(q, *c) for c in comp for q in w) or any(_on(q, *w) for c in comp for q in c) \
+            if any(math.dist(q, r) < 1e-3 for c in comp for q in w for r in c) \
                     or any(_on(j, *w) and _on(j, *c) for c in comp for j in dots):
                 comp.append(w)
                 rest.remove(w)
@@ -790,12 +793,43 @@ def _names_net(t: str, b: str) -> bool:
             and (re.search(r"\n\t\t\t\(power[ )]", body) is not None or re.search(r"\(hide yes\)|\shide[\s)]", pins[0]) is not None))
 
 
+def _typed(name: str) -> str:
+    """A label name as KiCad shows it: the file's escapes undone, {slash} as /."""
+    return re.sub(r"\\(.)", r"\1", name).replace("{slash}", "/")
+
+
+def _stored(name: str) -> str:
+    """A net name as KiCad writes it in a label: / as {slash} (then escaped by _esc)."""
+    return name.replace("/", "{slash}")
+
+
+def _hidden_power_in(t: str, b: str, num: str) -> bool:
+    body = _cache_of(t).get(_cache_key(b), "")
+    return any(re.match(r"\s*\(pin power_in ", body[s:e]) and re.search(r'\(number "%s"' % re.escape(num), body[s:e])
+               and re.search(r"\(hide yes\)|\shide[\s)]", body[s:e]) for s, e in blocks(body, ("pin",)))
+
+
+def _away(comp: list, p: tuple[float, float], q: tuple[float, float], outward: float) -> int:
+    """The direction the stub runs at q, its far end: along the wire ending there,
+    else from the pin p to q, else the pin's own outward direction."""
+    w = next((w for w in comp if math.dist(w[1], q) < 1e-3 or math.dist(w[0], q) < 1e-3), None)
+    a = (w[0] if math.dist(w[1], q) < 1e-3 else w[1]) if w else p
+    dx, dy = q[0] - a[0], q[1] - a[1]
+    if math.hypot(dx, dy) < 1e-3:
+        return round(outward) % 360
+    if abs(dx) >= abs(dy):
+        return 0 if dx > 0 else 180
+    return 90 if dy < 0 else 270
+
+
 def move(d: Path, where: str, net: str) -> int:
     """Put one pin of a placed part on another net, by renaming the label on its
     own stub or swapping its power symbol. Nothing is moved or redrawn."""
     ref, dot, num = where.rpartition(".")
     if not dot or not ref or not num:
         raise Usage(f"{where!r}: write REF.PIN, such as U1.3")
+    if not net or net.startswith("/"):
+        raise Usage(f"{net!r}: name the net as its label or power symbol reads, without a sheet path")
     all_sheets = sheets(d)
     hits = [(sh, s, e) for sh in all_sheets for s, e in sh.instances() if ref in refs(sh.text[s:e])]
     if not hits:
@@ -839,18 +873,23 @@ def move(d: Path, where: str, net: str) -> int:
         raise SystemExit(f"{where} is wired to {', '.join(joined)}: moving it would split that net, which needs "
                          "geometry. Do this one in KiCad. Nothing written.")
     if not items:
+        if _hidden_power_in(t, b, num):
+            raise Usage(f"{where} is a hidden power pin, joined to its net by name; not handled")
         raise Usage(f"{where} reaches its net through no label or power symbol; nothing to rename")
     if len(items) > 1:
         raise SystemExit(f"{where} reaches its net through {len(items)} labels or power symbols "
                          f"({', '.join(i[3] for i in items)}); not handled. Nothing written.")
     s, e, head, old, ix, iy, ia = items[0]
-    old = re.sub(r"\\(.)", r"\1", old)
+    old = _typed(old)
+    if head == "hierarchical_label":
+        raise SystemExit(f"{where} reaches its net through hierarchical label {old}, the sheet pin's own: moving it "
+                         "would break the sheet's interface. Do this one in KiCad. Nothing written.")
     if old == net:
         print(f"{where}: already on {net}; nothing written")
         return 0
     others = [x for x in all_sheets if x.path != sh.path]
     def names(kind, texts):
-        return {n for x in texts for n in re.findall(r'\n\t\(%s "((?:[^"\\]|\\.)*)"' % kind, x)}
+        return {_typed(n) for x in texts for n in re.findall(r'\n\t\(%s "((?:[^"\\]|\\.)*)"' % kind, x)}
     labels, hier = names("label", [t]), names("hierarchical_label", [t])
     globals_ = names("global_label", [x.text for x in all_sheets])
     elsewhere = names("label", [x.text for x in others]) | names("hierarchical_label", [x.text for x in others])
@@ -858,7 +897,9 @@ def move(d: Path, where: str, net: str) -> int:
     for x in [sh, *others]:
         for a, z in x.instances():
             if _names_net(x.text, x.text[a:z]):
-                power.setdefault(prop(x.text[a:z], "Value"), (x.text, x.text[a:z]))
+                power.setdefault(_typed(prop(x.text[a:z], "Value") or ""), (x.text, x.text[a:z]))
+    if head == "power symbol":                          # point the new item the way the stub runs
+        ia = _away(comp, p, (ix, iy), (_a + 180) % 360)
     if net in power:
         new_head = "power symbol"
     elif net in hier:
@@ -875,7 +916,7 @@ def move(d: Path, where: str, net: str) -> int:
     else:
         new_head = "label" if labels or not globals_ else "global_label"
     if new_head == head and head != "power symbol":     # rename in place
-        nb = re.sub(r'(\(%s )"(?:[^"\\]|\\.)*"' % head, lambda mm: f'{mm.group(1)}"{_esc(net)}"', t[s:e], count=1)
+        nb = re.sub(r'(\(%s )"(?:[^"\\]|\\.)*"' % head, lambda mm: f'{mm.group(1)}"{_esc(_stored(net))}"', t[s:e], count=1)
         t = t[:s] + nb + t[e:]
     elif new_head == "power symbol":
         src_text, src = power[net]
@@ -889,7 +930,7 @@ def move(d: Path, where: str, net: str) -> int:
                     if new_head != "hierarchical_label" or x is t), None)
         if tpl is None:
             raise SystemExit(f"the project has no {new_head.replace('_', ' ')} to take the file's format from. Nothing written.")
-        t = t[:s] + _label(tpl, new_head, net, ix, iy, round(ia) % 360) + t[e:]
+        t = t[:s] + _label(tpl, new_head, _stored(net), ix, iy, round(ia) % 360) + t[e:]
     kind = "power symbol" if new_head == "power symbol" else new_head.replace("_", " ")
     if net not in labels | hier | globals_ | set(power):
         kind += " (new net)"

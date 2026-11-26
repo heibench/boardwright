@@ -224,7 +224,7 @@ with KiCad; its README says where to copy them from.
     boardwright sch <project dir> set REF Field=Value ...      # Value, Footprint, any property; dnp/in_bom/on_board
     boardwright sch <project dir> add SPEC.py                  # ADD = [(ref, like, value, footprint, {pin: net})]
     boardwright sch <project dir> remove REF ...
-    boardwright sch <project dir> move REF.PIN NET               # rename the label on the pin's own stub
+    boardwright sch <project dir> move REF.PIN NET             # rename the label on the pin's own stub
     boardwright sch <project dir> repoint OLD_LIB:OLD_NAME NEW_LIB:NEW_NAME [--body keep|library]
     boardwright sch ercdiff OLD.json NEW.json
 
@@ -239,7 +239,8 @@ fields come from the library. Single-unit symbols only, and not power symbols.
 `move` puts one pin on another net without redrawing: the label on the
 pin's own stub is renamed, or its power symbol swapped for the new net's. A
 stub that reaches another pin or a sheet pin is refused, since splitting that
-net needs geometry.
+net needs geometry, and so is a hierarchical label, which belongs to the sheet
+pin.
 
 The check is KiCad's own connectivity: `netspec snap` before, `netspec diff`
 after, and the difference must be the change you meant and nothing else.
