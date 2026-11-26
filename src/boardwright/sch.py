@@ -760,16 +760,26 @@ def _on(p, a, b) -> bool:
             and abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) < 1e-3 * max(math.dist(a, b), 1))
 
 
+def _junctions(t: str) -> list:
+    return [_at(t[s:e])[:2] for s, e in blocks(t, ("junction",))]
+
+
+def _pin_on(q, w, dots) -> bool:
+    """A pin's end q is on wire w: at its end, or along it where a junction is drawn on q (as in KiCad)."""
+    return math.dist(q, w[0]) < 1e-3 or math.dist(q, w[1]) < 1e-3 or \
+        (_on(q, *w) and any(math.dist(q, j) < 1e-3 for j in dots))
+
+
 def _stub(t: str, p: tuple[float, float]) -> list:
-    """The wires joined to pin end p: a wire ending there, then any wire sharing an
-    end with one of them, or meeting one at a junction. A wire that ends on
+    """The wires joined to pin end p: a wire ending there (or passing it at a
+    junction), then any wire sharing an end with one of them, or meeting one at a junction. A wire that ends on
     another's middle without a junction is not joined, as in KiCad."""
     segs = []
     for s, e in blocks(t, ("wire",)):
         xy = re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", t[s:e])
         segs.append(tuple((float(a), float(b)) for a, b in xy[:2]))
-    dots = [_at(t[s:e])[:2] for s, e in blocks(t, ("junction",))]
-    comp = [w for w in segs if math.dist(p, w[0]) < 1e-3 or math.dist(p, w[1]) < 1e-3]   # a pin joins a wire at its end
+    dots = _junctions(t)
+    comp = [w for w in segs if _pin_on(p, w, dots)]
     rest = [w for w in segs if w not in comp]
     grown = True
     while grown:
@@ -830,7 +840,7 @@ def move(d: Path, where: str, net: str) -> int:
         raise Usage(f"{where!r}: write REF.PIN, such as U1.3")
     if not net or net.startswith("/"):
         raise Usage(f"{net!r}: name the net as its label or power symbol reads, without a sheet path")
-    net = _typed(net)                                   # SDI{slash}out0, as a netlist names it, is SDI/out0
+    net = net.replace("{slash}", "/")                   # SDI{slash}out0, as a netlist names it, is SDI/out0
     all_sheets = sheets(d)
     hits = [(sh, s, e) for sh in all_sheets for s, e in sh.instances() if ref in refs(sh.text[s:e])]
     if not hits:
@@ -851,8 +861,9 @@ def move(d: Path, where: str, net: str) -> int:
     comp = _stub(t, p)
     def touches(q):                                     # a label joins a wire anywhere along it
         return math.dist(q, p) < 1e-3 or any(_on(q, *w) for w in comp)
-    def meets(q):                                       # a pin only at a wire's end
-        return math.dist(q, p) < 1e-3 or any(math.dist(q, w[0]) < 1e-3 or math.dist(q, w[1]) < 1e-3 for w in comp)
+    dots = _junctions(t)
+    def meets(q):                                       # a pin at a wire's end, or along it on a junction
+        return math.dist(q, p) < 1e-3 or any(_pin_on(q, w, dots) for w in comp)
     items, joined = [], []                              # (start, end, kind, name, x, y, angle)
     for s, e in sh.instances():
         ob = t[s:e]

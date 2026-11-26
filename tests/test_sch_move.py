@@ -183,6 +183,43 @@ def test_another_pin_on_a_stub_wires_middle_is_not_joined(ldo_copy, capsys):
     assert capsys.readouterr().out == "R1.2: LED_A -> X  [global label (new net)]\n"
 
 
+def _dot(t, q):
+    k = sch._tail(t)
+    return t[:k] + f"\n\t(junction (at {q[0]:g} {q[1]:g}) (diameter 0))" + t[k:]
+
+
+def test_a_pin_on_a_wires_middle_joins_it_at_a_junction(ldo_copy, capsys):
+    """With a junction on the pin, KiCad joins it to the wire running through."""
+    f = ldo_copy / SCH
+    t = f.read_text()
+    x, y = _pin(t, "R1", "2")
+    s, e = next((s, e) for s, e in sch.blocks(t, ("wire",)) if f"(xy {x:g} {y:g})" in t[s:e])
+    w = re.sub(r"\(xy %s %s\)" % (re.escape(f"{x:g}"), re.escape(f"{y:g}")), f"(xy {x - 2.54:g} {y:g})", t[s:e], count=1)
+    f.write_text(_dot(t[:s] + w + t[e:], (x, y)))
+    assert _move(ldo_copy, "R1.2", "X") == 0
+    assert capsys.readouterr().out == "R1.2: LED_A -> X  [global label (new net)]\n"
+
+
+def test_another_pin_on_a_stub_wires_middle_at_a_junction_is_refused(ldo_copy, capsys):
+    """R1.1's own wire is gone: only the junction joins it to R1.2's stub."""
+    f = ldo_copy / SCH
+    t = f.read_text()
+    (x2, y), (x1, _) = _pin(t, "R1", "2"), _pin(t, "R1", "1")
+    s, e = next((s, e) for s, e in sch.blocks(t, ("wire",)) if f"(xy {x1:g} {y:g})" in t[s:e])
+    t = t[:s] + t[e:]
+    for a, b in (((x2, y), (x2, y - 2.54)), ((x2, y - 2.54), (x1, y - 2.54)), ((x1, y - 2.54), (x1, y + 2.54))):
+        t = _wire(t, a, b)
+    f.write_text(_dot(t, (x1, y)))
+    assert _move(ldo_copy, "R1.2", "X") == 1
+    assert "R1.2 is wired to R1.1" in capsys.readouterr().err
+
+
+def test_a_backslash_in_net_is_kept(ldo_copy, capsys):
+    assert _move(ldo_copy, "R1.2", "A\\B") == 0
+    assert capsys.readouterr().out == "R1.2: LED_A -> A\\B  [global label (new net)]\n"
+    assert '(global_label "A\\\\B"' in (ldo_copy / SCH).read_text()
+
+
 def test_a_sheet_pin_on_the_stub_is_refused(ldo_copy, capsys):
     f = ldo_copy / SCH
     t = f.read_text()
