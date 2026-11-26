@@ -157,6 +157,32 @@ def test_a_wire_ending_on_a_wires_middle_joins_only_at_a_junction():
     assert len(sch._stub(t[:-2] + "\n\t(junction (at 5 0) (diameter 0))\n)", (0, 0))) == 2
 
 
+def test_a_pin_on_a_wires_middle_is_not_on_that_wire(ldo_copy, capsys):
+    """KiCad joins a pin to a wire only at the wire's end. With R1.2's wire run on
+    through the pin, the label at its end is not R1.2's, and nothing is renamed."""
+    f = ldo_copy / SCH
+    t = f.read_text()
+    x, y = _pin(t, "R1", "2")
+    s, e = next((s, e) for s, e in sch.blocks(t, ("wire",)) if f"(xy {x:g} {y:g})" in t[s:e])
+    w = re.sub(r"\(xy %s %s\)" % (re.escape(f"{x:g}"), re.escape(f"{y:g}")), f"(xy {x - 2.54:g} {y:g})", t[s:e], count=1)
+    f.write_text(t[:s] + w + t[e:])
+    assert _move(ldo_copy, "R1.2", "X") == 64
+    assert "R1.2 reaches its net through no label" in capsys.readouterr().err
+
+
+def test_another_pin_on_a_stub_wires_middle_is_not_joined(ldo_copy, capsys):
+    """A branch of R1.2's stub runs through R1.1's pin end at a right angle. KiCad
+    joins a pin only at a wire's end, so R1.2 still reaches its net by its label."""
+    f = ldo_copy / SCH
+    t = f.read_text()
+    (x2, y), (x1, _) = _pin(t, "R1", "2"), _pin(t, "R1", "1")
+    for a, b in (((x2, y), (x2, y - 2.54)), ((x2, y - 2.54), (x1, y - 2.54)), ((x1, y - 2.54), (x1, y + 2.54))):
+        t = _wire(t, a, b)
+    f.write_text(t)
+    assert _move(ldo_copy, "R1.2", "X") == 0
+    assert capsys.readouterr().out == "R1.2: LED_A -> X  [global label (new net)]\n"
+
+
 def test_a_sheet_pin_on_the_stub_is_refused(ldo_copy, capsys):
     f = ldo_copy / SCH
     t = f.read_text()
@@ -254,6 +280,13 @@ def test_a_net_is_named_as_kicad_shows_it(tmp_path, capsys):
     assert _move(d, "U6.56", "SDI/out0") == 0
     assert capsys.readouterr().out == "U6.56: QSPI_SS -> SDI/out0  [global label]\n"
     assert '(global_label "SDI{slash}out0"' in (d / "rp2040.kicad_sch").read_text()
+
+
+@needs_demos
+def test_a_net_is_also_found_by_the_name_a_netlist_gives_it(tmp_path, capsys):
+    d = demo_copy(tmp_path, "tiny_tapeout")
+    assert _move(d, "U6.56", "SDI{slash}out0") == 0
+    assert capsys.readouterr().out == "U6.56: QSPI_SS -> SDI/out0  [global label]\n"
 
 
 @needs_demos

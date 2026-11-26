@@ -761,7 +761,7 @@ def _on(p, a, b) -> bool:
 
 
 def _stub(t: str, p: tuple[float, float]) -> list:
-    """The wires joined to point p: a wire touching p, then any wire sharing an
+    """The wires joined to pin end p: a wire ending there, then any wire sharing an
     end with one of them, or meeting one at a junction. A wire that ends on
     another's middle without a junction is not joined, as in KiCad."""
     segs = []
@@ -769,7 +769,7 @@ def _stub(t: str, p: tuple[float, float]) -> list:
         xy = re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)", t[s:e])
         segs.append(tuple((float(a), float(b)) for a, b in xy[:2]))
     dots = [_at(t[s:e])[:2] for s, e in blocks(t, ("junction",))]
-    comp = [w for w in segs if _on(p, *w)]
+    comp = [w for w in segs if math.dist(p, w[0]) < 1e-3 or math.dist(p, w[1]) < 1e-3]   # a pin joins a wire at its end
     rest = [w for w in segs if w not in comp]
     grown = True
     while grown:
@@ -830,6 +830,7 @@ def move(d: Path, where: str, net: str) -> int:
         raise Usage(f"{where!r}: write REF.PIN, such as U1.3")
     if not net or net.startswith("/"):
         raise Usage(f"{net!r}: name the net as its label or power symbol reads, without a sheet path")
+    net = _typed(net)                                   # SDI{slash}out0, as a netlist names it, is SDI/out0
     all_sheets = sheets(d)
     hits = [(sh, s, e) for sh in all_sheets for s, e in sh.instances() if ref in refs(sh.text[s:e])]
     if not hits:
@@ -848,13 +849,15 @@ def move(d: Path, where: str, net: str) -> int:
                          "every use. Not handled: do this one in KiCad. Nothing written.")
     p = (px, py)
     comp = _stub(t, p)
-    def touches(q):
+    def touches(q):                                     # a label joins a wire anywhere along it
         return math.dist(q, p) < 1e-3 or any(_on(q, *w) for w in comp)
+    def meets(q):                                       # a pin only at a wire's end
+        return math.dist(q, p) < 1e-3 or any(math.dist(q, w[0]) < 1e-3 or math.dist(q, w[1]) < 1e-3 for w in comp)
     items, joined = [], []                              # (start, end, kind, name, x, y, angle)
     for s, e in sh.instances():
         ob = t[s:e]
         for n, (qx, qy, qa) in _placed_pins(t, ob).items():
-            if (s, n) == (s0, num) or not touches((qx, qy)):
+            if (s, n) == (s0, num) or not meets((qx, qy)):
                 continue
             if _names_net(t, ob):
                 items.append((s, e, "power symbol", prop(ob, "Value") or "", qx, qy, qa))
@@ -867,7 +870,7 @@ def move(d: Path, where: str, net: str) -> int:
                 items.append((s, e, head, m.group(1), *_at(t[s:e])))
     for s, e in blocks(t, ("sheet",)):
         for a, z in blocks(t[s:e], ("pin",)):
-            if touches(_at(t[s:e][a:z])[:2]):
+            if meets(_at(t[s:e][a:z])[:2]):
                 joined.append("sheet pin " + re.match(r'\s*\(pin "([^"]*)"', t[s:e][a:z]).group(1))
     if joined:
         raise SystemExit(f"{where} is wired to {', '.join(joined)}: moving it would split that net, which needs "
