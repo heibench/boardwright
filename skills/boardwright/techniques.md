@@ -9,7 +9,9 @@ Where they come from: two days of agent board work on five public BREAD slice
 templates (feastorg/Slice_TEMP_*), reviewed by a designer on rendered images,
 November 2026. Every board passed KiCad's DRC with 0 errors before review, and
 the reviewer still found layout problems on every one. The commits cited are
-on those repositories. The full account is heibench/research
+on those repositories. T10 to T13 come from a later round on feastorg/Slice_IOCT:
+their commits came in through its pull request #2, squash-merged as f46abfa,
+so GitHub serves them but no branch holds them. The full account is heibench/research
 `topics/eda-agents/field-report.md`. One project and one reviewer: read these
 as cases, not laws.
 
@@ -111,3 +113,60 @@ a millimetre rather than add jogs. Evidence: Slice_TEMP_NUCL_L4L-r1 C7, 1.725
 mm pad pitch across +5VD and GNDD; the vias moved 0.015 and 0.13 mm. A first
 try moved the ground rail instead, 0.11 mm from a neighbouring pad: a DRC
 clearance error.
+
+## T10. Lay repeated channels out as one row, repeated
+
+When N identical channels are each placed and routed on their own, small
+differences compound: vias, detours, and nets threading between each other's
+parts. Design one channel's row so that every link in it is a straight track,
+then repeat it at the channel pitch. Feed the net the channels share as one
+rail on the other layer, with one via per channel. Run each channel's line
+from the controller as nested L-shapes a fixed track spacing apart, with
+equal 45° corners. Where the line to the nearest channel leaves the
+controller pin farthest from the block, that line bends outermost, and each
+farther channel's line bends one spacing inside the last, so no line's turn
+crosses another's run. With the pins in the opposite order, this nesting
+crosses every line: read the pin order at both ends first (T2). Evidence: Slice_IOCT pull request #2, commit 9cfff82, four SSR output
+channels. OUT1, to the nearest channel, turns outermost, and OUT2 to OUT4
+each turn 0.5 mm further in. For the block's nine nets, 91
+segments and 12 vias became 44 and 7; DRC was unchanged.
+
+## T11. Put a part where its input arrives, not where its output goes
+
+A small circuit with one input net and one output net goes where the harder
+net to route is shortest. An e-stop interlock placed beside the outputs it
+switches pulled its input across the whole board, through the strip the
+output channels needed. Placed beside the input instead, the input became a
+straight drop and only the output, a single rail, crossed the board.
+Evidence: Slice_IOCT pull request #2, commit 8f77248, Q2, R14 and R15: ESTOP
+lost two vias and a B.Cu wiggle of 0.375 mm segments, and the strip T10 used
+was freed.
+
+## T12. Put repeated channels on the connector's pitch, and line one pin row up with it
+
+Channels placed at about a connector's pitch give every link a small jog,
+segments of a few micrometres and odd necks, all of which pass DRC. Snap each
+channel to the connector's pitch exactly, and pick the offset so one row of
+pins shares a line with the connector's pins. Each link is then a straight
+run or a single 45°. Turning a two-pin part 180° keeps the circuit and can put
+its pad on the connector pin's line, but its reference moves with it: place
+the labels again after turning. Evidence: Slice_IOCT pull request #2:
+- commit 123d24d, input channels on a 7.53/7.50/7.40 mm pitch against the
+  connector's 7.50: 220 segments became 85 for the block's 21 nets. The
+  turned resistors left four reference labels overlapping (D11/R7, D12/R9),
+  four new DRC warnings;
+- commit a5967ee, output relays at x 48.40/48.30/48.30/48.55 moved onto one
+  column.
+
+## T13. Read the board's constraints before stepping a run
+
+A small step in a run along the board edge can look like a defect, and
+straightening it can run the track into something that forced it. Before
+choosing where a run goes, list the graphics near it on Edge.Cuts and on the
+Margin layer, and the clearance of every neighbour. A low-current neighbour
+can go narrower so the main run stays level. Evidence: Slice_IOCT pull request
+#2, commit 0053004: +12V along the bottom edge lost its 0.1 mm step once the
+regulator's FB sense track beside it went from 0.5 to 0.3 mm. In the work
+behind it, the first attempt to straighten the run hit a line on the Margin
+layer, which KiCad's DRC treated as a board edge. The commit records only the
+result.

@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- The skill's `techniques.md` gains T10 to T13: repeated channels laid out as
+  one row, a part placed where its input arrives, channels on the connector's
+  pitch, and reading a board's constraints before stepping a run. Each carries
+  its evidence from Slice_IOCT pull request #2.
+
 ### Fixed
 - `review` `segments`: a pattern such as `"*"` leaves out a net with no track
   and nothing to join (a single pad, or copper with no net), as it already
