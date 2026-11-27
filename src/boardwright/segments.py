@@ -34,8 +34,8 @@ T-junction, a via partway along a run, or a run that passes over a pad on the
 way), so excess can go below zero on such a net. The reference only ever
 errs high, so it hides excess rather than inventing it (#167). A poured net cannot be judged, since its pour joins
 pads that tracks otherwise would: named, it fails; matched by a pattern, it is
-left out. A net with no track cannot be judged either (an unrouted pin, copper
-with no net): named, it fails; matched by a pattern, it is left out.
+left out. A net with no track cannot be judged either, and fails, except that a
+pattern leaves out one with nothing to join: a single pad, or copper with no net.
 """
 
 from __future__ import annotations
@@ -173,15 +173,14 @@ def segments_check(b, spec: dict) -> tuple[list[str], list[str]]:
     known = {t.net for t in b.tracks} | {p.net for p in b.pads}
     poured = {z.net for z in b.zones if not z.keepout and any(z.fills.values())}
     for nets, limit in spec.get("segments", []):
-        names, matched = [], set()
-        for n in [nets] if isinstance(nets, str) else list(nets):
-            if any(c in n for c in "*?["):          # a pattern leaves out nets it cannot judge
-                found = [x for x in _expand(b, [n]) if x not in poured]
-                names += found
-                matched.update(found)
+        given = [nets] if isinstance(nets, str) else list(nets)
+        named = {n for n in given if not any(c in n for c in "*?[")}
+        names = []
+        for n in given:
+            if n not in named:                      # a pattern leaves poured nets out
+                names += [x for x in _expand(b, [n]) if x not in poured]
             else:
                 names.append(n)
-        matched -= {n for n in ([nets] if isinstance(nets, str) else nets) if not any(c in n for c in "*?[")}
         done = set()
         for net in names:
             if net in done:
@@ -196,7 +195,9 @@ def segments_check(b, spec: dict) -> tuple[list[str], list[str]]:
             group = chain[2] if chain else [net]
             done.update(group)
             if not any(t.net in group for t in b.tracks):
-                if net not in matched:
+                # a pattern also leaves out what has nothing to join: one pad, or copper with no net
+                lone = sum(1 for p in b.pads if p.net and p.net in group) < 2
+                if named & set(group) or not lone:
                     fails.append(f"segments {net}: cannot judge, it has no track")
                 continue
             vias = sum(1 for v in b.vias if v.net in group)
