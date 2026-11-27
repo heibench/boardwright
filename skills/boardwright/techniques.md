@@ -121,10 +121,12 @@ differences compound: vias, detours, and nets threading between each other's
 parts. Design one channel's row so that every link in it is a straight track,
 then repeat it at the channel pitch. Feed the net the channels share as one
 rail on the other layer, with one via per channel. Run each channel's line
-from the controller as nested L-shapes at one pitch, with equal 45° corners.
-The line to the nearest channel bends outermost, and each farther channel's
-line bends one pitch inside the last, so no line's turn crosses another's
-run. Evidence: Slice_IOCT pull request #2, commit 9cfff82, four SSR output
+from the controller as nested L-shapes a fixed track spacing apart, with
+equal 45° corners. Where the line to the nearest channel leaves the
+controller pin farthest from the block, that line bends outermost, and each
+farther channel's line bends one spacing inside the last, so no line's turn
+crosses another's run. With the pins in the opposite order, this nesting
+crosses every line: read the pin order at both ends first (T2). Evidence: Slice_IOCT pull request #2, commit 9cfff82, four SSR output
 channels. OUT1, to the nearest channel, turns outermost, and OUT2 to OUT4
 each turn 0.5 mm further in. For the block's nine nets, 91
 segments and 12 vias became 44 and 7; DRC was unchanged.
