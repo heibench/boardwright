@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- The skill's `techniques.md` gains T10 to T13: repeated channels laid out as
+  one row, a part placed where its input arrives, channels on the connector's
+  pitch, and reading a board's constraints before stepping a run. Each carries
+  its evidence from Slice_IOCT pull request #2.
+
 ## [0.17.0] - 2026-11-25
 
 ### Added
