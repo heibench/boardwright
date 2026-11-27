@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-27
+
 ### Added
 - The skill's `techniques.md` gains T10 to T13: repeated channels laid out as
   one row, a part placed where its input arrives, channels on the connector's
@@ -695,7 +697,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/heibench/boardwright/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/heibench/boardwright/compare/v0.16.2...v0.17.0
 [0.16.2]: https://github.com/heibench/boardwright/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/heibench/boardwright/compare/v0.16.0...v0.16.1
