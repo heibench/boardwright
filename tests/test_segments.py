@@ -101,6 +101,20 @@ def test_a_net_with_no_track_cannot_judge(tmp_path):
     assert _check(tmp_path, [("GPIO25", 7)], strip)[1] == ["segments GPIO25: cannot judge, it has no track"]
 
 
+def test_a_pattern_leaves_out_a_net_with_no_track(tmp_path):
+    """A net with no track can't be judged, so a pattern leaves it out, as it
+    does a poured net. This covers an unrouted pin and copper with no net.
+    The routed nets are still judged."""
+    def strip(t):
+        return _no_tracks("LED_25")(_no_tracks("GPIO25")(t))
+    lines, fails = _check(tmp_path, [("*", 999)], strip)
+    assert not any("cannot judge" in f for f in fails), fails
+    assert not any(line.startswith(("segments GPIO25", "segments LED_25", "segments U1.37")) for line in lines)
+    assert any(line.startswith("segments RUN: ") for line in lines)
+    # named outright, it still fails, even beside a pattern that matches it
+    assert _check(tmp_path, [(["GPIO25", "*"], 999)], strip)[1] == ["segments GPIO25: cannot judge, it has no track"]
+
+
 def test_an_unknown_net_fails(tmp_path):
     assert _check(tmp_path, [("NOPE", 0)])[1] == ["segments NOPE: no such net"]
 

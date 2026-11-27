@@ -7,6 +7,12 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `review` `segments`: a pattern such as `"*"` leaves out a net with no track
+  (an unrouted pin, copper with no net), as it already left out a poured net,
+  so the check can pass on a real board (#202). A net named outright still
+  fails.
+
 ## [0.17.0] - 2026-11-25
 
 ### Added
