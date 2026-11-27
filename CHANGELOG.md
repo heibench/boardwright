@@ -13,6 +13,13 @@ the command line).
   pitch, and reading a board's constraints before stepping a run. Each carries
   its evidence from Slice_IOCT pull request #2.
 
+### Fixed
+- `review` `segments`: a pattern such as `"*"` leaves out a net with no track
+  and nothing to join (a single pad, or copper with no net), as it already
+  left out a poured net, so the check can pass on a real board (#202). A
+  trackless net that joins two or more pads is unrouted and still fails, as
+  does a net named outright.
+
 ## [0.17.0] - 2026-11-25
 
 ### Added
