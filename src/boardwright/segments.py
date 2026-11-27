@@ -34,8 +34,9 @@ T-junction, a via partway along a run, or a run that passes over a pad on the
 way), so excess can go below zero on such a net. The reference only ever
 errs high, so it hides excess rather than inventing it (#167). A poured net cannot be judged, since its pour joins
 pads that tracks otherwise would: named, it fails; matched by a pattern, it is
-left out. A net with no track cannot be judged either, and fails, except that a
-pattern leaves out one with nothing to join: a single pad, or copper with no net.
+left out. A net with no track cannot be judged either, and fails, unless only a
+pattern matched it and it has nothing to join: a single pad, or copper with no
+net.
 """
 
 from __future__ import annotations

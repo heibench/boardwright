@@ -121,6 +121,8 @@ def test_a_pattern_still_fails_an_unrouted_connection(tmp_path):
     unrouted, not lone: a pattern fails it, so a board with no tracks can't pass."""
     fails = _check(tmp_path, [("*", 999)], _strip_chain)[1]
     assert fails == ["segments GPIO25: cannot judge, it has no track"], fails
+    # two pads are already a connection: CC1 joins only J1's A5 and its resistor
+    assert _check(tmp_path, [("*", 999)], _no_tracks("CC1"))[1] == ["segments CC1: cannot judge, it has no track"]
 
     def bare(t):
         cut = [(s, e) for s, e in copper.blocks(t, ("segment", "arc"))]
@@ -132,8 +134,9 @@ def test_a_pattern_still_fails_an_unrouted_connection(tmp_path):
 
 
 def test_a_named_net_with_no_track_fails_beside_a_pattern_in_either_order(tmp_path):
-    """Named outright, a lone net still fails, whichever comes first, and also
-    when a pattern reaches it first through its chain partner."""
+    """Named outright, a lone net still fails, whichever comes first. The
+    LED_25 cases guard round 1's ordering bug; a stripped chain has four pads,
+    so it fails through GPIO25 under a pattern either way."""
     lone = "unconnected-(U1-GPIO17-Pad28)"
     for spec in ([lone, "*"], ["*", lone]):
         assert f"segments {lone}: cannot judge, it has no track" in _check(tmp_path, [(spec, 999)])[1]
