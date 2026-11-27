@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from conftest import BOARDS
 from test_loop import _no_tracks
 
+from boardwright import copper
 from boardwright.model import Board
 from boardwright.review import review
 from boardwright.segments import segments_check
@@ -99,6 +100,48 @@ def test_a_net_with_no_track_cannot_judge(tmp_path):
     def strip(t):
         return _no_tracks("LED_25")(_no_tracks("GPIO25")(t))
     assert _check(tmp_path, [("GPIO25", 7)], strip)[1] == ["segments GPIO25: cannot judge, it has no track"]
+
+
+def _strip_chain(t):
+    return _no_tracks("LED_25")(_no_tracks("GPIO25")(t))
+
+
+def test_a_pattern_leaves_out_a_lone_pad_and_copper_with_no_net(tmp_path):
+    """rp2040_min has unconnected-(...) pins with one pad, and copper with no
+    net. Nothing on them needs a track, so a pattern leaves them out, as it
+    does a poured net, while the routed nets are still judged."""
+    lines, fails = _check(tmp_path, [("*", 999)])
+    assert fails == [], fails
+    assert any(line.startswith("segments RUN: ") for line in lines)
+    assert _check(tmp_path, [("unconnected-*", 999)])[1] == []
+
+
+def test_a_pattern_still_fails_an_unrouted_connection(tmp_path):
+    """A net with no track whose chain joins pads (U1.37 -> R9 -> D2.2) is
+    unrouted, not lone: a pattern fails it, so a board with no tracks can't pass."""
+    fails = _check(tmp_path, [("*", 999)], _strip_chain)[1]
+    assert fails == ["segments GPIO25: cannot judge, it has no track"], fails
+    # two pads are already a connection: CC1 joins only J1's A5 and its resistor
+    assert _check(tmp_path, [("*", 999)], _no_tracks("CC1"))[1] == ["segments CC1: cannot judge, it has no track"]
+
+    def bare(t):
+        cut = [(s, e) for s, e in copper.blocks(t, ("segment", "arc"))]
+        for s, e in reversed(cut):
+            t = t[:s] + t[e:]
+        return t
+    fails = _check(tmp_path, [("*", 0)], bare)[1]
+    assert fails and all("cannot judge, it has no track" in f for f in fails)
+
+
+def test_a_named_net_with_no_track_fails_beside_a_pattern_in_either_order(tmp_path):
+    """Named outright, a lone net still fails, whichever comes first. The
+    LED_25 cases guard round 1's ordering bug; a stripped chain has four pads,
+    so it fails through GPIO25 under a pattern either way."""
+    lone = "unconnected-(U1-GPIO17-Pad28)"
+    for spec in ([lone, "*"], ["*", lone]):
+        assert f"segments {lone}: cannot judge, it has no track" in _check(tmp_path, [(spec, 999)])[1]
+    for spec in (["LED_25", "*"], ["*", "LED_25"], ["GPIO*", "LED_25"]):
+        assert _check(tmp_path, [(spec, 999)], _strip_chain)[1], spec
 
 
 def test_an_unknown_net_fails(tmp_path):
