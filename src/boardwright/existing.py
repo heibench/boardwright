@@ -499,16 +499,28 @@ def dedupe(text: str) -> tuple[str, int]:
     return text, len(drop)
 
 
+def _shown(net: str) -> str:
+    """A net's name as KiCad shows it, in its DRC report and XML netlist: {slash} as /."""
+    return net.replace("{slash}", "/")
+
+
 def _board_net(name: str, known: set[str]) -> str:
     """The board's own name for a net named as the board stores it
-    (/ESTOP{slash}D2) or as KiCad shows it, in its GUI, DRC report and XML
-    netlist (/ESTOP/D2) (#223). A name two stored nets display as is refused:
-    /ESTOP/D2 is both a root label ESTOP/D2 and a label D2 on sheet ESTOP."""
-    hits = sorted(k for k in known if k == name or k.replace("{slash}", "/") == name)
-    if len(hits) == 1:
-        return hits[0]
-    if hits:
-        raise Usage(f"net {name!r} could be {' or '.join(repr(h) for h in hits)}: name it as the board stores it "
+    (/ESTOP{slash}D2) or as KiCad shows it in its DRC report and XML netlist
+    (/ESTOP/D2) (#223). The stored name wins: /ESTOP/D2 stored so (a label D2
+    on sheet ESTOP) is that net even when a root label ESTOP/D2, stored
+    /ESTOP{slash}D2, shows the same way; a note says so. A shown name two
+    stored nets share, neither stored so, is refused."""
+    same = sorted(k for k in known if k != name and _shown(k) == name)
+    if name in known:
+        if same:
+            print(f"note: {name!r} is the net stored so; {', '.join(map(repr, same))} shows the same way",
+                  file=sys.stderr)
+        return name
+    if len(same) == 1:
+        return same[0]
+    if same:
+        raise Usage(f"net {name!r} could be {' or '.join(repr(h) for h in same)}: name it as the board stores it "
                     "(see `nets`). Nothing changed.")
     raise Usage(f"no net {name!r} (see `nets`)")
 
@@ -531,7 +543,7 @@ def reroute(d: Path, args: list[str]) -> int:
     o = out_dir(d)
     b0 = Board(pcb)
     known = {p.net for p in b0.pads}
-    nets_ = [_board_net(n, known) for n in nets_]
+    nets_ = list(dict.fromkeys(_board_net(n, known) for n in nets_))       # each net once
     from .route import net_classes
     cls = net_classes(b0)
     wide = [(t, (cls(t.net) or {}).get("width")) for t in b0.tracks if t.net in nets_]
@@ -539,8 +551,8 @@ def reroute(d: Path, args: list[str]) -> int:
     if wide and not force:
         for t, w in wide:
             (x1, y1), (x2, y2) = t.a, t.b
-            print(f"WIDE {t.net} {t.width:g} mm on {t.layer} (class {w:g} mm) from ({x1:.2f}, {y1:.2f}) to ({x2:.2f}, {y2:.2f})")
-        raise Outcome(f"refused: {len(wide)} track(s) on {sorted({t.net for t, _w in wide})} are wider than their net "
+            print(f"WIDE {_shown(t.net)} {t.width:g} mm on {t.layer} (class {w:g} mm) from ({x1:.2f}, {y1:.2f}) to ({x2:.2f}, {y2:.2f})")
+        raise Outcome(f"refused: {len(wide)} track(s) on {sorted({_shown(t.net) for t, _w in wide})} are wider than their net "
                       "class, and the router would replace them at the class width; nothing changed. "
                       "--force reroutes them anyway")
     original = pcb.read_text(encoding="utf-8")
@@ -560,7 +572,7 @@ def reroute(d: Path, args: list[str]) -> int:
     b1 = Board(pcb)
     for net in nets_:
         L = sum(t.length for t in b1.tracks if t.net == net)
-        print(f"  {net}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
+        print(f"  {_shown(net)}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
     left = len(ratsnest(b1, {z.net for z in b1.zones if not z.keepout}))
     print(f"kept {kept} new item(s) on the named nets; {arcs} curved track(s) shown to the router as fixed; "
           f"tracks {len(b0.tracks)} -> {len(b1.tracks)}; unrouted connections on unpoured nets: {left}")
@@ -632,8 +644,9 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
     # stm32f103_4l with PA0 and PA1, #106), so reroute puts the board back as read.
     failed = sorted({n for *_p, n in ratsnest(Board(pcb), set())} & set(nets_) - was_open)
     if failed:
-        done = [n for n in nets_ if n not in failed]
-        raise Outcome(f"refused: the router could not finish {failed}" + (f"; reroute {done} without them" if done else ""))
+        done = [n for n in nets_ if n not in failed]               # stored names: re-entered, they name one net each
+        raise Outcome(f"refused: the router could not finish {[_shown(n) for n in failed]}"
+                      + (f"; reroute {done} without them" if done else ""))
     return len(graft), arcs
 
 
