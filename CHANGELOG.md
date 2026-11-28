@@ -8,6 +8,11 @@ the command line).
 ## [Unreleased]
 
 ### Fixed
+- Spec and board files (`sch add`'s SPEC.py, `review`'s spec, boardwright.py,
+  board.py, `live` and edit specs) run from their source as it reads now.
+  importlib's loader reused the first load's cached bytecode when an edit
+  kept the file's size and mtime, so an edit of the same size within a second
+  ran the old spec without a word (#213).
 - `sch add` draws each pin's stub from the unit and body style it places (#207).
   It read every unit and body style of the symbol, and the last definition of
   a pin number won. While it reported the pin joined, the stub could miss the
