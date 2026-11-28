@@ -557,3 +557,5 @@ def test_a_sheet_path_without_its_leading_slash_is_refused():
     with pytest.raises(sch.Usage, match=r"starts with the sheet name 'io'.*\(/io/LED_A\)"):
         sch._local_name("io/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"}))
     assert sch._local_name("ion/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"})) == "ion{slash}LED_A"
+    # a label that exists is joined, even when its first part is a sheet's name
+    assert sch._local_name("io/x", "/", set(), {"io{slash}x"}, "x.kicad_sch", frozenset({"io"})) == "io{slash}x"

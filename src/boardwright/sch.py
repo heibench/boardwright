@@ -551,6 +551,8 @@ def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where:
     if net in known:                                    # a power symbol's Value is matched as written
         return net
     if not net.startswith("/"):
+        if _stored(net) in known:                       # an existing label, whatever its first part
+            return _stored(net)
         if "/" in net and net.split("/", 1)[0] in sheet_names:
             raise Usage(f"net {net!r} starts with the sheet name {net.split('/', 1)[0]!r}: a sheet path starts with "
                         f"'/' (/{net}), and a new net cannot have a sheet's name before its first '/'. Nothing written.")
