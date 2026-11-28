@@ -17,6 +17,19 @@ the command line).
   - what still needs KiCad: new sub-sheets, multi-unit parts, unstubbed pins.
 
 ### Fixed
+- `sch add` reads a net in a pin map as KiCad shows it (`SDA/A4`) or as its
+  s-expression netlist spells it (`SDA{slash}A4`), and joins the label stored
+  as `SDA{slash}A4`, as `move` does (#210). It refused the shown form with a
+  message about sheet paths. A name led by `/` still names a local label by
+  its sheet path, as #102 fixed, and a new net whose name starts with a
+  sheet's name (`io/LED_A`) is refused as a sheet path missing its `/`; an
+  existing label of that name still joins. The pin is printed as KiCad shows
+  it.
+- Spec and board files (`sch add`'s SPEC.py, `review`'s spec, boardwright.py,
+  board.py, `live` and edit specs) run from their source as it reads now.
+  importlib's loader reused the first load's cached bytecode when an edit
+  kept the file's size and mtime, so an edit of the same size within a second
+  ran the old spec without a word (#213).
 - `sch add` draws each pin's stub from the unit and body style it places (#207).
   It read every unit and body style of the symbol, and the last definition of
   a pin number won. While it reported the pin joined, the stub could miss the
