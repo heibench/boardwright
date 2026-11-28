@@ -275,29 +275,13 @@ def _power(t: str, src: str, x: float, y: float, away: float, path: str | None, 
     """A copy of power symbol `src`, its pin on (x, y) and its body pointing
     away, named #PWR0n. Its symbol must already be in t's cache."""
     p = _fresh(src)
-    pin = next(iter(_lib_pins(t, _cache_key(p)).values()), (0.0, 0.0, away))
+    pin = next(iter(_unit_pins(t, _cache_key(p), *_unit_style(p)).values()), (0.0, 0.0, away))
     pb = _place_power(p, x, y, away, pin)
     if path:
         pb = _set_path(pb, path)
     pref = f"#PWR0{n}"
     pb = re.sub(r'(\(property "Reference" )"[^"]*"', lambda mm: f'{mm.group(1)}"{pref}"', pb, count=1)
     return re.sub(r'\(reference "[^"]*"\)', f'(reference "{pref}")', pb)
-
-
-def _lib_pins(text: str, lib_id: str) -> dict[str, tuple[float, float, float]]:
-    """pin number -> (x, y, angle) in library coordinates, from the sheet's symbol cache."""
-    cache = blocks(text, ("lib_symbols",))
-    body = _symbol_blocks(text[cache[0][0]:cache[0][1]]).get(lib_id) if cache else None
-    if body is None:
-        raise SystemExit(f"{lib_id} is not in the sheet's symbol cache")
-    out = {}
-    for s, e in blocks(body, ("pin",)):
-        p = body[s:e]
-        at = re.search(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", p)
-        num = re.search(r'\(number "([^"]*)"', p)
-        if at and num:
-            out[num.group(1)] = (float(at.group(1)), float(at.group(2)), float(at.group(3) or 0))
-    return out
 
 
 def _fresh(block: str) -> str:
@@ -465,6 +449,7 @@ def _from_library(template: str, body: str, lib_id: str, x: float, y: float) -> 
     head = re.sub(r"\n\t\t\(lib_name \"[^\"]*\"\)", "", head)
     head = re.sub(r"\n\t\t\(at [-\d.]+ [-\d.]+(?: [-\d.]+)?\)", f"\n\t\t(at {mm_(x)} {mm_(y)} 0)", head, count=1)
     head = re.sub(r"\(unit \d+\)", "(unit 1)", head, count=1)
+    head = re.sub(r"\((body_style|convert) \d+\)", r"(\1 1)", head, count=1)    # not the template's style
     for flag in ("exclude_from_sim", "in_bom", "on_board"):
         m = re.search(r"\n\t\t\(%s (yes|no)\)" % flag, body)
         if m:
@@ -632,10 +617,16 @@ def add(d: Path, spec_path: str) -> int:
                                  f"{_pin_numbers(body)}; update the symbol in KiCad first. Nothing written.")
         else:
             raise Usage(f"no part {like!r} to copy, and not a LIB:NAME symbol")
-        lp = _lib_pins(t, lib_id)
+        unit, style = _unit_style(src) if src is not None else (1, 1)
+        lp = _unit_pins(t, lib_id, unit, style)
         for num, net in pins.items():
             if num not in lp:
-                raise Usage(f"{_lib_id(src) if src is not None else lib_id} has no pin {num} (it has {sorted(lp)})")
+                name = _lib_id(src) if src is not None else lib_id
+                on = sorted(u for u in _units(t, lib_id) if u != unit and num in _unit_pins(t, lib_id, u, style))
+                if on:
+                    raise Usage(f"{name} has pin {num} on unit {', '.join(map(str, on))}, not on unit {unit}, "
+                                f"which {like} is (unit {unit} has {sorted(lp)}). Nothing written.")
+                raise Usage(f"{name} has no pin {num} (it has {sorted(lp)})")
             if net not in power and net not in labels | hier | globals_ and net in elsewhere:
                 raise SystemExit(f"{ref}.{num}: net {net!r} is local to another sheet and cannot be reached from "
                                  f"{sh.path.name} by a label; connect it through a sheet pin in KiCad. Nothing written.")
@@ -651,10 +642,10 @@ def add(d: Path, spec_path: str) -> int:
     pwr_n = max([int(n) for s in all_sheets for n in re.findall(r'"#PWR0*(\d+)"', s.text)] or [0])
     new = []
     for ref, like, value, footprint, pins, lib_id, src, from_lib, (x0, y0, x1, _y1) in plan:
-        lp = _lib_pins(t, lib_id)
         x, y = snap(bx - x0), snap(by - y0)
         bx += x1 - x0
         b = _from_library(template, src, lib_id, x, y) if from_lib else _retarget(_fresh(src), x, y)
+        lp = _unit_pins(t, lib_id, *_unit_style(b))                     # the pins of the unit and style placed
         if path:
             b = _set_path(b, path)
         for name, val in (("Reference", ref), ("Value", value), ("Footprint", footprint)):
@@ -706,6 +697,19 @@ def _cache_of(text: str) -> dict[str, str]:
     return _symbol_blocks(text[cache[0][0]:cache[0][1]]) if cache else {}
 
 
+def _units(text: str, key: str) -> list[int]:
+    """The units a cached symbol draws (from its NAME_unit_style sub-symbols)."""
+    body = _cache_of(text).get(key, "")
+    return sorted({int(u) for u in re.findall(r'\(symbol "(?:[^"\\]|\\.)*_(\d+)_\d+"', body[1:])} - {0}) or [1]
+
+
+def _unit_style(b: str) -> tuple[int, int]:
+    """(unit, body style) of placed symbol b, each 1 when the file leaves it out."""
+    unit = re.search(r"\n\t\t\(unit (\d+)\)", b)
+    style = re.search(r"\n\t\t\((?:body_style|convert) (\d+)\)", b)
+    return int(unit.group(1)) if unit else 1, int(style.group(1)) if style else 1
+
+
 def _unit_pins(text: str, key: str, unit: int, style: int) -> dict[str, tuple[float, float, float]]:
     """pin number -> (x, y, angle) in library coordinates, for one unit and body
     style of a cached symbol (its own pins and those common to every unit)."""
@@ -732,11 +736,8 @@ def _placed_pins(t: str, b: str) -> dict[str, tuple[float, float, float]]:
     angle points from the pin's end into the body."""
     m = re.search(r"\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)", b)
     x, y, rot = float(m.group(1)), float(m.group(2)), float(m.group(3) or 0)
-    unit = re.search(r"\n\t\t\(unit (\d+)\)", b)
-    style = re.search(r"\n\t\t\((?:body_style|convert) (\d+)\)", b)
     out = {}
-    for num, (px, py, a) in _unit_pins(t, _cache_key(b), int(unit.group(1)) if unit else 1,
-                                       int(style.group(1)) if style else 1).items():
+    for num, (px, py, a) in _unit_pins(t, _cache_key(b), *_unit_style(b)).items():
         dx, dy = _rot(px, -py, rot)
         a = a + rot
         if "\n\t\t(mirror x)" in b:
