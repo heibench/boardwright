@@ -109,3 +109,54 @@ def test_a_sheet_path_missing_its_slash_is_refused_through_add(pic, tmp_path, ca
     assert main(["sch", str(pic), "add", _spec(tmp_path, rows, sheet)]) == 64
     assert "starts with the name of sheet 'pic_sockets'" in capsys.readouterr().err
     assert {f: (pic / f).read_text() for f in (ROOT, SUB)} == before
+
+
+# complex_hierarchy places ampli_ht.kicad_sch twice; each of its parts has one
+# reference per use (C201 in one, C301 in the other), on the hierarchy's two paths.
+
+def test_parts_fields_show_each_uses_own_reference(tmp_path, capsys):
+    """On a sheet used twice the shared Reference property holds one use's name."""
+    ch = demo_copy(tmp_path, "complex_hierarchy")
+    sch.parts(ch, "C[23]01", "Ref*")
+    lines = capsys.readouterr().out.splitlines()
+    assert sorted(line.split()[0] for line in lines) == ["C201", "C301"]
+    for line in lines:
+        assert line.endswith(f'Reference="{line.split()[0]}"')
+
+
+def test_on_a_sheet_used_twice_a_use_keeps_its_own_name(tmp_path, capsys):
+    ch = demo_copy(tmp_path, "complex_hierarchy")
+    f = ch / "ampli_ht.kicad_sch"
+    before = f.read_text(encoding="utf-8")
+    assert sch.set_fields(ch, "C301", ["Reference=C301", "Value=15nF"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["C301: Reference unchanged (already C301)", "C301: Value unchanged (already 15nF)"]
+    assert f.read_text(encoding="utf-8") == before
+    assert sch.set_fields(ch, "C301", ["Value=22nF"]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "note: C301 is one use of a symbol on a sheet that is used more than once; this also changes C201",
+        "C301: Value -> 22nF"]
+
+
+def test_one_use_of_a_shared_symbol_takes_a_backslash_reference(tmp_path):
+    ch = demo_copy(tmp_path, "complex_hierarchy")
+    assert sch.set_fields(ch, "C301", ["Reference=C\\7"]) == 0
+    text = (ch / "ampli_ht.kicad_sch").read_text(encoding="utf-8")
+    assert '(reference "C\\\\7")' in text and '(reference "C201")' in text
+
+
+def test_a_stale_entry_on_a_sub_sheet_is_not_a_reference(pic, capsys):
+    """#209 below the root: the walk gives pic_sockets.kicad_sch its path,
+    /ROOT/SHEET, and a stale entry on another path there is left out."""
+    f = pic / SUB
+    t = f.read_text(encoding="utf-8")
+    s, e = next((s, e) for s, e in sch.Sheet(f).instances() if '(reference "' in t[s:e] and not sch.refs(t[s:e])[0].startswith("#"))
+    ref = sch.refs(t[s:e])[0]
+    i = t.index("\n\t\t\t)", t.index("(instances", s)) + len("\n\t\t\t)")
+    stale = ('\n\t\t\t(project "Other"\n\t\t\t\t(path "/00000000-1111-2222-3333-444444444444" (reference "ZZ9") (unit 1)'
+             '\n\t\t\t\t)\n\t\t\t)')
+    f.write_text(t[:i] + stale + t[i:], encoding="utf-8")
+    sub = next(x for x in sch.sheets(pic) if x.path.name == SUB)
+    assert sub.paths and all(p.count("/") == 2 for p in sub.paths)      # /ROOT/SHEET
+    sch.parts(pic, "*")
+    names = [ln.split()[0] for ln in capsys.readouterr().out.splitlines()]
+    assert ref in names and "ZZ9" not in names

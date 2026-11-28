@@ -97,6 +97,9 @@ class Sheet:
         self.path = path
         self.text = path.read_text(encoding="utf-8")
         self.digest = hashlib.sha256(self.text.encode()).hexdigest()
+        # this sheet's instance paths in the project's hierarchy (/root-uuid[/sheet-uuid...]),
+        # set by sheets(); None when the hierarchy could not be read
+        self.paths: frozenset[str] | None = None
 
     def instances(self) -> list[tuple[int, int]]:
         """Spans of placed symbols (not the cached library symbols)."""
@@ -122,10 +125,23 @@ def prop(block: str, name: str) -> str | None:
     return m.group(1) if m else None
 
 
-def refs(block: str) -> list[str]:
+def _entries(block: str) -> list[tuple[str, str]]:
+    """(path, reference) of each (instances ...) entry, in file order."""
+    i = block.find("(instances")
+    return re.findall(r'\(path "((?:[^"\\]|\\.)*)"\s*\(reference "((?:[^"\\]|\\.)*)"\)', block[i:]) if i >= 0 else []
+
+
+def refs(block: str, paths: frozenset[str] | None = None) -> list[str]:
     """Every reference a placed symbol goes by. A sheet used more than once in a
     hierarchy gives each of its symbols one reference per use, listed under
-    (instances ...); the "Reference" property holds only one of them."""
+    (instances ...); the "Reference" property holds only one of them. Given the
+    sheet's paths in the hierarchy, an entry on another path is left out, as
+    KiCad leaves it out: one copied from another project names a reference this
+    project doesn't have (#209). Two entries on one path: the last one counts."""
+    if paths:
+        kept = {p: r for p, r in _entries(block) if p in paths}
+        if kept:
+            return list(kept.values())
     i = block.find("(instances")
     out = re.findall(r'\(reference "((?:[^"\\]|\\.)*)"\)', block[i:]) if i >= 0 else []
     return out or [prop(block, "Reference") or ""]
@@ -135,7 +151,39 @@ def sheets(d: Path) -> list[Sheet]:
     files = sorted(p for p in d.glob("*.kicad_sch") if not p.name.startswith(("~", "_")))
     if not files:
         raise EnvironmentFault(f"no .kicad_sch in {d}")
-    return [Sheet(p) for p in files]
+    ss = [Sheet(p) for p in files]
+    for s, paths in _hierarchy(d, ss).items():
+        s.paths = frozenset(paths)
+    return ss
+
+
+def _hierarchy(d: Path, ss: list[Sheet]) -> dict[Sheet, set[str]]:
+    """Each sheet's instance paths, walked from the root: /ROOT-UUID for the root,
+    then /ROOT-UUID/SHEET-UUID... down each sheet symbol. Empty, so every entry
+    is read as before, when the root or its uuid can't be found, when a sheet
+    symbol names a file outside ss (a subdirectory), or when a sheet includes
+    itself: a partial walk would drop a real use's entries."""
+    by = {s.path.resolve(): s for s in ss}
+    pros = list(d.glob("*.kicad_pro"))
+    rt = by.get(pros[0].with_suffix(".kicad_sch").resolve()) if len(pros) == 1 else None
+    if rt is None and len(ss) == 1:
+        rt = ss[0]
+    m = re.search(r'\n\t\(uuid "([^"]*)"\)', rt.text) if rt else None
+    if not m:
+        return {}
+    out: dict[Sheet, set[str]] = {}
+    todo = [(rt, "/" + m.group(1), frozenset({rt}))]
+    while todo:
+        s, path, above = todo.pop()
+        out.setdefault(s, set()).add(path)
+        for a, b in blocks(s.text, ("sheet",)):
+            blk = s.text[a:b]
+            u = re.search(r'\n\t\t\(uuid "([^"]*)"\)', blk)
+            child = by.get((s.path.parent / (prop(blk, "Sheetfile") or "")).resolve())
+            if not u or child is None or child in above:
+                return {}
+            todo.append((child, f"{path}/{u.group(1)}", above | {child}))
+    return out
 
 
 def root(d: Path) -> Sheet:
@@ -149,14 +197,14 @@ def root(d: Path) -> Sheet:
 
 
 def find(d: Path, ref: str) -> tuple[Sheet, int, int]:
-    hits = [(sh, s, e) for sh in sheets(d) for s, e in sh.instances() if ref in refs(sh.text[s:e])]
+    hits = [(sh, s, e) for sh in sheets(d) for s, e in sh.instances() if ref in refs(sh.text[s:e], sh.paths)]
     if len(hits) != 1:
         raise SystemExit(f"{len(hits)} symbols have the reference {ref!r} (need exactly one; multi-unit parts are not handled)")
     return hits[0]
 
 
-def shared_with(block: str, ref: str) -> list[str]:
-    return [r for r in refs(block) if r != ref]
+def shared_with(block: str, ref: str, paths: frozenset[str] | None = None) -> list[str]:
+    return [r for r in refs(block, paths) if r != ref]
 
 
 def locked(sh: Sheet) -> bool:
@@ -172,7 +220,7 @@ def parts(d: Path, pattern: str = "*", fields: str | None = None) -> int:
             b = sh.text[s:e]
             lib = re.search(r'\(lib_id "([^"]*)"', b).group(1)
             flags = "".join(f" {k}" for k in ("dnp",) if re.search(r"\(%s yes\)" % k, b))
-            all_refs = refs(b)
+            all_refs = refs(b, sh.paths)
             for ref in all_refs:
                 if ref.startswith("#") or not fnmatch.fnmatch(ref, pattern):
                     continue
@@ -188,7 +236,7 @@ def parts(d: Path, pattern: str = "*", fields: str | None = None) -> int:
 def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
     sh, s, e = find(d, ref)
     b = sh.text[s:e]
-    others = shared_with(b, ref)
+    others = shared_with(b, ref, sh.paths)
     start, report = b, []
     for pair in pairs:
         name, eq, val = pair.partition("=")
@@ -243,7 +291,7 @@ def set_fields(d: Path, ref: str, pairs: list[str]) -> int:
 def remove(d: Path, refs: list[str]) -> int:
     for ref in refs:
         sh, s, e = find(d, ref)
-        others = shared_with(sh.text[s:e], ref)
+        others = shared_with(sh.text[s:e], ref, sh.paths)
         if others:
             raise SystemExit(f"{ref} shares its symbol with {', '.join(others)} (a sheet used more than once): "
                              "removing it would remove them too; do this one in KiCad")
@@ -501,14 +549,36 @@ def _with_cached(t: str, lib_id: str, entry: str) -> str:
     return t[:k] + entry + t[k:]
 
 
-def _instance_path(block: str) -> str | None:
+def _instance_path(block: str, paths: frozenset[str] | None = None) -> str | None:
+    """The instance path a new part on this sheet takes: the template part's own,
+    on this hierarchy's path when it has more than one entry (#209)."""
+    ents = _entries(block)
+    if paths:
+        on = [p for p, _r in ents if p in paths]
+        if on:
+            return on[-1]
     m = re.search(r'\(path "([^"]*)"', block[block.find("(instances"):]) if "(instances" in block else None
     return m.group(1) if m else None
 
 
 def _set_path(block: str, path: str) -> str:
+    """block with one instance entry, on path. A template carrying a stale entry
+    from another project would otherwise hand the new part two (#209)."""
     i = block.find("(instances")
-    return block if i < 0 else block[:i] + re.sub(r'\(path "[^"]*"', f'(path "{path}"', block[i:])
+    if i < 0:
+        return block
+    tail = block[i:]
+    projects = blocks(tail, ("project",))
+    keep = next((k for k, (s, e) in enumerate(projects) if f'(path "{path}"' in tail[s:e]), 0)
+    for k, (s, e) in reversed(list(enumerate(projects))):
+        if k != keep:
+            tail = tail[:s] + tail[e:]
+    paths = blocks(tail, ("path",))                     # one project block can hold one entry per use
+    keep = next((k for k, (s, e) in enumerate(paths) if f'(path "{path}"' in tail[s:e]), 0)
+    for k, (s, e) in reversed(list(enumerate(paths))):
+        if k != keep:
+            tail = tail[:s] + tail[e:]
+    return block[:i] + re.sub(r'\(path "[^"]*"', f'(path "{path}"', tail)
 
 
 def _target(d: Path, name: str | None, all_sheets: list[Sheet]) -> Sheet:
@@ -519,6 +589,7 @@ def _target(d: Path, name: str | None, all_sheets: list[Sheet]) -> Sheet:
     if not hits:
         raise Usage(f"no sheet {name!r} in {d} (there are {', '.join(s.path.name for s in all_sheets)})")
     uses = sum(len(re.findall(r'\(property "Sheetfile" "%s"' % re.escape(name), s.text)) for s in all_sheets)
+    uses = max(uses, len(hits[0].paths or ()))         # placed once inside a sheet that is itself placed twice
     if uses > 1:
         raise SystemExit(f"{name} is used {uses} times in the hierarchy; a part added to it would be added to each use. "
                          "Not handled: add it in KiCad")
@@ -574,7 +645,7 @@ def add(d: Path, spec_path: str) -> int:
     others = [s for s in all_sheets if s.path != sh.path]
     here = [t[s:e] for s, e in sh.instances()]
     everywhere = [(s, s.text[a:b]) for s in [sh, *others] for a, b in s.instances()]
-    taken = {r for _, b in everywhere for r in refs(b)}
+    taken = {r for s, b in everywhere for r in refs(b, s.paths)}
     by_ref = {}                                          # reference -> (sheet text, placed symbol) to copy
     power = {}                                           # net name -> (sheet text, a power symbol to copy), this sheet first
     for s, b in everywhere:
@@ -602,7 +673,7 @@ def add(d: Path, spec_path: str) -> int:
     template = next((b for b in parts if blocks(b, ("pin",))), parts[0] if parts else None)
     if template is None:
         raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
-    path = _instance_path(template)
+    path = _instance_path(template, sh.paths)
     prefix = _sheet_path(sh, all_sheets, root(d).path)
     sheet_names = frozenset(n for x in all_sheets for a, b in blocks(x.text, ("sheet",)) if (n := prop(x.text[a:b], "Sheetname")))
     plan = []                                            # (ref, like, value, footprint, pins, lib_id, source, from library, extent)
@@ -853,7 +924,7 @@ def move(d: Path, where: str, net: str) -> int:
         raise Usage(f"{net!r}: name the net as its label or power symbol reads, without a sheet path")
     net = net.replace("{slash}", "/")                   # SDI{slash}out0, as a netlist names it, is SDI/out0
     all_sheets = sheets(d)
-    hits = [(sh, s, e) for sh in all_sheets for s, e in sh.instances() if ref in refs(sh.text[s:e])]
+    hits = [(sh, s, e) for sh in all_sheets for s, e in sh.instances() if ref in refs(sh.text[s:e], sh.paths)]
     if not hits:
         raise Usage(f"no part {ref!r}")
     found = [(sh, s, e, pp[num]) for sh, s, e in hits for pp in [_placed_pins(sh.text, sh.text[s:e])] if num in pp]
@@ -865,8 +936,8 @@ def move(d: Path, where: str, net: str) -> int:
                          "their nets. Not handled: do this one in KiCad. Nothing written.")
     sh, s0, e0, (px, py, _a) = found[0]
     t, b = sh.text, sh.text[s0:e0]
-    if len(refs(b)) > 1:
-        raise SystemExit(f"{ref} is on a sheet used more than once ({', '.join(refs(b))}): a label there belongs to "
+    if len(refs(b, sh.paths)) > 1:
+        raise SystemExit(f"{ref} is on a sheet used more than once ({', '.join(refs(b, sh.paths))}): a label there belongs to "
                          "every use. Not handled: do this one in KiCad. Nothing written.")
     p = (px, py)
     comp = _stub(t, p)
@@ -884,7 +955,7 @@ def move(d: Path, where: str, net: str) -> int:
             if _names_net(t, ob):
                 items.append((s, e, "power symbol", prop(ob, "Value") or "", qx, qy, qa))
             elif not (prop(ob, "Reference") or "").startswith("#"):
-                joined.append(f"{refs(ob)[0]}.{n}")
+                joined.append(f"{refs(ob, sh.paths)[0]}.{n}")
     for head in ("label", "global_label", "hierarchical_label"):
         for s, e in blocks(t, (head,)):
             if re.match(r"\n\t\(", t[s:s + 3]) and touches(_at(t[s:e])[:2]):
@@ -949,7 +1020,7 @@ def move(d: Path, where: str, net: str) -> int:
         t = _with_cached(t[:s] + t[e:], key, _cached_entry(src_text, key))
         n = max([int(k) for x in all_sheets for k in re.findall(r'"#PWR0*(\d+)"', x.text)] or [0]) + 1
         k = _tail(t)
-        t = t[:k] + _power(t, src, ix, iy, round(ia) % 360, _instance_path(b), n) + t[k:]
+        t = t[:k] + _power(t, src, ix, iy, round(ia) % 360, _instance_path(b, sh.paths), n) + t[k:]
     else:
         tpl = next((x[a:z] for x in [t, *[o.text for o in others]] for a, z in blocks(x, (new_head,))
                     if new_head != "hierarchical_label" or x is t), None)
