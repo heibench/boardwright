@@ -554,8 +554,9 @@ def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where:
         if _stored(net) in known:                       # an existing label, whatever its first part
             return _stored(net)
         if "/" in net and net.split("/", 1)[0] in sheet_names:
-            raise Usage(f"net {net!r} starts with the sheet name {net.split('/', 1)[0]!r}: a sheet path starts with "
-                        f"'/' (/{net}), and a new net cannot have a sheet's name before its first '/'. Nothing written.")
+            raise Usage(f"net {net!r} starts with the name of sheet {net.split('/', 1)[0]!r}, like a sheet path missing "
+                        f"its leading '/': a label on that sheet is reached only through its sheet pin, and a new net "
+                        f"of this name is written {_stored(net)!r}. Nothing written.")
         return _stored(net)
     name = _stored(net[len(prefix):]) if net.startswith(prefix) else None
     if name and name in labels:

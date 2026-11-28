@@ -554,7 +554,7 @@ def test_a_sheet_path_without_its_leading_slash_is_refused():
     """io/LED_A names sub-sheet io's label LED_A with its leading / dropped. Written
     as a new net it would be io{slash}LED_A, on its own; KiCad's netlist put such
     a pin alone on /io/io/LED_A."""
-    with pytest.raises(sch.Usage, match=r"starts with the sheet name 'io'.*\(/io/LED_A\)"):
+    with pytest.raises(sch.Usage, match=r"starts with the name of sheet 'io'.*'io\{slash\}LED_A'"):
         sch._local_name("io/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"}))
     assert sch._local_name("ion/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"})) == "ion{slash}LED_A"
     # a label that exists is joined, even when its first part is a sheet's name
