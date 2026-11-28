@@ -7,6 +7,16 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `sch add` draws each pin's stub from the unit and body style it places (#207).
+  It read every unit and body style of the symbol, and the last definition of
+  a pin number won. While it reported the pin joined, the stub could miss the
+  pin and leave it unconnected, or land on another pin: copying unit 2 of a
+  dual op-amp in body style 1 swapped its two inputs' nets in KiCad's
+  netlist. A pin map naming a pin of another unit is now refused, naming the
+  unit that has it. A part from the library is placed in body style 1, not in
+  the style of the template part it copies its format from.
+
 ## [0.17.1] - 2026-11-27
 
 ### Added
