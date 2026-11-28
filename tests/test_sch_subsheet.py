@@ -98,3 +98,14 @@ def test_kicad_sees_the_new_parts_on_their_nets(pic, tmp_path):
     changed = {n: after[n] - before.get(n, set()) for n in after if after[n] != before.get(n)}
     assert changed == {"/pic_sockets/VCC_PIC": {("R90", "1")}, "GND": {("R90", "2")},
                        "VCC": {("C90", "1")}, "/pic_sockets/SUB_NEW": {("C90", "2")}}
+
+
+@pytest.mark.parametrize("sheet", [ROOT, SUB])
+def test_a_sheet_path_missing_its_slash_is_refused_through_add(pic, tmp_path, capsys, sheet):
+    """pic_sockets/DATA-RB7 is the sub-sheet's label with its leading / dropped:
+    written as a new net, KiCad put the pin alone on /pic_sockets/pic_sockets/DATA-RB7."""
+    before = {f: (pic / f).read_text() for f in (ROOT, SUB)}
+    rows = [("R91", "R1", "10k", "", {1: "pic_sockets/DATA-RB7", 2: "GND"})]
+    assert main(["sch", str(pic), "add", _spec(tmp_path, rows, sheet)]) == 64
+    assert "starts with the name of sheet 'pic_sockets'" in capsys.readouterr().err
+    assert {f: (pic / f).read_text() for f in (ROOT, SUB)} == before
