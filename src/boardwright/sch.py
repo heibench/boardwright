@@ -589,6 +589,7 @@ def _target(d: Path, name: str | None, all_sheets: list[Sheet]) -> Sheet:
     if not hits:
         raise Usage(f"no sheet {name!r} in {d} (there are {', '.join(s.path.name for s in all_sheets)})")
     uses = sum(len(re.findall(r'\(property "Sheetfile" "%s"' % re.escape(name), s.text)) for s in all_sheets)
+    uses = max(uses, len(hits[0].paths or ()))         # placed once inside a sheet that is itself placed twice
     if uses > 1:
         raise SystemExit(f"{name} is used {uses} times in the hierarchy; a part added to it would be added to each use. "
                          "Not handled: add it in KiCad")

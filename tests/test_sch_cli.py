@@ -370,3 +370,26 @@ def test_a_new_part_gets_one_entry_from_a_block_holding_two():
     block = ('\t(symbol\n\t\t(instances\n\t\t\t(project "p"\n\t\t\t\t(path "/a" (reference "C1") (unit 1)\n\t\t\t\t)\n'
              '\t\t\t\t(path "/b" (reference "C2") (unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
     assert sch._entries(sch._set_path(block, "/b")) == [("/b", "C2")]
+
+
+def test_add_refuses_a_sheet_placed_once_inside_a_sheet_used_twice(tmp_path):
+    """leaf is placed once, in mid, which the root places twice: KiCad draws leaf
+    in both uses. add counted Sheetfile names (1) and accepted it, giving the new
+    part an entry for one use only; the hierarchy's two paths now count."""
+    (tmp_path / "top.kicad_pro").write_text("{}", encoding="utf-8")
+    sheet = '\t(sheet\n\t\t(uuid "%s")\n\t\t(property "Sheetfile" "%s")\n\t)\n'
+    (tmp_path / "top.kicad_sch").write_text(
+        '(kicad_sch\n\t(uuid "r")\n' + sheet % ("s1", "mid.kicad_sch") + sheet % ("s2", "mid.kicad_sch") + ')\n', encoding="utf-8")
+    (tmp_path / "mid.kicad_sch").write_text('(kicad_sch\n\t(uuid "m")\n' + sheet % ("x", "leaf.kicad_sch") + ')\n', encoding="utf-8")
+    (tmp_path / "leaf.kicad_sch").write_text('(kicad_sch\n\t(uuid "l")\n)\n', encoding="utf-8")
+    ss = sch.sheets(tmp_path)
+    leaf = next(s for s in ss if s.path.name == "leaf.kicad_sch")
+    assert leaf.paths == {"/r/s1/x", "/r/s2/x"}
+    with pytest.raises(SystemExit, match="leaf.kicad_sch is used 2 times"):
+        sch._target(tmp_path, "leaf.kicad_sch", ss)
+
+
+def test_move_does_not_find_a_part_by_its_stale_reference(ldo_copy):
+    _stale_c1(ldo_copy)
+    with pytest.raises(sch.Usage, match="no part 'C9'"):
+        sch.move(ldo_copy, "C9.1", "NEWNET")
