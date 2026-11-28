@@ -556,14 +556,18 @@ def _sheet_path(sh: Sheet, all_sheets: list[Sheet], top: Path) -> str:
 
 
 def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str) -> str:
-    """The label text for a net named in a pin map. KiCad names a local label's
-    net with its sheet path in front (/LED_A on the root sheet), so that form
-    joins the label; any other name with a "/" in it is refused rather than
-    written as a new label with the slash in its text (#102)."""
-    if net in known or "/" not in net:
+    """The label text for a net named in a pin map, as `move` reads NET: as KiCad
+    shows it (SDA/A4) or as its netlist names it (SDA{slash}A4), stored with
+    {slash} as KiCad stores a typed "/" (#210). A name led by "/" is KiCad's
+    netlist form of a local label, its sheet path in front (/LED_A on the root
+    sheet): it joins that label, and naming no label it is refused rather than
+    written as a new net (#102)."""
+    if net in known:                                    # a power symbol's Value is matched as written
         return net
-    name = net[len(prefix):] if net.startswith(prefix) else None
-    if name and "/" not in name and name in labels:
+    if not net.startswith("/"):
+        return net.replace("/", "{slash}")
+    name = net[len(prefix):].replace("/", "{slash}") if net.startswith(prefix) else None
+    if name and name in labels:
         return name
     raise Usage(f"net {net!r} is not a label on {where}: a name with a sheet path in front ({prefix}NAME) must name one "
                 f"of its local labels ({', '.join(sorted(labels)) or 'none'}). Nothing written.")
@@ -687,7 +691,7 @@ def add(d: Path, spec_path: str) -> int:
                     head, tpl = "global_label", glabel_t
                 new.append(_label(tpl, head, net, ex, ey, rot))
                 kind = head.replace("_", " ") + ("" if net in labels | hier | globals_ else " (new net)")
-            print(f"{ref}.{num} -> {net}  [{kind}]")
+            print(f"{ref}.{num} -> {net.replace('{slash}', '/')}  [{kind}]")        # as KiCad shows it
         how = "from its library" if from_lib else f"copied from {like}"
         print(f"added {ref} ({lib_id if from_lib else _lib_id(src)}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
     k = _tail(t)
