@@ -280,7 +280,7 @@ def test_an_instance_entry_from_another_hierarchy_is_not_a_reference(ldo_copy, c
     with pytest.raises(SystemExit, match="0 symbols have the reference 'C9'"):
         sch.set_fields(ldo_copy, "C9", ["Value=1u"])
     assert sch.set_fields(ldo_copy, "C1", ["Value=22u"]) == 0
-    assert "shares" not in capsys.readouterr().out                  # not taken for a second use
+    assert "one use" not in capsys.readouterr().out                 # not taken for a second use
 
 
 def test_two_entries_on_this_hierarchys_path_take_the_last():
@@ -311,3 +311,62 @@ def test_a_new_part_takes_this_hierarchys_path_not_a_stale_one(ldo_copy):
     r70 = next(t[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R70")' in t[s:e])
     assert [p for p, _r in sch._entries(r70)] == [root], sch._entries(r70)
     assert '(project "Other"' not in r70                                # the stale project's entry is not copied
+
+
+
+def test_remove_add_and_move_ignore_a_stale_entry(ldo_copy, capsys):
+    """remove refused C1 as sharing its symbol with C9; add refused C9 as taken;
+    move refused C1 as on a sheet used twice."""
+    f = _stale_c1(ldo_copy)
+    assert sch.move(ldo_copy, "C1.1", "NEWNET") == 0
+    assert "C1.1:" in capsys.readouterr().out
+    spec = ldo_copy / "spec.py"
+    spec.write_text('ADD = [("C9", "C1", "1u", "", {1: "VIN", 2: "GND"})]\n', encoding="utf-8")
+    assert main(["sch", str(ldo_copy), "add", str(spec)]) == 0
+    assert sch.remove(ldo_copy, ["C1"]) == 0
+    t = f.read_text(encoding="utf-8")
+    assert '(property "Value" "1u"' in t
+
+
+@pytest.mark.parametrize("pro", ["none", "renamed", "two"])
+def test_a_project_without_one_matching_kicad_pro_still_reads(ldo_copy, capsys, pro):
+    """The hierarchy walk found the root through root(), which fell back to
+    sheets(), which walked the hierarchy: a RecursionError (internal error, exit
+    2) on a project with no .kicad_pro, a renamed one, or two, as KiCad's ecc83
+    demo has. With no readable hierarchy every entry is read, as before."""
+    p = ldo_copy / "ldo_breakout.kicad_pro"
+    if pro == "none":
+        p.rename(ldo_copy / "ldo_breakout.kicad_pro.bak")
+    elif pro == "renamed":
+        p.rename(ldo_copy / "other.kicad_pro")
+    else:
+        (ldo_copy / "other.kicad_pro").write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["sch", str(ldo_copy), "parts", "C*"]) == 0
+    assert [ln.split()[0] for ln in capsys.readouterr().out.splitlines()] == ["C1", "C2"]
+
+
+def _root_with_sheet(tmp_path, sheetfile):
+    (tmp_path / "top.kicad_pro").write_text("{}", encoding="utf-8")
+    (tmp_path / "top.kicad_sch").write_text(
+        '(kicad_sch\n\t(uuid "r")\n\t(sheet\n\t\t(uuid "s")\n\t\t(property "Sheetfile" "%s")\n\t)\n)\n' % sheetfile,
+        encoding="utf-8")
+
+
+def test_a_walk_that_cannot_reach_a_sheet_reads_every_entry(tmp_path):
+    """A sheet symbol naming a file in a subdirectory, which sheets() doesn't
+    read: filtering with the paths found so far would drop that use's entries."""
+    _root_with_sheet(tmp_path, "sub/child.kicad_sch")
+    assert all(s.paths is None for s in sch.sheets(tmp_path))
+
+
+def test_a_sheet_that_includes_itself_reads_every_entry(tmp_path):
+    """A hand-edited loop: the walk stops at once, not after 2^31 paths."""
+    _root_with_sheet(tmp_path, "top.kicad_sch")
+    assert all(s.paths is None for s in sch.sheets(tmp_path))
+
+
+def test_a_new_part_gets_one_entry_from_a_block_holding_two():
+    """One project block holds one entry per use of a sheet used twice."""
+    block = ('\t(symbol\n\t\t(instances\n\t\t\t(project "p"\n\t\t\t\t(path "/a" (reference "C1") (unit 1)\n\t\t\t\t)\n'
+             '\t\t\t\t(path "/b" (reference "C2") (unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
+    assert sch._entries(sch._set_path(block, "/b")) == [("/b", "C2")]

@@ -159,30 +159,30 @@ def sheets(d: Path) -> list[Sheet]:
 
 def _hierarchy(d: Path, ss: list[Sheet]) -> dict[Sheet, set[str]]:
     """Each sheet's instance paths, walked from the root: /ROOT-UUID for the root,
-    then /ROOT-UUID/SHEET-UUID... down each sheet symbol. Empty when the root or
-    its uuid can't be found."""
-    try:
-        top = root(d).path.resolve()
-    except EnvironmentFault:
-        return {}
+    then /ROOT-UUID/SHEET-UUID... down each sheet symbol. Empty, so every entry
+    is read as before, when the root or its uuid can't be found, when a sheet
+    symbol names a file outside ss (a subdirectory), or when a sheet includes
+    itself: a partial walk would drop a real use's entries."""
     by = {s.path.resolve(): s for s in ss}
-    rt = by.get(top)
+    pros = list(d.glob("*.kicad_pro"))
+    rt = by.get(pros[0].with_suffix(".kicad_sch").resolve()) if len(pros) == 1 else None
+    if rt is None and len(ss) == 1:
+        rt = ss[0]
     m = re.search(r'\n\t\(uuid "([^"]*)"\)', rt.text) if rt else None
     if not m:
         return {}
     out: dict[Sheet, set[str]] = {}
-    todo = [(rt, "/" + m.group(1))]
+    todo = [(rt, "/" + m.group(1), frozenset({rt}))]
     while todo:
-        s, path = todo.pop()
-        if path in out.setdefault(s, set()) or path.count("/") > 32:      # a sheet that includes itself
-            continue
-        out[s].add(path)
+        s, path, above = todo.pop()
+        out.setdefault(s, set()).add(path)
         for a, b in blocks(s.text, ("sheet",)):
             blk = s.text[a:b]
             u = re.search(r'\n\t\t\(uuid "([^"]*)"\)', blk)
             child = by.get((s.path.parent / (prop(blk, "Sheetfile") or "")).resolve())
-            if u and child:
-                todo.append((child, f"{path}/{u.group(1)}"))
+            if not u or child is None or child in above:
+                return {}
+            todo.append((child, f"{path}/{u.group(1)}", above | {child}))
     return out
 
 
@@ -571,6 +571,11 @@ def _set_path(block: str, path: str) -> str:
     projects = blocks(tail, ("project",))
     keep = next((k for k, (s, e) in enumerate(projects) if f'(path "{path}"' in tail[s:e]), 0)
     for k, (s, e) in reversed(list(enumerate(projects))):
+        if k != keep:
+            tail = tail[:s] + tail[e:]
+    paths = blocks(tail, ("path",))                     # one project block can hold one entry per use
+    keep = next((k for k, (s, e) in enumerate(paths) if f'(path "{path}"' in tail[s:e]), 0)
+    for k, (s, e) in reversed(list(enumerate(paths))):
         if k != keep:
             tail = tail[:s] + tail[e:]
     return block[:i] + re.sub(r'\(path "[^"]*"', f'(path "{path}"', tail)
