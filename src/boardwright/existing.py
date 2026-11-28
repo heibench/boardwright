@@ -591,9 +591,8 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
         ses.unlink()
     arcs = dsn_.export(pcb, dsn)
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", str(getattr(m, "FR_PASSES", 5))]
-    if planes:
-        rules = o / f"{m.NAME}.rules"
-        rules.write_text(_rules(m, ses_.copper_layers(text0), planes), encoding="utf-8")
+    rules = dsn_.rules_beside(dsn, _rules(m, ses_.copper_layers(text0), planes) if planes else None)
+    if rules:
         cmd += ["-dr", str(rules)]
         print(f"  kept off the plane layer(s) {', '.join(planes)}")
     limit = getattr(m, "FR_TIMEOUT", 900)

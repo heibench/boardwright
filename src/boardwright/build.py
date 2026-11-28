@@ -204,7 +204,7 @@ def complete(pcb: Path, m, poured: set) -> list[str]:
 
 def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     dsn, ses = d / "out" / f"{m.NAME}{tag}.dsn", d / "out" / f"{m.NAME}{tag}.ses"
-    from .dsn import export
+    from .dsn import export, rules_beside
     export(pcb, dsn)
     # FR_MARGIN (mm) routes wider than the DRC clearance. Costs routability on
     # fine-pitch parts, so it is off unless a board asks for it.
@@ -221,7 +221,6 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
         # cost must stay 2.5; at 1.0 nets were abandoned on every run.
         # Plane layers are switched off for routing so the planes stay whole.
         from .model import Board
-        rules = d / "out" / f"{m.NAME}.rules"
         body = ""
         for i, layer in enumerate(Board(pcb).layers):
             if layer in planes:
@@ -233,8 +232,9 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
                      f"      (preferred_direction {'horizontal' if i % 2 == 0 else 'vertical'})\n"
                      f"      (preferred_direction_trace_costs {cost})\n"
                      f"      (against_preferred_direction_trace_costs {against})\n    )\n")
-        rules.write_text(f"(rules PCB {m.NAME}\n  (autoroute_settings\n{body}  )\n)\n", encoding="utf-8")
-        cmd += ["-dr", str(rules)]
+        cmd += ["-dr", str(rules_beside(dsn, f"(rules PCB {m.NAME}\n  (autoroute_settings\n{body}  )\n)\n"))]
+    else:
+        rules_beside(dsn, None)                         # a stale NAME.rules would still be read (#224)
     r = subprocess.run(cmd,
                        capture_output=True, text=True, timeout=getattr(m, "FR_TIMEOUT", 900))
     (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr, encoding="utf-8")
