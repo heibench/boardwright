@@ -78,7 +78,6 @@ from __future__ import annotations
 import fnmatch
 import functools
 import hashlib
-import importlib.util
 import math
 import re
 import uuid
@@ -555,9 +554,7 @@ def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where:
 
 
 def add(d: Path, spec_path: str) -> int:
-    sp = importlib.util.spec_from_file_location("sch_spec", spec_path)
-    m = importlib.util.module_from_spec(sp)
-    sp.loader.exec_module(m)
+    m = env.load_source(spec_path, "sch_spec")
     all_sheets = sheets(d)
     sh = _target(d, getattr(m, "SHEET", None), all_sheets)
     sh = next(s for s in all_sheets if s.path == sh.path)

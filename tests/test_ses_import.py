@@ -19,7 +19,6 @@ size and drill) and leave everything else in the file byte-identical.
 To record the current output as the golden: `uv run python tests/test_ses_import.py`.
 """
 
-import importlib.util
 import re
 import shutil
 import sys
@@ -31,6 +30,7 @@ from conftest import ROOT
 
 from boardwright import build
 from boardwright.copper import blocks
+from boardwright.env import load_source
 
 DATA = Path(__file__).parent / "data" / "ses"
 # case -> the example whose board.py is the spec
@@ -45,10 +45,7 @@ CASES = {
 
 
 def spec(name: str):
-    s = importlib.util.spec_from_file_location("board_def", ROOT / "examples" / "boards" / name / "board.py")
-    m = importlib.util.module_from_spec(s)
-    s.loader.exec_module(m)
-    return m
+    return load_source(ROOT / "examples" / "boards" / name / "board.py", "board_def")
 
 
 def normalize(t: str) -> str:
