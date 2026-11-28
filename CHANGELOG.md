@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- The skill gains "Remaking a board from a reference". It covers:
+  - getting the reference as a machine netlist first;
+  - diffing an exported netlist after every edit batch;
+  - comparing non-polarized two-pin parts as unordered pairs;
+  - adding parts in groups and re-diffing after a placement pass;
+  - plotting every sheet;
+  - what still needs KiCad: new sub-sheets, multi-unit parts, unstubbed pins.
+
 ### Fixed
 - Design files are read and written as UTF-8 whatever the locale, and an
   in-place edit of a schematic or board (every `sch` edit, `existing apply`

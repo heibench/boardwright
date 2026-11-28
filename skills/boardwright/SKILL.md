@@ -109,6 +109,58 @@ areas, anything that needs existing tracks pushed aside, length-tuned pairs,
 multi-unit symbols, and placing the parts a schematic change adds
 (`existing update` puts them beside the board for you to place).
 
+## Remaking a board from a reference
+
+When the task is to redraw an existing design, such as a vendor evaluation
+board, in a project of your own, the reference's netlist is the oracle. Where
+a board or schematic already exists, the steps of the section above apply
+too: commit, read, baseline, then one change at a time.
+
+1. **Get the reference as a machine netlist first**: an IPC-D-356 file or the
+   vendor's design files. A netlist transcribed by eye from a PDF is the
+   fallback, and it is where errors come from. Ask for the design files
+   before drawing; they can sit behind a login only the user has. IPC-D-356
+   lists footprint pad numbers, which can differ from symbol pin numbers (a
+   SOT-223 tab is pad 4).
+2. **After every batch of edits, export the netlist** (`kicad-cli sch export
+   netlist`) and diff it against the last one, and against what the batch
+   meant to do. Check both ways: each pin on its intended net, and each net
+   holding exactly its intended pins. "added" in a tool's output does not show
+   connectivity, and neither does a clean ERC: a passive pin moved to another
+   existing net passes it. Compare ERC with the previous run as well: export
+   each as `kicad-cli sch erc --format json`, then `boardwright sch ercdiff
+   BEFORE.json AFTER.json` prints each finding NEW since BEFORE and exits 1
+   if there is one. Read each NEW line against the pins the batch left open
+   on purpose: a stub that misses its pin shows as a new `pin_not_connected`,
+   `unconnected_wire_endpoint` or `label_dangling`, and so does a pin the
+   batch didn't list.
+3. **Compare against the reference by net membership, not by names**, with a
+   map from its reference designators to yours. A non-polarized two-pin part
+   (resistor, capacitor, inductor, ferrite bead) can be drawn either way
+   round, so compare it as an unordered pair of nets; a `(ref, pin)`
+   comparison reports each such swap as a split net. Compare diodes, LEDs and
+   polarized capacitors pin by pin: a reversed one is a defect.
+4. **Add parts in groups.** `boardwright sch P add` places a batch in one row
+   of free space, so how many fit depends on the sheet: on a nearly empty A4
+   sheet 30 two-pin parts fit and 40 did not. It places for connectivity,
+   not reading order. No boardwright command moves a schematic symbol, so a
+   placement pass per functional block is a step for the person, in KiCad;
+   diff the netlist again after it: it must not change. (On the board,
+   `existing apply` with MOVE places footprints.)
+5. **Plot every sheet and look at the crowded parts** (`kicad-cli sch export
+   svg` writes each page; crop with another tool). Value text over labels,
+   flags on labels, and parts dropped onto an IC's pin labels all pass ERC.
+6. **Name nets as KiCad shows them** in `sch` commands: `boardwright sch P
+   move` and `add` read `SDA/A4`. KiCad's exported netlist spells the same net
+   `SDA{slash}A4`, with the sheet path in front for a local label
+   (`/SDA{slash}A4` on the root), so write the expected netlist that way.
+
+What boardwright can't do yet, so ask the person to do it in KiCad rather than
+editing the file by hand:
+- create a new sub-sheet, with one part on it, before `add` fills it;
+- place multi-unit parts, and connect pins of parts already on the sheet
+  that have no stub.
+
 ## The board open in KiCad
 
 `boardwright live` edits the board open in KiCad's PCB editor through KiCad's
