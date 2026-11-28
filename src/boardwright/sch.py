@@ -539,15 +539,27 @@ def _sheet_path(sh: Sheet, all_sheets: list[Sheet], top: Path) -> str:
     return "/" + "".join(n + "/" for n in reversed(names))
 
 
-def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str) -> str:
-    """The label text for a net named in a pin map. KiCad names a local label's
-    net with its sheet path in front (/LED_A on the root sheet), so that form
-    joins the label; any other name with a "/" in it is refused rather than
-    written as a new label with the slash in its text (#102)."""
-    if net in known or "/" not in net:
+def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str,
+                sheet_names: frozenset[str] = frozenset()) -> str:
+    """The label text for a net named in a pin map: as KiCad shows it (SDA/A4)
+    or as its s-expression netlist spells it (SDA{slash}A4), stored with
+    {slash} as KiCad stores a typed "/" (#210). A name led by "/" is the
+    netlist form of a local label, its sheet path in front (/LED_A on the root
+    sheet): it joins that label, and naming no label it is refused rather than
+    written as a new net (#102). So is a name whose first part is a sheet's
+    name, a sheet path missing its leading "/" (io/LED_A)."""
+    if net in known:                                    # a power symbol's Value is matched as written
         return net
-    name = net[len(prefix):] if net.startswith(prefix) else None
-    if name and "/" not in name and name in labels:
+    if not net.startswith("/"):
+        if _stored(net) in known:                       # an existing label, whatever its first part
+            return _stored(net)
+        if "/" in net and net.split("/", 1)[0] in sheet_names:
+            raise Usage(f"net {net!r} starts with the name of sheet {net.split('/', 1)[0]!r}, like a sheet path missing "
+                        f"its leading '/': a label on that sheet is reached only through its sheet pin, and a new net "
+                        f"of this name is written {_stored(net)!r}. Nothing written.")
+        return _stored(net)
+    name = _stored(net[len(prefix):]) if net.startswith(prefix) else None
+    if name and name in labels:
         return name
     raise Usage(f"net {net!r} is not a label on {where}: a name with a sheet path in front ({prefix}NAME) must name one "
                 f"of its local labels ({', '.join(sorted(labels)) or 'none'}). Nothing written.")
@@ -592,11 +604,12 @@ def add(d: Path, spec_path: str) -> int:
         raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
     path = _instance_path(template)
     prefix = _sheet_path(sh, all_sheets, root(d).path)
+    sheet_names = frozenset(n for x in all_sheets for a, b in blocks(x.text, ("sheet",)) if (n := prop(x.text[a:b], "Sheetname")))
     plan = []                                            # (ref, like, value, footprint, pins, lib_id, source, from library, extent)
     for ref, like, value, footprint, pins in m.ADD:
         if ref in taken or any(ref == p[0] for p in plan):
             raise Usage(f"{ref} already exists")
-        pins = {str(k): _local_name(v, prefix, labels, labels | hier | globals_ | set(power), sh.path.name)
+        pins = {str(k): _local_name(v, prefix, labels, labels | hier | globals_ | set(power), sh.path.name, sheet_names)
                 for k, v in pins.items()}
         if like in by_ref and not like.startswith("#"):
             src_text, src = by_ref[like]
@@ -675,7 +688,7 @@ def add(d: Path, spec_path: str) -> int:
                     head, tpl = "global_label", glabel_t
                 new.append(_label(tpl, head, net, ex, ey, rot))
                 kind = head.replace("_", " ") + ("" if net in labels | hier | globals_ else " (new net)")
-            print(f"{ref}.{num} -> {net}  [{kind}]")
+            print(f"{ref}.{num} -> {net.replace('{slash}', '/')}  [{kind}]")        # as KiCad shows it
         how = "from its library" if from_lib else f"copied from {like}"
         print(f"added {ref} ({lib_id if from_lib else _lib_id(src)}, {how}) to {sh.path.name} at ({x:g}, {y:g})")
     k = _tail(t)

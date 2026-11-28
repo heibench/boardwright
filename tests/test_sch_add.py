@@ -487,7 +487,41 @@ def test_a_netlist_name_joins_the_local_label(proj, tmp_path, capsys, net):
     assert '(label "/LED_A"' not in after and after.count('(label "LED_A"') == 3
 
 
-@pytest.mark.parametrize("net", ["/NOPE", "/sub/LED_A", "LED_A/x"])
+@pytest.mark.parametrize("net", ["SDA/A4", "SDA{slash}A4"])
+def test_a_slash_in_a_name_joins_the_label_kicad_stores_with_slash(proj, tmp_path, capsys, net):
+    """#210: KiCad shows SDA{slash}A4 as SDA/A4, and move accepts that form;
+    add refused it as a sheet path. Both forms join the one label, and the pin
+    is printed as KiCad shows it."""
+    f = proj / SCH
+    first = ("R70", "R1", "1k", "", {1: "SDA{slash}A4", 2: "GND"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [first])]) == 0
+    capsys.readouterr()
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R71", "R1", "1k", "", {1: net, 2: "GND"})])]) == 0
+    assert "R71.1 -> SDA/A4  [global label]" in capsys.readouterr().out
+    after = f.read_text()
+    assert after.count('"SDA{slash}A4"') == 2 and '"SDA/A4"' not in after
+
+
+def test_a_new_net_with_a_slash_is_written_as_kicad_stores_it(proj, tmp_path, capsys):
+    f = proj / SCH
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R70", "R1", "1k", "", {1: "I2C_CLK/A5", 2: "GND"})])]) == 0
+    assert "R70.1 -> I2C_CLK/A5  [global label (new net)]" in capsys.readouterr().out
+    after = f.read_text()
+    assert '"I2C_CLK{slash}A5"' in after and '"I2C_CLK/A5"' not in after
+
+
+def test_a_netlist_name_joins_a_local_label_with_a_slash(proj, tmp_path, capsys):
+    """KiCad's XML netlist names the root's local label LED{slash}A /LED/A (its
+    s-expression netlist, /LED{slash}A)."""
+    f = proj / SCH
+    _led_a_local(f)
+    f.write_text(f.read_text().replace('(label "LED_A"', '(label "LED{slash}A"'))
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R50", "R1", "1k", "", {1: "/LED/A", 2: "GND"})])]) == 0
+    assert "R50.1 -> LED/A  [label]" in capsys.readouterr().out
+    assert f.read_text().count('(label "LED{slash}A"') == 3
+
+
+@pytest.mark.parametrize("net", ["/NOPE", "/sub/LED_A", "/LED_A/x"])
 def test_a_slashed_name_that_is_no_label_here_is_refused(proj, tmp_path, capsys, net):
     f = proj / SCH
     _led_a_local(f)
@@ -507,3 +541,21 @@ def test_a_sub_sheet_path_is_its_sheet_names(tmp_path):
     top, io, adc = sheet("top.kicad_sch", ("io", "io.kicad_sch")), sheet("io.kicad_sch", ("adc", "adc.kicad_sch")), sheet("adc.kicad_sch")
     all_ = [top, io, adc]
     assert [sch._sheet_path(s, all_, top.path) for s in all_] == ["/", "/io/", "/io/adc/"]
+
+
+def test_a_known_name_with_a_slash_is_matched_as_written():
+    """A power symbol's Value such as VCC/2 is matched as its Value reads; turned
+    into VCC{slash}2 it would become a label of its own, not the power net."""
+    assert sch._local_name("VCC/2", "/", set(), {"VCC/2"}, "x.kicad_sch") == "VCC/2"
+    assert sch._local_name("SDA/A4", "/", set(), set(), "x.kicad_sch") == "SDA{slash}A4"
+
+
+def test_a_sheet_path_without_its_leading_slash_is_refused():
+    """io/LED_A names sub-sheet io's label LED_A with its leading / dropped. Written
+    as a new net it would be io{slash}LED_A, on its own; KiCad's netlist put such
+    a pin alone on /io/io/LED_A."""
+    with pytest.raises(sch.Usage, match=r"starts with the name of sheet 'io'.*'io\{slash\}LED_A'"):
+        sch._local_name("io/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"}))
+    assert sch._local_name("ion/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"})) == "ion{slash}LED_A"
+    # a label that exists is joined, even when its first part is a sheet's name
+    assert sch._local_name("io/x", "/", set(), {"io{slash}x"}, "x.kicad_sch", frozenset({"io"})) == "io{slash}x"
