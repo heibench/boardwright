@@ -945,3 +945,17 @@ def export(pcb: Path, dsn: Path) -> int:
     dsn.parent.mkdir(parents=True, exist_ok=True)
     dsn.write_text(d.text(), encoding="utf-8")
     return len(d.arcs)
+
+
+def rules_beside(dsn: Path, text: str | None) -> Path | None:
+    """The Freerouting rules file for `dsn`, named after it: written when the run
+    has rules, otherwise removed. Freerouting reads NAME.rules beside NAME.dsn
+    without being given -dr, so a file left by an earlier run would keep its
+    layer rules (a plane switched off) for this one (#224). Returns the path
+    to pass as -dr, or None."""
+    rules = dsn.with_suffix(".rules")
+    if text is None:
+        rules.unlink(missing_ok=True)
+        return None
+    rules.write_text(text, encoding="utf-8")
+    return rules

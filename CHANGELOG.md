@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `existing reroute` and `gen` remove a rules file left beside the DSN by an
+  earlier run when this run sets none (#224). Freerouting reads `NAME.rules`
+  beside `NAME.dsn` without being given `-dr`, so a file from a run with
+  PLANES kept that plane switched off: with a stale file turning F.Cu off,
+  `reroute VIN` on the LDO example could not finish.
+
 ## [0.17.2] - 2026-11-27
 
 ### Added
