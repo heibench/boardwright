@@ -132,3 +132,24 @@ def test_the_removal_writes_through_the_board_writers_check(ldo, monkeypatch, ca
     assert main(["existing", str(ldo), "apply"]) == 1
     assert "unbalance" in capsys.readouterr().err
     assert pcb.read_text() == before
+
+
+def test_the_removal_writes_the_board_atomically(ldo, monkeypatch):
+    """existing apply's REMOVE writes the user's board through board._write, as
+    existing update does: an atomic write, not write_text, which a failed
+    write left truncated (#218)."""
+    _spec(ldo, 'REMOVE = ["G***"]\n')
+    from test_write_atomic import forbid_plain_writes
+    forbid_plain_writes(monkeypatch, (".kicad_pcb",))
+    assert main(["existing", str(ldo), "apply"]) == 0
+    assert "OldLogos:Mark" not in (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8")
+
+
+def test_a_move_writes_the_board_atomically(ldo, monkeypatch):
+    """existing apply's MOVE and the steps after it write the board in existing.py."""
+    _spec(ldo, 'MOVE = {"R1": (120.0, 80.0, 0)}\n')
+    from test_write_atomic import forbid_plain_writes
+    forbid_plain_writes(monkeypatch, (".kicad_pcb",))
+    before = (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8")
+    assert main(["existing", str(ldo), "apply", "--force"]) == 0           # the write, not the placement, is under test
+    assert (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8") != before

@@ -111,7 +111,7 @@ def _rules(pcb: Path) -> tuple[dict, list[float]]:
     pro = pcb.with_suffix(".kicad_pro")
     if not pro.exists():
         return {}, []
-    j = json.loads(pro.read_text())
+    j = json.loads(pro.read_text(encoding="utf-8"))
     rules = j.get("board", {}).get("design_settings", {}).get("rules", {})
     return rules, [c["clearance"] for c in j.get("net_settings", {}).get("classes", []) if "clearance" in c]
 

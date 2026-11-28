@@ -127,7 +127,7 @@ def _key(text: str) -> str:
 
 
 def _findings(report: Path) -> list[tuple]:
-    j = json.loads(report.read_text())
+    j = json.loads(report.read_text(encoding="utf-8"))
     out = []
     for v in j.get("violations", []) + j.get("unconnected_items", []) + j.get("schematic_parity", []):
         if v.get("severity") == "exclusion":
@@ -350,7 +350,7 @@ def apply(d: Path, force: bool = False) -> int:
     copper.check_vias(m)
     rm = list(getattr(m, "REMOVE", []))
     if rm:
-        original = pcb.read_text()
+        original = pcb.read_text(encoding="utf-8")
         t, gone, refused = remove_footprints(original, rm, force)
         for r in refused:
             print("REFUSED", r)
@@ -365,7 +365,7 @@ def apply(d: Path, force: bool = False) -> int:
     ripped = None
     if moves:
         from .placement import Clearance
-        original = pcb.read_text()
+        original = pcb.read_text(encoding="utf-8")
         t, origin = original, Board(pcb).origin
         for ref, mv in moves.items():
             t = move_footprint(t, ref, *mv[:3], origin)
@@ -376,21 +376,21 @@ def apply(d: Path, force: bool = False) -> int:
                 t = place_field(t, ref, name, at, origin)
         if rip:                                      # check the moves against the board as it will be (#135)
             t, ripped = copper.ripup(t, rip)
-        pcb.write_text(t)
+        env.write_atomic(pcb, t)
         clear = Clearance(Board(pcb))
         found = [c for ref in moves for c in clear.clashes(ref)]
         for c in found:
             print("CLASH", c)
         if found and not force:
-            pcb.write_text(original)
+            env.write_atomic(pcb, original)
             print(f"nothing written: a moved part touches other copper or courtyards. "
                   f"`boardwright existing {d} free REF [near REF.PAD]` lists clear spots; --force applies anyway")
             return 1
         print(f"moved {len(moves)} footprint(s)")
     if rip:
         if ripped is None:
-            text, ripped = copper.ripup(pcb.read_text(), rip)
-            pcb.write_text(text)
+            text, ripped = copper.ripup(pcb.read_text(encoding="utf-8"), rip)
+            env.write_atomic(pcb, text)
         print(f"ripped up {ripped} track/via item(s) on {sorted(rip)}")
     if getattr(m, "ROUTES", None):                   # pad-to-pad routes, worked out after the moves and rip-up
         from .route import expand
@@ -398,12 +398,12 @@ def apply(d: Path, force: bool = False) -> int:
         m.TRACKS = list(getattr(m, "TRACKS", [])) + rt
         m.VIAS = list(getattr(m, "VIAS", [])) + rv
         print(f"routed {len(m.ROUTES)} connection(s): {len(rt)} track run(s), {len(rv)} via(s)")
-    before = len(pcb.read_text())
+    before = len(pcb.read_text(encoding="utf-8"))
     b0 = Board(pcb)
     copper.apply(pcb, m, "pre")
     copper.apply(pcb, m, "post")
-    text, n = dedupe(pcb.read_text())
-    pcb.write_text(text)
+    text, n = dedupe(pcb.read_text(encoding="utf-8"))
+    env.write_atomic(pcb, text)
     print(f"applied hand copper ({len(text) - before:+d} bytes; {n} exact duplicate(s) dropped, so apply is repeatable)")
     stale = stale_fills(b0, Board(pcb))
     for line in stale:
@@ -531,18 +531,18 @@ def reroute(d: Path, args: list[str]) -> int:
         raise Outcome(f"refused: {len(wide)} track(s) on {sorted({t.net for t, _w in wide})} are wider than their net "
                       "class, and the router would replace them at the class width; nothing changed. "
                       "--force reroutes them anyway")
-    original = pcb.read_text()
+    original = pcb.read_text(encoding="utf-8")
     was_open = {n for *_p, n in ratsnest(b0, set())}
     planes = plane_layers(b0, m)
     text0, n = copper.ripup(original, set(nets_))
-    pcb.write_text(text0)
+    env.write_atomic(pcb, text0)
     print(f"ripped up {n} item(s)")
     try:
         kept, arcs = _route_and_graft(pcb, m, o, nets_, was_open, text0, planes)
     except BaseException:
         # nothing lands unless the route does: a failure leaves the board as it was read (#104)
-        if pcb.read_text() != original:
-            pcb.write_text(original)
+        if pcb.read_text(encoding="utf-8") != original:
+            env.write_atomic(pcb, original)
         print(f"{pcb.name} restored as it was read; nothing changed", file=sys.stderr)
         raise
     b1 = Board(pcb)
@@ -593,7 +593,7 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", str(getattr(m, "FR_PASSES", 5))]
     if planes:
         rules = o / f"{m.NAME}.rules"
-        rules.write_text(_rules(m, ses_.copper_layers(text0), planes))
+        rules.write_text(_rules(m, ses_.copper_layers(text0), planes), encoding="utf-8")
         cmd += ["-dr", str(rules)]
         print(f"  kept off the plane layer(s) {', '.join(planes)}")
     limit = getattr(m, "FR_TIMEOUT", 900)
@@ -601,7 +601,7 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
     except subprocess.TimeoutExpired as e:
         raise EnvironmentFault(f"freerouting did not finish in FR_TIMEOUT = {limit} s") from e
-    (o / "freerouting.log").write_text(r.stdout + r.stderr)
+    (o / "freerouting.log").write_text(r.stdout + r.stderr, encoding="utf-8")
     if not ses.exists():
         raise EnvironmentFault("freerouting produced no SES; see boardwright_out/freerouting.log")
     layers = ses_.copper_layers(text0)
@@ -610,12 +610,12 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
     minw = 0.0
     pro = pcb.with_suffix(".kicad_pro")
     if pro.exists():
-        minw = json.loads(pro.read_text()).get("board", {}).get("design_settings", {}).get("rules", {}).get("min_track_width", 0.0)
+        minw = json.loads(pro.read_text(encoding="utf-8")).get("board", {}).get("design_settings", {}).get("rules", {}).get("min_track_width", 0.0)
     graft = ([ses_.track_block(text0, (*t[:6], max(t[6], minw))) for t in tracks if t[0] in nets_]
              + [ses_.via_block(text0, v, layers) for v in vias if v[0] in nets_])
     copper.append(pcb, graft)
-    text, dup = dedupe(pcb.read_text())
-    pcb.write_text(text)
+    text, dup = dedupe(pcb.read_text(encoding="utf-8"))
+    env.write_atomic(pcb, text)
     # A net the router could not finish refuses the whole reroute: its old copper,
     # put back, lands on the other named nets' new routes (2 shorts on
     # stm32f103_4l with PA0 and PA1, #106), so reroute puts the board back as read.

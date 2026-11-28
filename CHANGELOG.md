@@ -8,6 +8,14 @@ the command line).
 ## [Unreleased]
 
 ### Fixed
+- Design files are read and written as UTF-8 whatever the locale, and an
+  in-place edit of a schematic or board (every `sch` edit, `existing apply`
+  and `update`) is written to a temporary file beside it and moved over it
+  (#218). Under a non-UTF-8 locale, `sch add` with a value such as `10µF`
+  printed "added", then failed, and left the schematic empty: the write
+  truncated the file before the encode failed. A read-only file is still
+  refused; in a directory that takes no new file, the edit is written in
+  place with a warning that it is not atomic.
 - `sch add` reads a net in a pin map as KiCad shows it (`SDA/A4`) or as its
   s-expression netlist spells it (`SDA{slash}A4`), and joins the label stored
   as `SDA{slash}A4`, as `move` does (#210). It refused the shown form with a

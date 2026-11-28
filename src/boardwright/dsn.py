@@ -444,7 +444,7 @@ def _dru_floors(path: Path) -> list[tuple[str, float]]:
     """(constraint, min) of every unconditional clearance, track_width and
     via_diameter rule in the .kicad_dru, or none if KiCad would ignore the file."""
     try:
-        rules = _all(_tree("(rules " + path.read_text(errors="replace") + ")"), "rule")
+        rules = _all(_tree("(rules " + path.read_text(errors="replace", encoding="utf-8") + ")"), "rule")
     except (OSError, IndexError):
         return []
     out = []
@@ -478,7 +478,7 @@ def _matches(pattern: str, net: str) -> bool:
 
 def _project(pcb: Path) -> dict | None:
     try:
-        project = json.loads(pcb.with_suffix(".kicad_pro").read_text())
+        project = json.loads(pcb.with_suffix(".kicad_pro").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return project if isinstance(project, dict) else None
@@ -564,7 +564,7 @@ def _polygon(layer: str, pts: list) -> str:
 
 class _Dsn:
     def __init__(self, pcb: Path):
-        text = pcb.read_text()
+        text = pcb.read_text(encoding="utf-8")
         self.pcb = pcb
         self.root = root = _tree(text)
         self.layers = _layers(text)
@@ -943,5 +943,5 @@ def export(pcb: Path, dsn: Path) -> int:
     tracks went in as fixed polylines."""
     d = _Dsn(pcb)
     dsn.parent.mkdir(parents=True, exist_ok=True)
-    dsn.write_text(d.text())
+    dsn.write_text(d.text(), encoding="utf-8")
     return len(d.arcs)

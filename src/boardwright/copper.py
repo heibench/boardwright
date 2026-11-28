@@ -11,6 +11,7 @@ import re
 import uuid
 from pathlib import Path
 
+from . import env
 from .errors import Usage
 
 
@@ -137,9 +138,9 @@ def text(s, x, y, ox, oy, size=1.0, layer="F.SilkS", rot=0) -> str:
 def append(pcb: Path, chunks: list[str]) -> None:
     if not chunks:
         return
-    t = pcb.read_text().rstrip()
+    t = pcb.read_text(encoding="utf-8").rstrip()
     assert t.endswith(")")
-    pcb.write_text(t[:-1].rstrip() + "\n" + "".join(chunks) + ")\n")
+    env.write_atomic(pcb, t[:-1].rstrip() + "\n" + "".join(chunks) + ")\n")
 
 
 def _cross(p1, p2, p3, p4) -> bool:
@@ -188,7 +189,7 @@ def apply(pcb: Path, m, stage: str) -> None:
     those nets and still runs other nets through them (tried on tps54202_buck).
     boardwright.review names any net that crosses a polygon; hand-route that one.
     """
-    t = pcb.read_text()
+    t = pcb.read_text(encoding="utf-8")
     ox, oy = origin(pcb)
     ch = []
     if stage == "pre":
