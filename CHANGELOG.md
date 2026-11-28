@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.17.4] - 2026-11-28
+
 ### Fixed
 - `sch` reads a symbol's references only from its instance entries on a path
   of the project's hierarchy, as KiCad does (#209). A sheet copied from
@@ -765,7 +767,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.3...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.4...HEAD
+[0.17.4]: https://github.com/heibench/boardwright/compare/v0.17.3...v0.17.4
 [0.17.3]: https://github.com/heibench/boardwright/compare/v0.17.2...v0.17.3
 [0.17.2]: https://github.com/heibench/boardwright/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/heibench/boardwright/compare/v0.17.0...v0.17.1
