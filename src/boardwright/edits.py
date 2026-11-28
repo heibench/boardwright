@@ -102,7 +102,7 @@ def cli(argv: list[str]) -> int:
     if len(argv) not in (4, 5):
         raise Usage(__doc__)
     doc = from_spec(load_spec(argv[1]), Board(argv[2]), argv[4] if len(argv) == 5 else None)
-    Path(argv[3]).write_text(json.dumps(doc, indent=1) + "\n")
+    Path(argv[3]).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
     print(f"{len(doc['ops'])} op(s) -> {argv[3]}  (absolute mm)")
     print(*("  " + l for l in describe(doc)), sep="\n")
     return 0

@@ -105,7 +105,7 @@ def path_variables() -> dict[str, str]:
     cfg = kicad_config()
     if cfg is not None and (cfg / "kicad_common.json").exists():
         try:
-            out.update((json.loads((cfg / "kicad_common.json").read_text()).get("environment") or {}).get("vars") or {})
+            out.update((json.loads((cfg / "kicad_common.json").read_text(encoding="utf-8")).get("environment") or {}).get("vars") or {})
         except (OSError, ValueError):
             pass
     out.update(os.environ)
@@ -366,3 +366,41 @@ def load_source(path: Path | str, name: str):
     m.__file__ = str(path)
     exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), m.__dict__)
     return m
+
+
+def write_atomic(path: Path | str, text: str) -> None:
+    """Write a design file in place, as UTF-8 (KiCad's encoding), so that a
+    failure leaves the old file whole: the text is encoded first, written to a
+    temporary file beside it, flushed, then moved over it, keeping its mode.
+    write_text truncated the file before encoding, and an encode error left it
+    empty (#218). A file its owner made read-only is refused, as write_text
+    refused it. In a directory that takes no new file, the encoded bytes are
+    written in place, as before, with a warning: that route is not atomic. The
+    move gives the file a new inode: a hard link to it keeps the old text, and
+    the file takes the writer's ownership."""
+    import tempfile
+    path = Path(path).resolve()                         # a symlink's target, not the link
+    data = text.encode("utf-8")
+    if path.exists() and not os.access(path, os.W_OK):
+        raise PermissionError(f"{path} is read-only; nothing written")
+    try:
+        fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    except PermissionError:                            # a read-only directory: no atomic route
+        print(f"warning: {path.parent} takes no new file, so {path.name} is written in place, not "
+              "atomically: a failure part way leaves it cut short", file=sys.stderr)
+        path.write_bytes(data)
+        return
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        if path.exists():
+            shutil.copymode(path, tmp)
+        else:                                           # mkstemp's 0600; a new file takes the umask
+            mask = os.umask(0)
+            os.umask(mask)
+            os.chmod(tmp, 0o666 & ~mask)
+        os.replace(tmp, path)
+    finally:
+        Path(tmp).unlink(missing_ok=True)

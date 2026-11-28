@@ -273,7 +273,7 @@ def net_classes(board: Board, project=None):
     pro = Path(project) if project else board.path.with_suffix(".kicad_pro")
     if not pro.exists():
         return lambda net: None
-    j = json.loads(pro.read_text())
+    j = json.loads(pro.read_text(encoding="utf-8"))
     ns = j.get("net_settings", {})
     classes = {c.get("name"): c for c in ns.get("classes", [])}
     default = classes.get("Default", {})

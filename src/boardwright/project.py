@@ -115,7 +115,7 @@ def vendor_libs(c: Circuit, board_dir: Path, extra_sym_libs=("power",)) -> None:
     for nick, names in sorted(used.items()):
         src = sym_dir / f"{nick}.kicad_sym"
         if src.exists():
-            (libs / src.name).write_text(_trim_sym_lib(src.read_text(), names))
+            (libs / src.name).write_text(_trim_sym_lib(src.read_text(encoding="utf-8"), names), encoding="utf-8")
         elif not (libs / src.name).exists():
             raise FileNotFoundError(src)
     for nick, names in fps.items():
@@ -132,11 +132,11 @@ def vendor_libs(c: Circuit, board_dir: Path, extra_sym_libs=("power",)) -> None:
     (board_dir / "sym-lib-table").write_text(
         "(sym_lib_table\n  (version 7)\n"
         + "".join(f'  (lib (name "{n}")(type "KiCad")(uri "${{KIPRJMOD}}/libs/{n}.kicad_sym")(options "")(descr ""))\n' for n in sym_nicks)
-        + ")\n")
+        + ")\n", encoding="utf-8")
     (board_dir / "fp-lib-table").write_text(
         "(fp_lib_table\n  (version 7)\n"
         + "".join(f'  (lib (name "{n}")(type "KiCad")(uri "${{KIPRJMOD}}/libs/{n}.pretty")(options "")(descr ""))\n' for n in fp_nicks)
-        + ")\n")
+        + ")\n", encoding="utf-8")
 
 
 def _netclass(name, clearance, track, via_d, via_drill, priority):
@@ -182,5 +182,5 @@ def write_project(board_dir: Path, name: str, rules: dict | None = None,
         "sheets": [], "text_variables": {},
     }
     p = board_dir / f"{name}.kicad_pro"
-    p.write_text(json.dumps(pro, indent=2))
+    p.write_text(json.dumps(pro, indent=2), encoding="utf-8")
     return p

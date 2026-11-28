@@ -51,7 +51,7 @@ def stage_place(d: Path, m) -> Path:
     # Schematic-side gate outputs survive a regeneration that leaves the
     # schematic byte-identical (the usual case: only the layout changed).
     old_sch = d / f"{m.NAME}.kicad_sch"
-    old_text = old_sch.read_text() if old_sch.exists() else None
+    old_text = old_sch.read_text(encoding="utf-8") if old_sch.exists() else None
     keep = {n: (d / "out" / n).read_bytes() for n in SCH_OUT if (d / "out" / n).exists()}
     clean(d)
     out = d / "out"
@@ -60,7 +60,7 @@ def stage_place(d: Path, m) -> Path:
     write_project(d, m.NAME, getattr(m, "RULES", None), getattr(m, "CLASSES", None), getattr(m, "SEVERITIES", None))
     sch, pcb = d / f"{m.NAME}.kicad_sch", d / f"{m.NAME}.kicad_pcb"
     print("schematic:", write_schematic(m.CIRCUIT, sch))
-    if old_text is not None and sch.read_text() == old_text and len(keep) == len(SCH_OUT):
+    if old_text is not None and sch.read_text(encoding="utf-8") == old_text and len(keep) == len(SCH_OUT):
         for n, data in keep.items():
             (out / n).write_bytes(data)
         print("schematic unchanged: kept", ", ".join(SCH_OUT))
@@ -68,7 +68,7 @@ def stage_place(d: Path, m) -> Path:
     B.create(sch, pcb, m.W, m.H, getattr(m, "LAYERS", 2), m.CIRCUIT)
     from .placement import resolve
     place = resolve(pcb, m.PLACE, m.CIRCUIT, d)
-    (out / "placement.json").write_text(json.dumps(place, indent=1))
+    (out / "placement.json").write_text(json.dumps(place, indent=1), encoding="utf-8")
     B.place(pcb, place)
     B.set_pad_nets(pcb, m.CIRCUIT.nc_nets)   # KiCad's own name for a no-connect pad
     copper.apply(pcb, m, "pre")      # VIAS, TRACKS, KEEPOUTS: fixed before routing
@@ -131,11 +131,11 @@ def route(d: Path, m, pcb: Path) -> None:
     base = getattr(m, "FR_BOTTOM_COST", None)
     costs = [base] if not base else [base, round(base * 0.8, 1), round(base * 1.25, 1), round(base * 0.6, 1)]
     costs = costs[:getattr(m, "FR_ATTEMPTS", 3)] if base else [None, None][:1]
-    unrouted = pcb.read_text()
+    unrouted = pcb.read_text(encoding="utf-8")
     best = None
     for n, cost in enumerate(costs):
         if n:
-            pcb.write_text(unrouted)
+            pcb.write_text(unrouted, encoding="utf-8")
             print(f"attempt {n + 1}: bottom cost {cost}")
         _route_once(d, m, pcb, "", cost, str(getattr(m, "FR_PASSES", 100)))
         left = sorted({x for *_p, x in ratsnest(Board(pcb), poured)})
@@ -143,11 +143,11 @@ def route(d: Path, m, pcb: Path) -> None:
         if left:
             left = complete(pcb, m, poured)
         if best is None or len(left) < len(best[0]):
-            best = (left, pcb.read_text())
+            best = (left, pcb.read_text(encoding="utf-8"))
         if not left:
             break
-    if best[1] != pcb.read_text():
-        pcb.write_text(best[1])
+    if best[1] != pcb.read_text(encoding="utf-8"):
+        pcb.write_text(best[1], encoding="utf-8")
     if best[0]:
         print("WARNING: still open after every attempt, hand-route these:", best[0])
     from .silk import place_refs
@@ -178,7 +178,7 @@ def complete(pcb: Path, m, poured: set) -> list[str]:
             break
         chunks, extra = [], []
         ox, oy = b.origin
-        t = pcb.read_text()
+        t = pcb.read_text(encoding="utf-8")
         for o in todo:
             net = o[2]
             clr, width, via_d, via_drill = (by_net.get(net) or default)[:4]
@@ -210,7 +210,7 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
     # fine-pitch parts, so it is off unless a board asks for it.
     margin = getattr(m, "FR_MARGIN", 0) * 1000
     if margin:
-        dsn.write_text(re.sub(r"\(clearance ([\d.]+)", lambda mm: f"(clearance {float(mm.group(1)) + margin}", dsn.read_text()))
+        dsn.write_text(re.sub(r"\(clearance ([\d.]+)", lambda mm: f"(clearance {float(mm.group(1)) + margin}", dsn.read_text(encoding="utf-8")), encoding="utf-8")
     cmd = [*env.freerouting(), "-de", str(dsn), "-do", str(ses), "-mp", passes]
     planes = getattr(m, "PLANES", {})
     if bcost or planes:
@@ -233,11 +233,11 @@ def _route_once(d: Path, m, pcb: Path, tag: str, bcost, passes: str) -> None:
                      f"      (preferred_direction {'horizontal' if i % 2 == 0 else 'vertical'})\n"
                      f"      (preferred_direction_trace_costs {cost})\n"
                      f"      (against_preferred_direction_trace_costs {against})\n    )\n")
-        rules.write_text(f"(rules PCB {m.NAME}\n  (autoroute_settings\n{body}  )\n)\n")
+        rules.write_text(f"(rules PCB {m.NAME}\n  (autoroute_settings\n{body}  )\n)\n", encoding="utf-8")
         cmd += ["-dr", str(rules)]
     r = subprocess.run(cmd,
                        capture_output=True, text=True, timeout=getattr(m, "FR_TIMEOUT", 900))
-    (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr)
+    (d / "out" / f"freerouting{tag}.log").write_text(r.stdout + r.stderr, encoding="utf-8")
     if not ses.exists():
         raise EnvironmentFault("freerouting produced no SES; see out/freerouting.log")
     import_ses(pcb, ses, m)
@@ -256,7 +256,7 @@ def import_ses(pcb: Path, ses: Path, m) -> None:
     from collections import Counter
 
     from . import ses as S
-    text = pcb.read_text()
+    text = pcb.read_text(encoding="utf-8")
     layers = S.copper_layers(text)
     tracks, vias = S.read(ses, layers)
     unknown = {i[0] for i in tracks + vias} - S.nets(text)
@@ -319,7 +319,7 @@ def import_ses(pcb: Path, ses: Path, m) -> None:
 
 
 def _violations(report: Path) -> list[dict]:
-    d = json.loads(report.read_text())
+    d = json.loads(report.read_text(encoding="utf-8"))
     if "sheets" in d:
         return [v for s in d["sheets"] for v in s["violations"]]
     return d.get("violations", []) + d.get("unconnected_items", []) + d.get("schematic_parity", [])
@@ -376,7 +376,7 @@ def check_parts(c, d: Path) -> None:
         if not p.footprint or not p.pins:
             continue
         nick, name = p.footprint.split(":")
-        mod = (d / "libs" / f"{nick}.pretty" / f"{name}.kicad_mod").read_text()
+        mod = (d / "libs" / f"{nick}.pretty" / f"{name}.kicad_mod").read_text(encoding="utf-8")
         padnames = set(re.findall(r'\(pad "([^"]*)"', mod))
         missing = sorted(set(p.pins) - padnames)
         if missing:
