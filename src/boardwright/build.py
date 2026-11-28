@@ -10,7 +10,6 @@ ROUTE_SKIP (nets left to pours), POURS (list of (net, layers)).
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import re
 import shutil
@@ -30,9 +29,7 @@ KEEP = {"board.py", ".libmerge", "libs", "sym-lib-table", "fp-lib-table", "notes
 
 
 def load(board_dir: Path):
-    spec = importlib.util.spec_from_file_location("board_def", board_dir / "board.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
+    m = env.load_source(board_dir / "board.py", "board_def")
     if getattr(m, "LIBS", None):
         from .project import merge_libs
         merge_libs([(board_dir / p).resolve() for p in m.LIBS], board_dir)

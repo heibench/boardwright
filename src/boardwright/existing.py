@@ -31,7 +31,6 @@ passes and DRC shows nothing new since `baseline`".
 from __future__ import annotations
 
 import fnmatch
-import importlib.util
 import json
 import math
 import re
@@ -63,9 +62,7 @@ def spec(d: Path):
     f = d / "boardwright.py"
     if not f.exists():
         return types.SimpleNamespace(NAME=find(d).stem)
-    sp = importlib.util.spec_from_file_location("boardwright_spec", f)
-    m = importlib.util.module_from_spec(sp)
-    sp.loader.exec_module(m)
+    m = env.load_source(f, "boardwright_spec")
     if not hasattr(m, "NAME"):
         m.NAME = find(d).stem
     return m

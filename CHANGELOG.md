@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- Spec and board files (`sch add`'s SPEC.py, `review`'s spec, boardwright.py,
+  board.py, `live` and edit specs) run from their source as it reads now.
+  importlib's loader reused the first load's cached bytecode when an edit
+  kept the file's size and mtime, so an edit of the same size within a second
+  ran the old spec without a word (#213).
+
 ## [0.17.1] - 2026-11-27
 
 ### Added

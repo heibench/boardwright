@@ -511,13 +511,12 @@ def review(pcb: Path, m) -> list[str]:
 def cli(argv: list[str]) -> int:
     argv = ["boardwright", *argv]
     # boardwright review BOARD.kicad_pcb [SPEC.py]   -- review any board file
-    import importlib.util
     import types
+
+    from . import env
     spec = types.SimpleNamespace()
     if len(argv) > 2:
-        sp = importlib.util.spec_from_file_location("review_spec", argv[2])
-        spec = importlib.util.module_from_spec(sp)
-        sp.loader.exec_module(spec)
+        spec = env.load_source(argv[2], "review_spec")
     print("review:")
     fails = review(Path(argv[1]), spec)
     print(f"{'OK  ' if not fails else 'FAIL'} review", *fails, sep="\n    ")

@@ -53,7 +53,6 @@ result is read back; no access to the interactive router exists in the API.
 
 from __future__ import annotations
 
-import importlib.util
 import re
 import subprocess
 import time
@@ -61,6 +60,7 @@ import types
 from collections import Counter
 from pathlib import Path
 
+from . import env
 from .errors import EnvironmentFault, Outcome, Usage
 from .model import Board
 
@@ -68,9 +68,7 @@ from .model import Board
 def _load(path: str | None):
     if not path:
         return types.SimpleNamespace()
-    sp = importlib.util.spec_from_file_location("live_spec", path)
-    m = importlib.util.module_from_spec(sp)
-    sp.loader.exec_module(m)
+    m = env.load_source(path, "live_spec")
     return m
 
 
