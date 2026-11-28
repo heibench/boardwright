@@ -499,6 +499,20 @@ def dedupe(text: str) -> tuple[str, int]:
     return text, len(drop)
 
 
+def _board_net(name: str, known: set[str]) -> str:
+    """The board's own name for a net named as the board stores it
+    (/ESTOP{slash}D2) or as KiCad shows it, in its GUI, DRC report and XML
+    netlist (/ESTOP/D2) (#223). A name two stored nets display as is refused:
+    /ESTOP/D2 is both a root label ESTOP/D2 and a label D2 on sheet ESTOP."""
+    hits = sorted(k for k in known if k == name or k.replace("{slash}", "/") == name)
+    if len(hits) == 1:
+        return hits[0]
+    if hits:
+        raise Usage(f"net {name!r} could be {' or '.join(repr(h) for h in hits)}: name it as the board stores it "
+                    "(see `nets`). Nothing changed.")
+    raise Usage(f"no net {name!r} (see `nets`)")
+
+
 def reroute(d: Path, args: list[str]) -> int:
     """Rip up the named nets and let Freerouting route only them.
 
@@ -517,9 +531,7 @@ def reroute(d: Path, args: list[str]) -> int:
     o = out_dir(d)
     b0 = Board(pcb)
     known = {p.net for p in b0.pads}
-    for n in nets_:
-        if n not in known:
-            raise Usage(f"no net {n!r} (see `nets`)")
+    nets_ = [_board_net(n, known) for n in nets_]
     from .route import net_classes
     cls = net_classes(b0)
     wide = [(t, (cls(t.net) or {}).get("width")) for t in b0.tracks if t.net in nets_]
