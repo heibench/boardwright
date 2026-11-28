@@ -10,7 +10,7 @@ import re
 import uuid
 from pathlib import Path
 
-from . import copper
+from . import copper, env
 from .model import balanced
 
 _LAYERS = {
@@ -110,7 +110,7 @@ def _write(pcb_path: Path, t0: str, t: str) -> None:
     if pcb_path.read_text(encoding="utf-8") != t0:
         raise SystemExit(f"{pcb_path.name} changed on disk since it was read; nothing written")
     if t != t0:
-        pcb_path.write_text(t, encoding="utf-8")
+        env.write_atomic(pcb_path, t)
 
 
 def place(pcb_path: Path, placements: dict[str, tuple]) -> None:

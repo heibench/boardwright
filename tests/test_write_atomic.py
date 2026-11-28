@@ -73,3 +73,53 @@ def test_no_text_read_or_write_in_the_package_relies_on_the_locale():
                     and not any(k.arg == "encoding" for k in n.keywords)):
                 bare.append(f"{f.name}:{n.lineno}")
     assert bare == []
+
+
+def test_a_read_only_file_is_refused_and_left_as_it_is(tmp_path):
+    f = tmp_path / "board.kicad_pcb"
+    f.write_bytes(b"(kicad_pcb)\n")
+    f.chmod(0o444)
+    with pytest.raises(PermissionError):
+        env.write_atomic(f, "(kicad_pcb (new))\n")
+    assert f.read_bytes() == b"(kicad_pcb)\n"
+
+
+def test_a_read_only_directory_still_takes_the_edit(tmp_path):
+    d = tmp_path / "shared"
+    d.mkdir()
+    f = d / "board.kicad_pcb"
+    f.write_bytes(b"(kicad_pcb)\n")
+    d.chmod(0o555)
+    try:
+        env.write_atomic(f, "(kicad_pcb (new))\n")
+        assert f.read_text(encoding="utf-8") == "(kicad_pcb (new))\n"
+    finally:
+        d.chmod(0o755)
+
+
+def test_a_write_leaves_no_temporary_file(tmp_path):
+    f = tmp_path / "x.kicad_sch"
+    for i in range(3):
+        env.write_atomic(f, f"({i})\n")
+    assert [p.name for p in tmp_path.iterdir()] == ["x.kicad_sch"]
+
+
+@pytest.fixture
+def design_write_text_forbidden(monkeypatch):
+    """A design file written with Path.write_text, rather than env.write_atomic, fails the test."""
+    from pathlib import Path
+    real = Path.write_text
+    def guarded(self, *a, **k):
+        if self.suffix in (".kicad_sch", ".kicad_pcb"):
+            raise AssertionError(f"{self.name} written with write_text, not write_atomic")
+        return real(self, *a, **k)
+    monkeypatch.setattr(Path, "write_text", guarded)
+
+
+def test_sch_edits_write_the_schematic_atomically(ldo_copy, tmp_path, design_write_text_forbidden):
+    from boardwright.cli import main
+    spec = tmp_path / "spec.py"
+    spec.write_bytes(b'ADD = [("R70", "R1", "1k", "", {1: "VIN", 2: "GND"})]\n')
+    assert main(["sch", str(ldo_copy), "add", str(spec)]) == 0
+    assert main(["sch", str(ldo_copy), "set", "R70", "Value=2k"]) == 0
+    assert main(["sch", str(ldo_copy), "move", "R70.1", "NEWNET"]) == 0

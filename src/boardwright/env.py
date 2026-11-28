@@ -355,16 +355,30 @@ def warn_if_open_in_kicad(path: Path) -> None:
 
 def write_atomic(path: Path | str, text: str) -> None:
     """Write a design file in place, as UTF-8 (KiCad's encoding), so that a
-    failure leaves the old file whole: the text is encoded first, written
-    beside the file, then moved over it. write_text truncated the file before
-    encoding, and an encode error left it empty (#218)."""
+    failure leaves the old file whole: the text is encoded first, written to a
+    temporary file beside it, flushed, then moved over it, keeping its mode.
+    write_text truncated the file before encoding, and an encode error left it
+    empty (#218). A file its owner made read-only is refused, as write_text
+    refused it. In a directory that takes no new file, the encoded bytes are
+    written in place, as before. The move gives the file a new inode, so a
+    hard link to it keeps the old text."""
+    import tempfile
     path = Path(path).resolve()                         # a symlink's target, not the link
     data = text.encode("utf-8")
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    if path.exists() and not os.access(path, os.W_OK):
+        raise PermissionError(f"{path} is read-only; nothing written")
     try:
-        tmp.write_bytes(data)
+        fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    except PermissionError:
+        path.write_bytes(data)                          # a read-only directory: no atomic route
+        return
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
         if path.exists():
             shutil.copymode(path, tmp)
         os.replace(tmp, path)
     finally:
-        tmp.unlink(missing_ok=True)
+        Path(tmp).unlink(missing_ok=True)
