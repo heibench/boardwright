@@ -138,28 +138,18 @@ def test_the_removal_writes_the_board_atomically(ldo, monkeypatch):
     """existing apply's REMOVE writes the user's board through board._write, as
     existing update does: an atomic write, not write_text, which a failed
     write left truncated (#218)."""
-    from pathlib import Path
     _spec(ldo, 'REMOVE = ["G***"]\n')
-    real = Path.write_text
-    def guarded(self, *a, **k):
-        if self.suffix == ".kicad_pcb":
-            raise AssertionError(f"{self.name} written with write_text, not write_atomic")
-        return real(self, *a, **k)
-    monkeypatch.setattr(Path, "write_text", guarded)
+    from test_write_atomic import forbid_plain_writes
+    forbid_plain_writes(monkeypatch, (".kicad_pcb",))
     assert main(["existing", str(ldo), "apply"]) == 0
     assert "OldLogos:Mark" not in (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8")
 
 
 def test_a_move_writes_the_board_atomically(ldo, monkeypatch):
     """existing apply's MOVE and the steps after it write the board in existing.py."""
-    from pathlib import Path
     _spec(ldo, 'MOVE = {"R1": (120.0, 80.0, 0)}\n')
-    real = Path.write_text
-    def guarded(self, *a, **k):
-        if self.suffix == ".kicad_pcb":
-            raise AssertionError(f"{self.name} written with write_text, not write_atomic")
-        return real(self, *a, **k)
-    monkeypatch.setattr(Path, "write_text", guarded)
+    from test_write_atomic import forbid_plain_writes
+    forbid_plain_writes(monkeypatch, (".kicad_pcb",))
     before = (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8")
     assert main(["existing", str(ldo), "apply", "--force"]) == 0           # the write, not the placement, is under test
     assert (ldo / f"{NAME}.kicad_pcb").read_text(encoding="utf-8") != before

@@ -360,8 +360,9 @@ def write_atomic(path: Path | str, text: str) -> None:
     write_text truncated the file before encoding, and an encode error left it
     empty (#218). A file its owner made read-only is refused, as write_text
     refused it. In a directory that takes no new file, the encoded bytes are
-    written in place, as before. The move gives the file a new inode, so a
-    hard link to it keeps the old text."""
+    written in place, as before, with a warning: that route is not atomic. The
+    move gives the file a new inode: a hard link to it keeps the old text, and
+    the file takes the writer's ownership."""
     import tempfile
     path = Path(path).resolve()                         # a symlink's target, not the link
     data = text.encode("utf-8")
@@ -369,8 +370,10 @@ def write_atomic(path: Path | str, text: str) -> None:
         raise PermissionError(f"{path} is read-only; nothing written")
     try:
         fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    except PermissionError:
-        path.write_bytes(data)                          # a read-only directory: no atomic route
+    except PermissionError:                            # a read-only directory: no atomic route
+        print(f"warning: {path.parent} takes no new file, so {path.name} is written in place, not "
+              "atomically: a failure part way leaves it cut short", file=sys.stderr)
+        path.write_bytes(data)
         return
     try:
         with os.fdopen(fd, "wb") as f:
@@ -379,6 +382,10 @@ def write_atomic(path: Path | str, text: str) -> None:
             os.fsync(f.fileno())
         if path.exists():
             shutil.copymode(path, tmp)
+        else:                                           # mkstemp's 0600; a new file takes the umask
+            mask = os.umask(0)
+            os.umask(mask)
+            os.chmod(tmp, 0o666 & ~mask)
         os.replace(tmp, path)
     finally:
         Path(tmp).unlink(missing_ok=True)
