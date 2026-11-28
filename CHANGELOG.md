@@ -8,13 +8,14 @@ the command line).
 ## [Unreleased]
 
 ### Fixed
-- `existing reroute` takes a net as KiCad shows it in its GUI, DRC report and
-  XML netlist (`/ESTOP/D2`) as well as the board's stored form
+- `existing reroute` takes a net as KiCad shows it in its DRC report and XML
+  netlist (`/ESTOP/D2`) as well as the board's stored form
   (`/ESTOP{slash}D2`) (#223). A shown name was "no net", so a net list copied
   from DRC's report failed. A name stored so is that net, with a note when
   another net shows the same way. A shown name that two stored nets share is
   refused, listing both. Its report and refusal lines name nets as KiCad
-  shows them, and a net named twice is routed once.
+  shows them, unless another net shows the same way, and a net named twice is
+  routed once.
 
 ## [0.17.3] - 2026-11-27
 

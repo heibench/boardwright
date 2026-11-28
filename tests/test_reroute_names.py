@@ -1,5 +1,5 @@
 """`existing reroute` takes a net as the board stores it (/ESTOP{slash}D2) or as
-KiCad shows it in its GUI, DRC report and XML netlist (/ESTOP/D2) (#223)."""
+KiCad shows it in its DRC report and XML netlist (/ESTOP/D2) (#223)."""
 
 import sys
 
@@ -28,10 +28,24 @@ def test_the_stored_name_wins_with_a_note(capsys):
     assert existing._board_net("/ESTOP{slash}D2", known) == "/ESTOP{slash}D2"
 
 
-def test_a_shown_name_with_no_exact_match_and_two_readings_is_refused(monkeypatch):
-    monkeypatch.setattr(existing, "_shown", lambda n: n.replace("{slash}", "/").replace("{x}", "/"))
-    with pytest.raises(Usage, match="could be 'A{slash}B' or 'A{x}B'"):
-        existing._board_net("A/B", {"A{slash}B", "A{x}B"})
+def test_a_shown_name_two_stored_nets_share_is_refused():
+    """A label B/C on sheet A is /A/B{slash}C; a root label A/B/C is
+    /A{slash}B{slash}C. KiCad 10.0.8's DRC shows both as /A/B/C."""
+    with pytest.raises(Usage, match=r"could be '/A/B\{slash\}C' or '/A\{slash\}B\{slash\}C'"):
+        existing._board_net("/A/B/C", {"/A/B{slash}C", "/A{slash}B{slash}C"})
+
+
+def test_a_net_is_printed_so_that_it_types_back_in_as_itself():
+    known = {"V{slash}IN", "GND"}
+    assert existing._named("V{slash}IN", known) == "V/IN"
+    known = {"/V{slash}IN", "/V/IN"}                                    # /V/IN shows as itself and as the other
+    assert existing._named("/V{slash}IN", known) == "/V{slash}IN"
+    assert existing._named("/V/IN", known) == "/V/IN"
+    for net in known | {"V{slash}IN"}:
+        assert existing._board_net(existing._named(net, known | {"V{slash}IN"}), known | {"V{slash}IN"}) == net
+    known = {"/A/B{slash}C", "/A{slash}B{slash}C"}                       # both show as /A/B/C, neither is stored so
+    for net in known:
+        assert existing._named(net, known) == net and existing._board_net(existing._named(net, known), known) == net
 
 
 def test_reroute_runs_on_a_shown_name(ldo_copy, monkeypatch, capsys):
@@ -48,7 +62,7 @@ def test_reroute_runs_on_a_shown_name(ldo_copy, monkeypatch, capsys):
 
 
 def test_reroute_reports_nets_as_kicad_shows_them(ldo_copy, monkeypatch, capsys):
-    """A WIDE refusal and the could-not-finish line name V/IN, as DRC does."""
+    """A WIDE refusal names V/IN, as DRC does."""
     pcb = ldo_copy / "ldo_breakout.kicad_pcb"
     t = pcb.read_text(encoding="utf-8")
     pcb.write_text(t.replace('"VIN"', '"V{slash}IN"'), encoding="utf-8")

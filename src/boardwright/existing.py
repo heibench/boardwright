@@ -504,6 +504,13 @@ def _shown(net: str) -> str:
     return net.replace("{slash}", "/")
 
 
+def _named(net: str, known: set[str]) -> str:
+    """How reroute prints a net: as KiCad shows it, unless another net shows the
+    same way, when the stored name is the one that types back in as this net."""
+    shown = _shown(net)
+    return shown if shown == net or not any(k != net and _shown(k) == shown for k in known) else net
+
+
 def _board_net(name: str, known: set[str]) -> str:
     """The board's own name for a net named as the board stores it
     (/ESTOP{slash}D2) or as KiCad shows it in its DRC report and XML netlist
@@ -551,8 +558,8 @@ def reroute(d: Path, args: list[str]) -> int:
     if wide and not force:
         for t, w in wide:
             (x1, y1), (x2, y2) = t.a, t.b
-            print(f"WIDE {_shown(t.net)} {t.width:g} mm on {t.layer} (class {w:g} mm) from ({x1:.2f}, {y1:.2f}) to ({x2:.2f}, {y2:.2f})")
-        raise Outcome(f"refused: {len(wide)} track(s) on {sorted({_shown(t.net) for t, _w in wide})} are wider than their net "
+            print(f"WIDE {_named(t.net, known)} {t.width:g} mm on {t.layer} (class {w:g} mm) from ({x1:.2f}, {y1:.2f}) to ({x2:.2f}, {y2:.2f})")
+        raise Outcome(f"refused: {len(wide)} track(s) on {sorted({_named(t.net, known) for t, _w in wide})} are wider than their net "
                       "class, and the router would replace them at the class width; nothing changed. "
                       "--force reroutes them anyway")
     original = pcb.read_text(encoding="utf-8")
@@ -572,7 +579,7 @@ def reroute(d: Path, args: list[str]) -> int:
     b1 = Board(pcb)
     for net in nets_:
         L = sum(t.length for t in b1.tracks if t.net == net)
-        print(f"  {_shown(net)}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
+        print(f"  {_named(net, known)}: {L:.2f} mm routed, {sum(1 for v in b1.vias if v.net == net)} via(s)")
     left = len(ratsnest(b1, {z.net for z in b1.zones if not z.keepout}))
     print(f"kept {kept} new item(s) on the named nets; {arcs} curved track(s) shown to the router as fixed; "
           f"tracks {len(b0.tracks)} -> {len(b1.tracks)}; unrouted connections on unpoured nets: {left}")
@@ -645,7 +652,8 @@ def _route_and_graft(pcb, m, o, nets_, was_open, text0, planes) -> tuple[int, in
     failed = sorted({n for *_p, n in ratsnest(Board(pcb), set())} & set(nets_) - was_open)
     if failed:
         done = [n for n in nets_ if n not in failed]               # stored names: re-entered, they name one net each
-        raise Outcome(f"refused: the router could not finish {[_shown(n) for n in failed]}"
+        known = {p.net for p in Board(pcb).pads}
+        raise Outcome(f"refused: the router could not finish {[_named(n, known) for n in failed]}"
                       + (f"; reroute {done} without them" if done else ""))
     return len(graft), arcs
 
