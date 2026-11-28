@@ -3,12 +3,13 @@ rules file left by an earlier run (a plane layer switched off) steered later
 runs that set no PLANES: 55 nets open in one directory, 0 in another (#224).
 Each run now writes the rules it means, or removes a stale file."""
 
+import subprocess
 import types
 
 import pytest
 from conftest import BOARDS
 
-from boardwright import build, dsn, existing
+from boardwright import build, dsn, env, existing
 
 LDO = BOARDS / "ldo_breakout" / "ldo_breakout.kicad_pcb"
 STALE = "(rules PCB x\n  (autoroute_settings\n    (layer_rule B.Cu\n      (active off)\n    )\n  )\n)\n"
@@ -22,12 +23,13 @@ def _capture(monkeypatch, dsn_path):
     """Stop at the Freerouting call, recording its command and the rules file beside the DSN."""
     seen = {}
     def run(cmd, *a, **k):
+        assert cmd[0] == "freerouting"
         seen["cmd"] = list(cmd)
         rules = dsn_path.with_suffix(".rules")
         seen["rules"] = rules.read_text(encoding="utf-8") if rules.exists() else None
         raise _Ran
-    monkeypatch.setattr(existing.subprocess, "run", run)
-    monkeypatch.setattr(build.subprocess, "run", run)
+    monkeypatch.setattr(env, "freerouting", lambda: ["freerouting"])      # no router needed: the run stops at it
+    monkeypatch.setattr(subprocess, "run", run)
     return seen
 
 
