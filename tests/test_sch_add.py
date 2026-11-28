@@ -45,7 +45,8 @@ def with_mine(ldo_copy):
 
 
 def _spec(tmp_path, rows) -> str:
-    f = tmp_path / "add_spec.py"
+    # a new file each time: a same-size rewrite within a second could rerun the old spec (#213)
+    f = tmp_path / f"add_spec_{len(list(tmp_path.glob('add_spec_*.py')))}.py"
     f.write_text(f"ADD = {rows!r}\n")
     return str(f)
 
@@ -335,7 +336,8 @@ def _strip_pins(f, refs):
 
 def _two_styles(proj):
     """Mine:DS, a resistor with a second body style that draws pin 1 elsewhere:
-    at (5.08, 0) pointing left, where style 1 has it at (0, 3.81) pointing down."""
+    at (5.08, 0) pointing left, where style 1 has it at (0, 3.81) pointing down.
+    Style 2 also draws a pin 3, which style 1 has not."""
     lib = proj / "libs" / "Mine.kicad_sym"
     t = lib.read_text()
     s, e = next((s, e) for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 40].lstrip().startswith('(symbol "R_new"'))
@@ -343,21 +345,25 @@ def _two_styles(proj):
     alt = ('\n\t\t(symbol "DS_1_2"\n\t\t\t(pin passive line (at 5.08 0 180) (length 1.27)'
            '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "1" (effects (font (size 1.27 1.27))))\n\t\t\t)'
            '\n\t\t\t(pin passive line (at 0 -3.81 90) (length 1.27)'
-           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "2" (effects (font (size 1.27 1.27))))\n\t\t\t)\n\t\t)')
+           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "2" (effects (font (size 1.27 1.27))))\n\t\t\t)'
+           '\n\t\t\t(pin passive line (at -5.08 0 0) (length 1.27)'
+           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "3" (effects (font (size 1.27 1.27))))\n\t\t\t)\n\t\t)')
     ds = ds[:ds.rstrip().rfind(")")] + alt + "\n\t)"
     lib.write_text(t[:e] + "\n\t" + ds.lstrip() + t[e:])
 
 
-def _stubs_start_on_pins(f, ref) -> tuple[int, int]:
-    """Assert each pin of placed `ref` has a wire starting on it, where KiCad
-    draws the pin for the part's unit and body style; return that (unit, style)."""
+def _stubs_start_on_pins(f, ref, wired=("1", "2")) -> tuple[int, int]:
+    """Assert each pin of placed `ref` in `wired` has a wire starting on it,
+    where KiCad draws the pin for the part's unit and body style; return that
+    (unit, style)."""
     t = f.read_text()
     part = next(t[s:e] for s, e in sch.Sheet(f).instances() if f'(reference "{ref}")' in t[s:e])
     starts = {(round(float(a), 2), round(float(b), 2))
               for a, b, _c, _d in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)\s*\(xy ([-\d.]+) ([-\d.]+)\)", t)}
     pins = sch._placed_pins(t, part)
-    assert sorted(pins) == ["1", "2"]
-    for num, (x, y, _a) in pins.items():
+    assert set(wired) <= set(pins), sorted(pins)
+    for num in wired:
+        x, y, _a = pins[num]
         assert (round(x, 2), round(y, 2)) in starts, (ref, num, pins[num])
     return sch._unit_style(part)
 
@@ -390,8 +396,41 @@ def test_a_copy_keeps_its_body_style_and_draws_from_it(proj, tmp_path):
     t = f.read_text()
     r60 = next(t[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R60")' in t[s:e])
     f.write_text(t.replace(r60, re.sub(r"\n\t\t\(unit 1\)(\n\t\t\(body_style \d+\))?", "\n\t\t(unit 1)\n\t\t(body_style 2)", r60, count=1), 1))
-    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R61", "R60", "1k", "", {1: "C", 2: "D"})])]) == 0
-    assert _stubs_start_on_pins(f, "R61") == (1, 2)
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R61", "R60", "1k", "", {1: "C", 2: "D", 3: "E"})])]) == 0
+    assert _stubs_start_on_pins(f, "R61", ("1", "2", "3")) == (1, 2)       # pin 3 exists only in style 2
+
+
+def _unit_two(proj, tmp_path):
+    """U9, unit 2 of Mine:Dual2, whose unit 1 draws pins 1 and 2 and unit 2
+    pins 3 and 4: an R from the library, turned into that part by hand, as add
+    places no multi-unit part itself."""
+    f = proj / SCH
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U9", "Mine:R_new", "x", "", {})])]) == 0
+    t = f.read_text()
+    s, e = next((s, e) for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 40].lstrip().startswith('(symbol "Mine:R_new"'))
+    entry = t[s:e].replace('(symbol "Mine:R_new"', '(symbol "Mine:Dual2"').replace('(symbol "R_new_', '(symbol "Dual2_')
+    inner = entry[1:]
+    a, b = next((a, b) for a, b in sch.blocks(inner, ("symbol",)) if '"Dual2_1_1"' in inner[a:b])
+    unit2 = inner[a:b].replace('"Dual2_1_1"', '"Dual2_2_1"').replace('(number "1"', '(number "3"').replace('(number "2"', '(number "4"')
+    entry = entry[:1 + b] + "\n\t\t\t" + unit2.lstrip() + entry[1 + b:]
+    t = t[:e] + "\n\t\t" + entry.lstrip() + t[e:]
+    part = next(t[s:e] for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 12].startswith("\n\t(symbol") and '(reference "U9")' in t[s:e])
+    new = part.replace('(lib_id "Mine:R_new")', '(lib_id "Mine:Dual2")').replace("\n\t\t(unit 1)", "\n\t\t(unit 2)")
+    new = new.replace('(pin "1"', '(pin "3"').replace('(pin "2"', '(pin "4"')
+    f.write_text(t.replace(part, new, 1))
+
+
+def test_a_pin_on_another_unit_names_the_unit(proj, tmp_path, capsys):
+    """Copying unit 2 with a pin map naming unit 1's pin wired it to unit 2's
+    geometry in 0.17.1, a wrong net in KiCad; now it is refused, naming the unit."""
+    _unit_two(proj, tmp_path)
+    f = proj / SCH
+    before = f.read_text()
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U10", "U9", "x", "", {1: "NX"})])]) == 64
+    assert "Mine:Dual2 has pin 1 on unit 1, not on unit 2, which U9 is" in capsys.readouterr().err
+    assert f.read_text() == before
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U11", "U9", "x", "", {3: "NY", 4: "NZ"})])]) == 0
+    assert _stubs_start_on_pins(f, "U11", ("3", "4")) == (2, 1)
 
 
 def test_a_library_part_is_added_when_the_first_part_has_no_pins(proj, tmp_path):

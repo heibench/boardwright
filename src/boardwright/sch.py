@@ -617,10 +617,16 @@ def add(d: Path, spec_path: str) -> int:
                                  f"{_pin_numbers(body)}; update the symbol in KiCad first. Nothing written.")
         else:
             raise Usage(f"no part {like!r} to copy, and not a LIB:NAME symbol")
-        lp = _unit_pins(t, lib_id, *(_unit_style(src) if src is not None else (1, 1)))
+        unit, style = _unit_style(src) if src is not None else (1, 1)
+        lp = _unit_pins(t, lib_id, unit, style)
         for num, net in pins.items():
             if num not in lp:
-                raise Usage(f"{_lib_id(src) if src is not None else lib_id} has no pin {num} (it has {sorted(lp)})")
+                name = _lib_id(src) if src is not None else lib_id
+                on = sorted(u for u in _units(t, lib_id) if u != unit and num in _unit_pins(t, lib_id, u, style))
+                if on:
+                    raise Usage(f"{name} has pin {num} on unit {', '.join(map(str, on))}, not on unit {unit}, "
+                                f"which {like} is (unit {unit} has {sorted(lp)}). Nothing written.")
+                raise Usage(f"{name} has no pin {num} (it has {sorted(lp)})")
             if net not in power and net not in labels | hier | globals_ and net in elsewhere:
                 raise SystemExit(f"{ref}.{num}: net {net!r} is local to another sheet and cannot be reached from "
                                  f"{sh.path.name} by a label; connect it through a sheet pin in KiCad. Nothing written.")
@@ -689,6 +695,12 @@ def _cache_of(text: str) -> dict[str, str]:
     """A sheet's cached symbols by name, read once per text."""
     cache = blocks(text, ("lib_symbols",))
     return _symbol_blocks(text[cache[0][0]:cache[0][1]]) if cache else {}
+
+
+def _units(text: str, key: str) -> list[int]:
+    """The units a cached symbol draws (from its NAME_unit_style sub-symbols)."""
+    body = _cache_of(text).get(key, "")
+    return sorted({int(u) for u in re.findall(r'\(symbol "(?:[^"\\]|\\.)*_(\d+)_\d+"', body[1:])} - {0}) or [1]
 
 
 def _unit_style(b: str) -> tuple[int, int]:
