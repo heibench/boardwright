@@ -45,7 +45,8 @@ def with_mine(ldo_copy):
 
 
 def _spec(tmp_path, rows) -> str:
-    f = tmp_path / "add_spec.py"
+    # a new file each time: a same-size rewrite within a second could rerun the old spec (#213)
+    f = tmp_path / f"add_spec_{len(list(tmp_path.glob('add_spec_*.py')))}.py"
     f.write_text(f"ADD = {rows!r}\n")
     return str(f)
 
@@ -123,6 +124,22 @@ def test_kicad_sees_the_new_part_on_its_nets_and_nothing_else(proj, tmp_path):
     changed = {n: after[n] - before[n] for n in after if after[n] != before[n]}
     assert changed == {"+3V3": {("R50", "1")}, "GND": {("R50", "2")}}
     assert sch.ercdiff(erc_before, erc_after) == 0
+
+
+@pytest.mark.kicad
+@needs_kicad
+def test_kicad_sees_a_two_style_part_on_its_nets(proj, tmp_path):
+    """The body-style case judged by KiCad: R60's pins are on the nets add named."""
+    from boardwright import env
+
+    _two_styles(proj)
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R60", "Mine:DS", "1k", "", {1: "NETA", 2: "NETB"})])]) == 0
+    net = tmp_path / "after.xml"
+    subprocess.run([*env.kicad_cli(), "sch", "export", "netlist", "--format", "kicadxml", "-o", str(net), str(proj / SCH)],
+                   check=True, capture_output=True)
+    nets = _nets(net.read_text())
+    assert ("R60", "1") in nets.get("NETA", set()) and ("R60", "2") in nets.get("NETB", set()), \
+        {n: v for n, v in nets.items() if any(r == "R60" for r, _p in v)}
 
 
 def test_a_copy_of_a_part_on_the_sheet_still_works(proj, tmp_path):
@@ -315,6 +332,105 @@ def _strip_pins(f, refs):
         if sch.prop(t[s:e], "Reference") in refs:
             t = t[:s] + re.sub(r'\n\t\t\(pin "[^"]*" \(uuid "[^"]*"\)\n\t\t\)', "", t[s:e]) + t[e:]
     f.write_text(t)
+
+
+def _two_styles(proj):
+    """Mine:DS, a resistor with a second body style that draws pin 1 elsewhere:
+    at (5.08, 0) pointing left, where style 1 has it at (0, 3.81) pointing down.
+    Style 2 also draws a pin 3, which style 1 has not."""
+    lib = proj / "libs" / "Mine.kicad_sym"
+    t = lib.read_text()
+    s, e = next((s, e) for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 40].lstrip().startswith('(symbol "R_new"'))
+    ds = t[s:e].replace('(symbol "R_new', '(symbol "DS')
+    alt = ('\n\t\t(symbol "DS_1_2"\n\t\t\t(pin passive line (at 5.08 0 180) (length 1.27)'
+           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "1" (effects (font (size 1.27 1.27))))\n\t\t\t)'
+           '\n\t\t\t(pin passive line (at 0 -3.81 90) (length 1.27)'
+           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "2" (effects (font (size 1.27 1.27))))\n\t\t\t)'
+           '\n\t\t\t(pin passive line (at -5.08 0 0) (length 1.27)'
+           '\n\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))\n\t\t\t\t(number "3" (effects (font (size 1.27 1.27))))\n\t\t\t)\n\t\t)')
+    ds = ds[:ds.rstrip().rfind(")")] + alt + "\n\t)"
+    lib.write_text(t[:e] + "\n\t" + ds.lstrip() + t[e:])
+
+
+def _stubs_start_on_pins(f, ref, wired=("1", "2")) -> tuple[int, int]:
+    """Assert each pin of placed `ref` in `wired` has a wire starting on it,
+    where KiCad draws the pin for the part's unit and body style; return that
+    (unit, style)."""
+    t = f.read_text()
+    part = next(t[s:e] for s, e in sch.Sheet(f).instances() if f'(reference "{ref}")' in t[s:e])
+    starts = {(round(float(a), 2), round(float(b), 2))
+              for a, b, _c, _d in re.findall(r"\(xy ([-\d.]+) ([-\d.]+)\)\s*\(xy ([-\d.]+) ([-\d.]+)\)", t)}
+    pins = sch._placed_pins(t, part)
+    assert set(wired) <= set(pins), sorted(pins)
+    for num in wired:
+        x, y, _a = pins[num]
+        assert (round(x, 2), round(y, 2)) in starts, (ref, num, pins[num])
+    return sch._unit_style(part)
+
+
+@pytest.mark.parametrize("template_style", [None, 2])
+def test_each_stub_starts_on_its_pin_as_the_placed_body_style_draws_it(proj, tmp_path, template_style):
+    """A symbol with two body styles defines pin 1 twice. add placed body style 1
+    but drew pin 1's stub from style 2's pin, so the label dangled and ERC
+    reported pin 1 unconnected, while add printed the pin as joined. A part
+    from the library is placed in style 1 even when the sheet's template part,
+    whose head it copies, is drawn in style 2."""
+    _two_styles(proj)
+    f = proj / SCH
+    if template_style:
+        t = f.read_text()
+        tpl = next(t[s:e] for s, e in sch.Sheet(f).instances() if sch.blocks(t[s:e], ("pin",)))
+        assert tpl.count("\n\t\t(unit 1)") == 1
+        f.write_text(t.replace(tpl, tpl.replace("\n\t\t(unit 1)", f"\n\t\t(unit 1)\n\t\t(body_style {template_style})"), 1))
+    row = ("R60", "Mine:DS", "1k", "", {1: "NETA", 2: "NETB"})
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [row])]) == 0
+    assert _stubs_start_on_pins(f, "R60") == (1, 1)
+
+
+def test_a_copy_keeps_its_body_style_and_draws_from_it(proj, tmp_path):
+    """A part drawn in body style 2, copied, is placed in style 2 with its stubs
+    on style 2's pins."""
+    _two_styles(proj)
+    f = proj / SCH
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R60", "Mine:DS", "1k", "", {1: "A", 2: "B"})])]) == 0
+    t = f.read_text()
+    r60 = next(t[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R60")' in t[s:e])
+    f.write_text(t.replace(r60, re.sub(r"\n\t\t\(unit 1\)(\n\t\t\(body_style \d+\))?", "\n\t\t(unit 1)\n\t\t(body_style 2)", r60, count=1), 1))
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("R61", "R60", "1k", "", {1: "C", 2: "D", 3: "E"})])]) == 0
+    assert _stubs_start_on_pins(f, "R61", ("1", "2", "3")) == (1, 2)       # pin 3 exists only in style 2
+
+
+def _unit_two(proj, tmp_path):
+    """U9, unit 2 of Mine:Dual2, whose unit 1 draws pins 1 and 2 and unit 2
+    pins 3 and 4: an R from the library, turned into that part by hand, as add
+    places no multi-unit part itself."""
+    f = proj / SCH
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U9", "Mine:R_new", "x", "", {})])]) == 0
+    t = f.read_text()
+    s, e = next((s, e) for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 40].lstrip().startswith('(symbol "Mine:R_new"'))
+    entry = t[s:e].replace('(symbol "Mine:R_new"', '(symbol "Mine:Dual2"').replace('(symbol "R_new_', '(symbol "Dual2_')
+    inner = entry[1:]
+    a, b = next((a, b) for a, b in sch.blocks(inner, ("symbol",)) if '"Dual2_1_1"' in inner[a:b])
+    unit2 = inner[a:b].replace('"Dual2_1_1"', '"Dual2_2_1"').replace('(number "1"', '(number "3"').replace('(number "2"', '(number "4"')
+    entry = entry[:1 + b] + "\n\t\t\t" + unit2.lstrip() + entry[1 + b:]
+    t = t[:e] + "\n\t\t" + entry.lstrip() + t[e:]
+    part = next(t[s:e] for s, e in sch.blocks(t, ("symbol",)) if t[s:s + 12].startswith("\n\t(symbol") and '(reference "U9")' in t[s:e])
+    new = part.replace('(lib_id "Mine:R_new")', '(lib_id "Mine:Dual2")').replace("\n\t\t(unit 1)", "\n\t\t(unit 2)")
+    new = new.replace('(pin "1"', '(pin "3"').replace('(pin "2"', '(pin "4"')
+    f.write_text(t.replace(part, new, 1))
+
+
+def test_a_pin_on_another_unit_names_the_unit(proj, tmp_path, capsys):
+    """Copying unit 2 with a pin map naming unit 1's pin wired it to unit 2's
+    geometry in 0.17.1, a wrong net in KiCad; now it is refused, naming the unit."""
+    _unit_two(proj, tmp_path)
+    f = proj / SCH
+    before = f.read_text()
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U10", "U9", "x", "", {1: "NX"})])]) == 64
+    assert "Mine:Dual2 has pin 1 on unit 1, not on unit 2, which U9 is" in capsys.readouterr().err
+    assert f.read_text() == before
+    assert main(["sch", str(proj), "add", _spec(tmp_path, [("U11", "U9", "x", "", {3: "NY", 4: "NZ"})])]) == 0
+    assert _stubs_start_on_pins(f, "U11", ("3", "4")) == (2, 1)
 
 
 def test_a_library_part_is_added_when_the_first_part_has_no_pins(proj, tmp_path):
