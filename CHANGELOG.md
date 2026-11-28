@@ -7,6 +7,15 @@ the command line).
 
 ## [Unreleased]
 
+### Added
+- The skill gains "Remaking a board from a reference". It covers:
+  - getting the reference as a machine netlist first;
+  - diffing an exported netlist after every edit batch;
+  - comparing two-pin passives as unordered pairs;
+  - adding parts in groups and re-diffing after a placement pass;
+  - plotting every sheet;
+  - what still needs KiCad: new sub-sheets, multi-unit parts, unstubbed pins.
+
 ## [0.17.1] - 2026-11-27
 
 ### Added

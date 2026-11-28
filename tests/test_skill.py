@@ -26,7 +26,7 @@ def test_every_command_the_skill_names_exists():
     steps = set(re.search(r"if step not in \(([^)]*)\)", (ROOT / "src/boardwright/existing.py").read_text()).group(1)
                 .replace('"', "").replace(" ", "").split(","))
     verbs = set(re.findall(r"boardwright live (\w+)", live.__doc__))
-    sch = {"parts", "set", "remove", "add", "repoint"}
+    sch = {"parts", "set", "remove", "add", "repoint", "move"}
     named = _commands()
     assert len(named) >= 15                                     # the parse found the skill's commands
     for words in named:

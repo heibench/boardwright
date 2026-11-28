@@ -109,6 +109,44 @@ areas, anything that needs existing tracks pushed aside, length-tuned pairs,
 multi-unit symbols, and placing the parts a schematic change adds
 (`existing update` puts them beside the board for you to place).
 
+## Remaking a board from a reference
+
+When the task is to redraw an existing design, such as a vendor evaluation
+board, in a project of your own, the reference's netlist is the oracle. The
+steps of the section above apply too.
+
+1. **Get the reference as a machine netlist first**: an IPC-D-356 file or the
+   vendor's design files. A netlist transcribed by eye from a PDF is the
+   fallback, and it is where errors come from. Ask for the design files
+   before drawing; they can sit behind a login only the user has.
+2. **After every batch of edits, export the netlist** (`kicad-cli sch export
+   netlist`) and diff it against the last one, and against what the batch
+   meant to do. Check both ways: each pin on its intended net, and each net
+   holding exactly its intended pins. "added" in a tool's output does not show
+   connectivity, and ERC at 0 does not either: a pin joined to the wrong net
+   passes ERC. Read ERC's `pin_not_connected` and `unconnected_wire_endpoint`
+   after every `add`, too: a stub that misses its pin shows there.
+3. **Compare against the reference by net membership, not by names**, with a
+   map from its reference designators to yours. Compare two-pin passives as
+   an unordered pair of nets: their pin 1 and 2 swap between drawings, and a
+   `(ref, pin)` comparison reports every swap as a split net.
+4. **Add parts in groups of about a dozen.** `boardwright sch P add` places a
+   batch in one row of free space, and a large batch finds none. It places
+   for connectivity, not reading order. Plan a placement pass per functional
+   block, moving each part with its wires, labels and flags, and diff the
+   netlist again after it: it must not change.
+5. **Plot every sheet and look at the crowded parts** (`kicad-cli sch export
+   svg`, cropped). Value text over labels, flags on labels, and parts dropped
+   onto an IC's pin labels all pass ERC.
+6. **Name nets as KiCad shows them.** `boardwright sch P move` and `add` read
+   `SDA/A4` as KiCad's `SDA{slash}A4`.
+
+What needs another route for now:
+- a new sub-sheet: create it in KiCad, with one part on it, before `add`
+  fills it;
+- multi-unit parts, and pins of parts already on the sheet that have no stub:
+  draw them in KiCad.
+
 ## The board open in KiCad
 
 `boardwright live` edits the board open in KiCad's PCB editor through KiCad's
