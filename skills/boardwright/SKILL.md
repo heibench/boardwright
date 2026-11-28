@@ -127,11 +127,13 @@ too: commit, read, baseline, then one change at a time.
    meant to do. Check both ways: each pin on its intended net, and each net
    holding exactly its intended pins. "added" in a tool's output does not show
    connectivity, and neither does a clean ERC: a passive pin moved to another
-   existing net passes it. Compare ERC with the previous run as well
-   (`boardwright sch ercdiff BEFORE.json AFTER.json`, exit 1 on anything new):
-   a stub that misses its pin shows as a new `pin_not_connected`,
-   `unconnected_wire_endpoint` or `label_dangling`, which the raw counts hide
-   among pins left open on purpose.
+   existing net passes it. Compare ERC with the previous run as well: export
+   each as `kicad-cli sch erc --format json`, then `boardwright sch ercdiff
+   BEFORE.json AFTER.json` prints each finding NEW since BEFORE and exits 1
+   if there is one. Read each NEW line against the pins the batch left open
+   on purpose: a stub that misses its pin shows as a new `pin_not_connected`,
+   `unconnected_wire_endpoint` or `label_dangling`, and so does a pin the
+   batch didn't list.
 3. **Compare against the reference by net membership, not by names**, with a
    map from its reference designators to yours. A non-polarized two-pin part
    (resistor, capacitor, inductor, ferrite bead) can be drawn either way
@@ -141,15 +143,17 @@ too: commit, read, baseline, then one change at a time.
 4. **Add parts in groups.** `boardwright sch P add` places a batch in one row
    of free space, so how many fit depends on the sheet: on a nearly empty A4
    sheet 30 two-pin parts fit and 40 did not. It places for connectivity,
-   not reading order. No boardwright command moves a placed part, so a
+   not reading order. No boardwright command moves a schematic symbol, so a
    placement pass per functional block is a step for the person, in KiCad;
-   diff the netlist again after it: it must not change.
+   diff the netlist again after it: it must not change. (On the board,
+   `existing apply` with MOVE places footprints.)
 5. **Plot every sheet and look at the crowded parts** (`kicad-cli sch export
    svg` writes each page; crop with another tool). Value text over labels,
    flags on labels, and parts dropped onto an IC's pin labels all pass ERC.
 6. **Name nets as KiCad shows them** in `sch` commands: `boardwright sch P
    move` and `add` read `SDA/A4`. KiCad's exported netlist spells the same net
-   `SDA{slash}A4`, so write the expected netlist that way.
+   `SDA{slash}A4`, with the sheet path in front for a local label
+   (`/SDA{slash}A4` on the root), so write the expected netlist that way.
 
 What boardwright can't do yet, so ask the person to do it in KiCad rather than
 editing the file by hand:
