@@ -7,6 +7,13 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `sch add` draws each pin's stub from the unit and body style it places. A
+  symbol with two body styles defines its pins twice, and `add` took
+  whichever came last, leaving the pin unconnected while it reported the pin
+  joined (#207). A part from the library is placed in body style 1, not in
+  the style of the template part it copies its format from.
+
 ## [0.17.1] - 2026-11-27
 
 ### Added
