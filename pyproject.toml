@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-live = ["kicad-python==0.8.0"]
+live = ["kicad-python==0.9.0"]
 
 [project.scripts]
 boardwright = "boardwright.cli:main"
