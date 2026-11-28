@@ -351,3 +351,18 @@ def warn_if_open_in_kicad(path: Path) -> None:
         _warned_open.add(path)
         print(f"warning: KiCad has {path.name} open ({lock.name} is beside it); its next save there "
               "overwrites this edit, so close it in KiCad without saving, then reopen it", file=sys.stderr)
+
+
+def load_source(path: Path | str, name: str):
+    """Run a spec or board file as a module, from its source as it reads now.
+    importlib's loader trusts a cached .pyc whose source has the same size and
+    mtime, so an edit of the same size within a second ran the old spec.
+    The source is compiled from its bytes, so a BOM or a coding line decodes as
+    importlib decodes it, and without this module's __future__ flags, so a
+    spec's annotations stay as the spec wrote them."""
+    import types
+    path = Path(path).absolute()
+    m = types.ModuleType(name)
+    m.__file__ = str(path)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), m.__dict__)
+    return m

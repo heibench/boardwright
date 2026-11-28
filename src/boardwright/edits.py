@@ -27,11 +27,10 @@ meant to run in order as one undoable change.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 
-from . import copper
+from . import copper, env
 from .errors import Usage
 from .model import Board
 
@@ -94,9 +93,7 @@ def describe(doc: dict) -> list[str]:
 
 
 def load_spec(path: str):
-    sp = importlib.util.spec_from_file_location("edit_spec", path)
-    m = importlib.util.module_from_spec(sp)
-    sp.loader.exec_module(m)
+    m = env.load_source(path, "edit_spec")
     return m
 
 
