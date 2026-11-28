@@ -36,7 +36,7 @@ def test_every_command_the_skill_names_exists():
             assert words[2] in steps, words
         if cmd == "live" and len(words) > 1:
             assert words[1] in verbs, words
-        if cmd == "sch" and len(words) > 2:
+        if cmd == "sch" and len(words) > 2 and words[1] != "ercdiff":    # `sch ercdiff A B` takes no project
             assert words[2] in sch, words
     short = re.findall(r"`live (\w+)", TEXT)                    # verbs named without the program
     assert short and set(short) <= verbs, set(short) - verbs
