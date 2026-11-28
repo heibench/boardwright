@@ -8,6 +8,13 @@ the command line).
 ## [Unreleased]
 
 ### Fixed
+- Design files are read and written as UTF-8 whatever the locale, and an
+  in-place edit of a schematic or board is written beside the file and moved
+  over it (#218). Under a non-UTF-8 locale, `sch add` with a value such as
+  `10µF` printed "added", then failed, and left the schematic empty: the
+  write truncated the file before the encode failed.
+
+### Fixed
 - `sch add` draws each pin's stub from the unit and body style it places (#207).
   It read every unit and body style of the symbol, and the last definition of
   a pin number won. While it reported the pin joined, the stub could miss the

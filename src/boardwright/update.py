@@ -59,7 +59,7 @@ def read_netlist(path: Path) -> tuple[dict, dict]:
     Net names stay as KiCad writes them on the board, a "/" in a label as
     {slash}; the XML netlist unescapes them and cannot be read back exactly."""
     try:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
     except OSError as e:
         raise Usage(f"cannot read netlist {path}: {e}") from None
     if not text.lstrip().startswith("(export"):
@@ -442,7 +442,7 @@ def _library_footprint(d: Path, lib_id: str) -> tuple[Path | None, str]:
 
 def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -> int:
     env.warn_if_open_in_kicad(pcb)
-    t = t0 = pcb.read_text()
+    t = t0 = pcb.read_text(encoding="utf-8")
     if re.search(r'\n\t\(net 0 ""\)', t):
         raise SystemExit(f"{pcb.name} numbers its nets (saved by KiCad 9 or older); open and save it in KiCad 10 first")
     comps, pins = read_netlist(_netlist(d, pcb, netlist))
@@ -482,7 +482,7 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
                 blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic, "
                                 f"which is not found ({why})")
                 continue
-            text = mod.read_text()
+            text = mod.read_text(encoding="utf-8")
             diff = pad_differences(fp, text)
             if diff:
                 blockers.append(f"{c['ref']}: footprint is {lib_id} on the board, {c['footprint']} in the schematic, "
@@ -524,7 +524,7 @@ def update(d: Path, pcb: Path, netlist: str | None = None, body: str = "keep") -
         x, y, row = x1 + 10, y0, 0.0
         made = []
         for path, c, mod, want in adds:
-            text = mod.read_text()
+            text = mod.read_text(encoding="utf-8")
             ex0, ey0, ex1, ey1 = _extent(text)
             fx, fy = round(x - ex0, 2), round(y - ey0, 2)
             made.append(with_flags(with_fields(new_footprint(text, c["footprint"], c, path, fx, fy, want), c["fields"])[0], c)[0])

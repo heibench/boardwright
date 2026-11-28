@@ -96,7 +96,7 @@ GRID = 1.27
 class Sheet:
     def __init__(self, path: Path):
         self.path = path
-        self.text = path.read_text()
+        self.text = path.read_text(encoding="utf-8")
         self.digest = hashlib.sha256(self.text.encode()).hexdigest()
 
     def instances(self) -> list[tuple[int, int]]:
@@ -105,11 +105,11 @@ class Sheet:
 
     def write(self, new: str) -> None:
         env.warn_if_open_in_kicad(self.path)
-        if hashlib.sha256(self.path.read_text().encode()).hexdigest() != self.digest:
+        if hashlib.sha256(self.path.read_text(encoding="utf-8").encode()).hexdigest() != self.digest:
             raise SystemExit(f"{self.path.name} changed on disk since it was read; nothing written")
         if not balanced(new):
             raise SystemExit("edit would unbalance the file; nothing written")
-        self.path.write_text(new)
+        env.write_atomic(self.path, new)
         self.text, self.digest = new, hashlib.sha256(new.encode()).hexdigest()
 
 
@@ -406,7 +406,7 @@ def _library_symbol(d: Path, lib_id: str) -> str:
     if lib is None or not lib.exists():
         raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'}, KiCad's global table or its stock libraries")
     try:
-        syms = _symbol_blocks(lib.read_text())
+        syms = _symbol_blocks(lib.read_text(encoding="utf-8"))
     except OSError as e:
         raise EnvironmentFault(f"cannot read {lib}: {e}") from None
     if name not in syms:
@@ -977,7 +977,7 @@ def _in_table(table: Path, nick: str, d: Path, depth: int = 0, kind: str = "SYMB
     """Whether a library table (or a table nested in it, as KiCad allows) names
     `nick`, and what it points at (None when a path variable is unknown)."""
     try:
-        text = table.read_text()
+        text = table.read_text(encoding="utf-8")
     except OSError:
         return False, None
     rows = re.findall(r'\(lib \(name "([^"]*)"\)\s*\(type "([^"]*)"\)\s*\(uri "([^"]*)"\)', text)
@@ -1076,7 +1076,7 @@ def repoint(d: Path, old: str, new: str, body: str = "keep") -> int:
     if lib is None or not lib.exists():
         raise Usage(f"no library {nick!r} in {d / 'sym-lib-table'}, KiCad's global table or its stock libraries")
     try:
-        syms = _symbol_blocks(lib.read_text())
+        syms = _symbol_blocks(lib.read_text(encoding="utf-8"))
     except OSError as e:
         raise EnvironmentFault(f"cannot read {lib}: {e}") from None
     if new_name not in syms:
@@ -1146,7 +1146,7 @@ def ercdiff(a: str, b: str) -> int:
     import json
     def load(p):
         return [(v["type"], v["description"], tuple(sorted(i["description"] for i in v["items"])))
-                for s in json.loads(Path(p).read_text())["sheets"] for v in s["violations"] if v.get("severity") != "exclusion"]
+                for s in json.loads(Path(p).read_text(encoding="utf-8"))["sheets"] for v in s["violations"] if v.get("severity") != "exclusion"]
     old, new = load(a), load(b)
     left, added = list(old), []
     for f in new:

@@ -55,7 +55,7 @@ def read(ses: Path, layers: list[str]) -> tuple[list[tuple], list[tuple]]:
     top, bottom), in mm, in the order the session lists them. `layers` is the
     board's copper, front to back, which a via's padstack is read against.
     Protected vias are the board's own and are left out."""
-    routes = _kids(_tree(ses.read_text()), "routes")[0]
+    routes = _kids(_tree(ses.read_text(encoding="utf-8")), "routes")[0]
     unit, count = _kids(routes, "resolution")[0][1:3]
     scale = _MM[unit.lower()] / float(count)
 

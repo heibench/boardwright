@@ -276,7 +276,7 @@ def snapshot(b, out: Path) -> Path:
     """Write the live board (unsaved edits included) to a file our tools can read."""
     out.mkdir(parents=True, exist_ok=True)
     f = out / "live.kicad_pcb"
-    f.write_text(b.get_as_string())
+    f.write_text(b.get_as_string(), encoding="utf-8")
     return f
 
 
@@ -320,7 +320,7 @@ def _refuse_unsaved(b, live_file: Path) -> None:
     disk = Path(board_path(b))
     if not disk.is_file():
         return
-    extra = unsaved_edits(live_file.read_text(), disk.read_text())
+    extra = unsaved_edits(live_file.read_text(encoding="utf-8"), disk.read_text(encoding="utf-8"))
     if extra:
         shown = ", ".join(dict.fromkeys(extra[:5])) + (", ..." if len(extra) > 5 else "")
         raise Outcome(f"refused: the board open in KiCad has edits not saved to {disk.name} ({shown}); "
@@ -342,11 +342,11 @@ def record_apply(b, before: Path, out: Path) -> None:
     own edit from anyone else's."""
     import json
     disk = Path(board_path(b))
-    disk_text = disk.read_text() if disk.is_file() else ""
-    (out / APPLIED).write_text(b.get_as_string())
+    disk_text = disk.read_text(encoding="utf-8") if disk.is_file() else ""
+    (out / APPLIED).write_text(b.get_as_string(), encoding="utf-8")
     (out / APPLIED_META).write_text(json.dumps({
         "board": str(disk), "disk_sha256": _sha(disk_text),
-        "clean_before": bool(disk_text) and not unsaved_edits(before.read_text(), disk_text)}, indent=1))
+        "clean_before": bool(disk_text) and not unsaved_edits(before.read_text(encoding="utf-8"), disk_text)}, indent=1), encoding="utf-8")
 
 
 def forget_apply(out: Path) -> None:
@@ -362,16 +362,16 @@ def revert_check(b, out: Path, live_text: str) -> None:
     disk = Path(board_path(b))
     if not meta.is_file():
         raise Outcome(f"refused: no unsaved apply is recorded for {disk.name}; nothing to take back. Nothing was changed.")
-    rec = json.loads(meta.read_text())
+    rec = json.loads(meta.read_text(encoding="utf-8"))
     if rec.get("board") != str(disk):
         raise Outcome(f"refused: the recorded apply was on {rec.get('board')}, not {disk}. Nothing was changed.")
     if not rec.get("clean_before"):
         raise Outcome(f"refused: {disk.name} had edits not saved before the apply; a revert would drop those too. "
                       "Undo the apply with Ctrl+Z in KiCad instead. Nothing was changed.")
-    if not disk.is_file() or _sha(disk.read_text()) != rec.get("disk_sha256"):
+    if not disk.is_file() or _sha(disk.read_text(encoding="utf-8")) != rec.get("disk_sha256"):
         raise Outcome(f"refused: {disk.name} changed on disk since the apply; a revert would load that instead. "
                       "Nothing was changed.")
-    after = (out / APPLIED).read_text()
+    after = (out / APPLIED).read_text(encoding="utf-8")
     extra = sorted(set(unsaved_edits(live_text, after)) | set(unsaved_edits(after, live_text)))
     if extra:
         raise Outcome(f"refused: the board changed in KiCad since the apply ({', '.join(dict.fromkeys(extra[:5]))}"
@@ -396,7 +396,7 @@ def edit_list(arg: str, board_file: Path) -> dict:
 
     from . import edits
     if arg.endswith(".json"):
-        return json.loads(Path(arg).read_text())
+        return json.loads(Path(arg).read_text(encoding="utf-8"))
     return edits.from_spec(edits.load_spec(arg), Board(board_file))
 
 
@@ -536,7 +536,7 @@ def main(argv: list[str]) -> int:
         revert_check(b, out, b.get_as_string())
         _when_idle(b.revert, "reverting")
         disk = Path(board_path(b))
-        left = unsaved_edits(b.get_as_string(), disk.read_text())
+        left = unsaved_edits(b.get_as_string(), disk.read_text(encoding="utf-8"))
         forget_apply(out)
         if left:
             raise EnvironmentFault(f"KiCad reverted {disk.name} but the open board still differs from it ({', '.join(left[:5])})")

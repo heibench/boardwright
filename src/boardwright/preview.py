@@ -182,7 +182,7 @@ def write(pcb: Path, out: Path) -> int:
     b = Board(pcb)
     s, n = svg(b)
     sv = out.with_suffix(".svg")
-    sv.write_text(s)
+    sv.write_text(s, encoding="utf-8")
     if shutil.which("rsvg-convert"):
         subprocess.run(["rsvg-convert", "-w", "1500", str(sv), "-o", str(out)], check=False)
     else:                                           # as `doctor` says: without rsvg-convert, previews stay SVG

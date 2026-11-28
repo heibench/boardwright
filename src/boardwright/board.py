@@ -85,7 +85,7 @@ def create(sch: Path, pcb: Path, w: float, h: float, layers: int, circuit) -> No
         mod, why = _library_footprint(d, p.footprint)
         if mod is None:
             raise ValueError(f"{p.ref}: footprint {p.footprint} not found ({why})")
-        fp = new_footprint(mod.read_text(), p.footprint, {"ref": p.ref, "value": p.value}, None, 0, 0, {})
+        fp = new_footprint(mod.read_text(encoding="utf-8"), p.footprint, {"ref": p.ref, "value": p.value}, None, 0, 0, {})
         fps.append(_with_pad_nets(fp, {num: net for num, net in p.pins.items() if net}, codes))
     ox, oy = (A4[0] - w) / 2, (A4[1] - h) / 2
     corners = [(ox, oy), (ox + w, oy), (ox + w, oy + h), (ox, oy + h)]
@@ -101,16 +101,16 @@ def create(sch: Path, pcb: Path, w: float, h: float, layers: int, circuit) -> No
         f"\t(layers\n{_LAYERS[layers]}{_USER_LAYERS}\t)\n"
         f"\t(setup\n{_STACKUP if layers == 4 else ''}\t\t(pad_to_mask_clearance 0)\n\t)\n"
         "\t(net 0 \"\")\n" + "".join(f"\t(net {codes[n]} \"{_esc(n)}\")\n" for n in nets)
-        + edge.rstrip("\n") + "".join(fps) + "\n)")
+        + edge.rstrip("\n") + "".join(fps) + "\n)", encoding="utf-8")
 
 
 def _write(pcb_path: Path, t0: str, t: str) -> None:
     if not balanced(t):
         raise SystemExit(f"the edit would unbalance {pcb_path.name}; nothing written")
-    if pcb_path.read_text() != t0:
+    if pcb_path.read_text(encoding="utf-8") != t0:
         raise SystemExit(f"{pcb_path.name} changed on disk since it was read; nothing written")
     if t != t0:
-        pcb_path.write_text(t)
+        pcb_path.write_text(t, encoding="utf-8")
 
 
 def place(pcb_path: Path, placements: dict[str, tuple]) -> None:
@@ -120,7 +120,7 @@ def place(pcb_path: Path, placements: dict[str, tuple]) -> None:
     from .existing import move_footprint
     from .update import _footprints, _prop
 
-    t = t0 = pcb_path.read_text()
+    t = t0 = pcb_path.read_text(encoding="utf-8")
     spans = {_prop(t[s:e], "Reference"): (s, e) for s, e in _footprints(t)}
     missing = set(spans) - set(placements)
     if missing:
@@ -212,7 +212,7 @@ def set_pad_nets(pcb_path: Path, nets) -> None:
     otherwise only the footprints' own blocks change."""
     from .update import _esc, _footprints, _prop, _with_pad_nets
 
-    t = t0 = pcb_path.read_text()
+    t = t0 = pcb_path.read_text(encoding="utf-8")
     table = {re.sub(r"\\(.)", r"\1", name): int(n) for n, name in re.findall(r'\n\t\(net (\d+) "((?:[^"\\]|\\.)*)"\)', t)}
     new = [name for _r, _n, name in nets if name not in table]
     for name in dict.fromkeys(new):
@@ -245,7 +245,7 @@ def link_symbols(pcb_path: Path, sch_path: Path) -> int:
         m = re.search(r'\n\t\t\(uuid "([^"]*)"\)', blk)
         if m:
             uuids[sch.prop(blk, "Reference")] = m.group(1)
-    t = pcb_path.read_text()
+    t = pcb_path.read_text(encoding="utf-8")
     n = 0
     for a, b in reversed(update._footprints(t)):
         fp = t[a:b]
@@ -253,7 +253,7 @@ def link_symbols(pcb_path: Path, sch_path: Path) -> int:
         if "\n\t\t(path " not in fp and ref in uuids:
             t = t[:a] + update.link(fp, "/" + uuids[ref], "/", sch_path.name) + t[b:]
             n += 1
-    pcb_path.write_text(t)
+    pcb_path.write_text(t, encoding="utf-8")
     return n
 
 
@@ -261,7 +261,7 @@ def gnd_pour(pcb_path: Path, net: str = "GND", layers=("F.Cu", "B.Cu"), clearanc
     """Whole-board pour. solid=True connects pads without thermal reliefs (power boards)."""
     from . import copper
     from .model import Board
-    t = pcb_path.read_text()
+    t = pcb_path.read_text(encoding="utf-8")
     bd = Board(pcb_path)
     ox, oy = bd.origin
     x0, y0, x1, y1 = bd.bbox

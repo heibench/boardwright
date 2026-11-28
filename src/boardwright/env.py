@@ -105,7 +105,7 @@ def path_variables() -> dict[str, str]:
     cfg = kicad_config()
     if cfg is not None and (cfg / "kicad_common.json").exists():
         try:
-            out.update((json.loads((cfg / "kicad_common.json").read_text()).get("environment") or {}).get("vars") or {})
+            out.update((json.loads((cfg / "kicad_common.json").read_text(encoding="utf-8")).get("environment") or {}).get("vars") or {})
         except (OSError, ValueError):
             pass
     out.update(os.environ)
@@ -351,3 +351,20 @@ def warn_if_open_in_kicad(path: Path) -> None:
         _warned_open.add(path)
         print(f"warning: KiCad has {path.name} open ({lock.name} is beside it); its next save there "
               "overwrites this edit, so close it in KiCad without saving, then reopen it", file=sys.stderr)
+
+
+def write_atomic(path: Path | str, text: str) -> None:
+    """Write a design file in place, as UTF-8 (KiCad's encoding), so that a
+    failure leaves the old file whole: the text is encoded first, written
+    beside the file, then moved over it. write_text truncated the file before
+    encoding, and an encode error left it empty (#218)."""
+    path = Path(path).resolve()                         # a symlink's target, not the link
+    data = text.encode("utf-8")
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_bytes(data)
+        if path.exists():
+            shutil.copymode(path, tmp)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)

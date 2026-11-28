@@ -420,7 +420,7 @@ def place_refs(pcb_path: Path) -> list[str]:
     from .model import Board
     from .update import _footprints, _prop
 
-    t = t0 = pcb_path.read_text()
+    t = t0 = pcb_path.read_text(encoding="utf-8")
     moves = plan(Board(pcb_path))
     for s, e in reversed(_footprints(t)):
         fp = t[s:e]

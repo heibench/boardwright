@@ -105,7 +105,7 @@ def library_symbol(lib_id: str, libs: dict[str, dict[str, str]] | None = None) -
     nick, name = lib_id.split(":", 1)
     libs = {} if libs is None else libs
     if nick not in libs:
-        libs[nick] = _symbol_blocks((env.libraries()[0] / f"{nick}.kicad_sym").read_text())
+        libs[nick] = _symbol_blocks((env.libraries()[0] / f"{nick}.kicad_sym").read_text(encoding="utf-8"))
     if name not in libs[nick]:
         raise ValueError(f"{nick}.kicad_sym has no symbol {name!r}")
     body = _flatten(libs[nick], name)
@@ -412,5 +412,5 @@ def write_schematic(c: Circuit, path: Path) -> dict:
            + "".join(f'\n\t(no_connect (at {_n(x)} {_n(y)}) (uuid "{mint(sheet, "no_connect", x, y)}")\n\t)' for x, y in ncs)
            + "".join(_label(n, x, y, r, mint(sheet, "global_label", n, x, y)) for n, x, y, r in labels)
            + f'\n\t(sheet_instances\n\t\t(path "/{sheet}" (page "1")\n\t\t)\n\t)\n)')
-    Path(path).write_text(out)
+    Path(path).write_text(out, encoding="utf-8")
     return {"pwr_flags": sorted(flags), "nets": len(c.nets()), "paper": paper}
