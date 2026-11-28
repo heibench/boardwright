@@ -7,6 +7,8 @@ the command line).
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-11-27
+
 ### Added
 - The skill gains "Remaking a board from a reference". It covers:
   - getting the reference as a machine netlist first;
@@ -737,7 +739,8 @@ First public release.
 - `boardwright impedance` (IPC-2141 closed form) and `doctor`.
 - Seven example boards and specs for KiCad's own demo projects.
 
-[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.1...HEAD
+[Unreleased]: https://github.com/heibench/boardwright/compare/v0.17.2...HEAD
+[0.17.2]: https://github.com/heibench/boardwright/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/heibench/boardwright/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/heibench/boardwright/compare/v0.16.2...v0.17.0
 [0.16.2]: https://github.com/heibench/boardwright/compare/v0.16.1...v0.16.2
