@@ -8,11 +8,13 @@ the command line).
 ## [Unreleased]
 
 ### Fixed
-- `sch add` reads a net in a pin map as `move` reads NET: as KiCad shows it
-  (`SDA/A4`) or as its netlist names it (`SDA{slash}A4`), and joins the label
-  stored as `SDA{slash}A4` (#210). It refused the shown form with a message
-  about sheet paths. A name led by `/` still names a local label by its sheet
-  path, as #102 fixed. The pin is printed as KiCad shows it.
+- `sch add` reads a net in a pin map as KiCad shows it (`SDA/A4`) or as its
+  s-expression netlist spells it (`SDA{slash}A4`), and joins the label stored
+  as `SDA{slash}A4`, as `move` does (#210). It refused the shown form with a
+  message about sheet paths. A name led by `/` still names a local label by
+  its sheet path, as #102 fixed, and a name starting with a sheet's name
+  (`io/LED_A`) is refused as a sheet path missing its `/`. The pin is printed
+  as KiCad shows it.
 - Spec and board files (`sch add`'s SPEC.py, `review`'s spec, boardwright.py,
   board.py, `live` and edit specs) run from their source as it reads now.
   importlib's loader reused the first load's cached bytecode when an edit

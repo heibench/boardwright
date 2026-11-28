@@ -511,7 +511,8 @@ def test_a_new_net_with_a_slash_is_written_as_kicad_stores_it(proj, tmp_path, ca
 
 
 def test_a_netlist_name_joins_a_local_label_with_a_slash(proj, tmp_path, capsys):
-    """KiCad's netlist names the root's local label LED{slash}A as /LED/A."""
+    """KiCad's XML netlist names the root's local label LED{slash}A /LED/A (its
+    s-expression netlist, /LED{slash}A)."""
     f = proj / SCH
     _led_a_local(f)
     f.write_text(f.read_text().replace('(label "LED_A"', '(label "LED{slash}A"'))
@@ -540,3 +541,19 @@ def test_a_sub_sheet_path_is_its_sheet_names(tmp_path):
     top, io, adc = sheet("top.kicad_sch", ("io", "io.kicad_sch")), sheet("io.kicad_sch", ("adc", "adc.kicad_sch")), sheet("adc.kicad_sch")
     all_ = [top, io, adc]
     assert [sch._sheet_path(s, all_, top.path) for s in all_] == ["/", "/io/", "/io/adc/"]
+
+
+def test_a_known_name_with_a_slash_is_matched_as_written():
+    """A power symbol's Value such as VCC/2 is matched as its Value reads; turned
+    into VCC{slash}2 it would become a label of its own, not the power net."""
+    assert sch._local_name("VCC/2", "/", set(), {"VCC/2"}, "x.kicad_sch") == "VCC/2"
+    assert sch._local_name("SDA/A4", "/", set(), set(), "x.kicad_sch") == "SDA{slash}A4"
+
+
+def test_a_sheet_path_without_its_leading_slash_is_refused():
+    """io/LED_A names sub-sheet io's label LED_A with its leading / dropped. Written
+    as a new net it would be io{slash}LED_A, on its own; KiCad's netlist put such
+    a pin alone on /io/io/LED_A."""
+    with pytest.raises(sch.Usage, match=r"starts with the sheet name 'io'.*\(/io/LED_A\)"):
+        sch._local_name("io/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"}))
+    assert sch._local_name("ion/LED_A", "/", set(), set(), "x.kicad_sch", frozenset({"io"})) == "ion{slash}LED_A"

@@ -539,18 +539,23 @@ def _sheet_path(sh: Sheet, all_sheets: list[Sheet], top: Path) -> str:
     return "/" + "".join(n + "/" for n in reversed(names))
 
 
-def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str) -> str:
-    """The label text for a net named in a pin map, as `move` reads NET: as KiCad
-    shows it (SDA/A4) or as its netlist names it (SDA{slash}A4), stored with
-    {slash} as KiCad stores a typed "/" (#210). A name led by "/" is KiCad's
+def _local_name(net: str, prefix: str, labels: set[str], known: set[str], where: str,
+                sheet_names: frozenset[str] = frozenset()) -> str:
+    """The label text for a net named in a pin map: as KiCad shows it (SDA/A4)
+    or as its s-expression netlist spells it (SDA{slash}A4), stored with
+    {slash} as KiCad stores a typed "/" (#210). A name led by "/" is the
     netlist form of a local label, its sheet path in front (/LED_A on the root
     sheet): it joins that label, and naming no label it is refused rather than
-    written as a new net (#102)."""
+    written as a new net (#102). So is a name whose first part is a sheet's
+    name, a sheet path missing its leading "/" (io/LED_A)."""
     if net in known:                                    # a power symbol's Value is matched as written
         return net
     if not net.startswith("/"):
-        return net.replace("/", "{slash}")
-    name = net[len(prefix):].replace("/", "{slash}") if net.startswith(prefix) else None
+        if "/" in net and net.split("/", 1)[0] in sheet_names:
+            raise Usage(f"net {net!r} starts with the sheet name {net.split('/', 1)[0]!r}: a sheet path starts with "
+                        f"'/' (/{net}), and a new net cannot have a sheet's name before its first '/'. Nothing written.")
+        return _stored(net)
+    name = _stored(net[len(prefix):]) if net.startswith(prefix) else None
     if name and name in labels:
         return name
     raise Usage(f"net {net!r} is not a label on {where}: a name with a sheet path in front ({prefix}NAME) must name one "
@@ -596,11 +601,12 @@ def add(d: Path, spec_path: str) -> int:
         raise SystemExit(f"{sh.path.name} has no placed part to take its format and hierarchy path from; add one in KiCad first")
     path = _instance_path(template)
     prefix = _sheet_path(sh, all_sheets, root(d).path)
+    sheet_names = frozenset(n for x in all_sheets for a, b in blocks(x.text, ("sheet",)) if (n := prop(x.text[a:b], "Sheetname")))
     plan = []                                            # (ref, like, value, footprint, pins, lib_id, source, from library, extent)
     for ref, like, value, footprint, pins in m.ADD:
         if ref in taken or any(ref == p[0] for p in plan):
             raise Usage(f"{ref} already exists")
-        pins = {str(k): _local_name(v, prefix, labels, labels | hier | globals_ | set(power), sh.path.name)
+        pins = {str(k): _local_name(v, prefix, labels, labels | hier | globals_ | set(power), sh.path.name, sheet_names)
                 for k, v in pins.items()}
         if like in by_ref and not like.startswith("#"):
             src_text, src = by_ref[like]
