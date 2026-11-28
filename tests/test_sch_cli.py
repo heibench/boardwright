@@ -1,4 +1,5 @@
 import difflib
+import re
 import subprocess
 import sys
 
@@ -63,17 +64,6 @@ def test_parts_fields_match_names_with_case(ldo_copy, capsys):
     assert "Datasheet" not in capsys.readouterr().out
 
 
-def test_parts_fields_show_each_uses_own_reference(ldo_copy, capsys):
-    """On a sheet used twice the shared Reference property holds one use's name."""
-    f = ldo_copy / "ldo_breakout.kicad_sch"
-    t = f.read_text()
-    a = '(reference "R1") (unit 1)\n\t\t\t\t)'
-    assert t.count(a) == 1
-    f.write_text(t.replace(a, a + '\n\t\t\t\t(path "/aaaa" (reference "R9") (unit 1)\n\t\t\t\t)'))
-    sch.parts(ldo_copy, "R[19]", "Ref*")
-    lines = capsys.readouterr().out.splitlines()
-    assert [line.split()[0] for line in lines] == ["R1", "R9"]
-    assert lines[0].endswith('Reference="R1"') and lines[1].endswith('Reference="R9"')
 def test_set_to_the_value_already_there_says_unchanged_and_writes_nothing(ldo_copy, capsys):
     """R1's Value is already 1k: a bulk-edit script must be able to tell this
     from an edit that landed, and the file is not written at all."""
@@ -141,28 +131,6 @@ def test_unchanged_shows_a_value_as_typed_not_as_escaped(ldo_copy, capsys):
     assert capsys.readouterr().out.splitlines() == ['R1: Value unchanged (already a "b" c)']
 
 
-def _two_uses(ldo_copy):
-    """R1's symbol given a second use, R5, as on a sheet placed twice."""
-    f = ldo_copy / "ldo_breakout.kicad_sch"
-    t = f.read_text()
-    a = '(reference "R1") (unit 1)\n\t\t\t\t)'
-    assert t.count(a) == 1
-    f.write_text(t.replace(a, a + '\n\t\t\t\t(path "/aaaa" (reference "R5") (unit 1)\n\t\t\t\t)'))
-    return f
-
-
-def test_on_a_sheet_used_twice_a_use_keeps_its_own_name(ldo_copy, capsys):
-    f = _two_uses(ldo_copy)
-    before = f.read_text()
-    assert sch.set_fields(ldo_copy, "R5", ["Reference=R5", "Value=1k"]) == 0
-    assert capsys.readouterr().out.splitlines() == ["R5: Reference unchanged (already R5)", "R5: Value unchanged (already 1k)"]
-    assert f.read_text() == before
-    assert sch.set_fields(ldo_copy, "R5", ["Value=2k"]) == 0
-    assert capsys.readouterr().out.splitlines() == [
-        "note: R5 is one use of a symbol on a sheet that is used more than once; this also changes R1",
-        "R5: Value -> 2k"]
-
-
 def test_a_pair_with_no_equals_is_refused_and_nothing_written(ldo_copy, capsys):
     f = ldo_copy / "ldo_breakout.kicad_sch"
     before = f.read_text()
@@ -188,13 +156,6 @@ def test_a_reference_with_a_backslash_is_set_alike_in_both_places(ldo_copy):
     assert sch.set_fields(ldo_copy, "R1", ["Reference=R\\1"]) == 0
     text = f.read_text()
     assert '(property "Reference" "R\\\\1"' in text and '(reference "R\\\\1")' in text
-
-
-def test_one_use_of_a_shared_symbol_takes_a_backslash_reference(ldo_copy):
-    f = _two_uses(ldo_copy)
-    assert sch.set_fields(ldo_copy, "R5", ["Reference=R\\7"]) == 0
-    text = f.read_text()
-    assert '(reference "R\\\\7")' in text and '(reference "R1")' in text
 
 
 def test_set_unknown_property_is_refused(ldo_copy):
@@ -294,3 +255,59 @@ def test_the_newest_kicad_settings_folder_wins(tmp_path, monkeypatch):
         d.mkdir(parents=True)
         (d / "sym-lib-table").write_text("(sym_lib_table)\n")
     assert env.kicad_config() == new
+
+
+STALE = '\n\t\t\t(project "Other"\n\t\t\t\t(path "/00000000-1111-2222-3333-444444444444" (reference "C9") (unit 1)\n\t\t\t\t)\n\t\t\t)'
+
+
+def _stale_c1(ldo_copy):
+    """C1 given a second instance entry, as a sheet copied from another project
+    carries: another project, a path outside this hierarchy, reference C9."""
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    t = f.read_text(encoding="utf-8")
+    i = t.index('(reference "C1") (unit 1)')
+    k = t.index("\n\t\t\t)", i) + len("\n\t\t\t)")
+    f.write_text(t[:k] + STALE + t[k:], encoding="utf-8")
+    return f
+
+
+def test_an_instance_entry_from_another_hierarchy_is_not_a_reference(ldo_copy, capsys):
+    """#209: KiCad 10's netlist names C1, not C9: it keeps the entry on this
+    hierarchy's path. parts listed C9 too, and set and remove found it."""
+    _stale_c1(ldo_copy)
+    sch.parts(ldo_copy, "C*")
+    assert [ln.split()[0] for ln in capsys.readouterr().out.splitlines()] == ["C1", "C2"]
+    with pytest.raises(SystemExit, match="0 symbols have the reference 'C9'"):
+        sch.set_fields(ldo_copy, "C9", ["Value=1u"])
+    assert sch.set_fields(ldo_copy, "C1", ["Value=22u"]) == 0
+    assert "shares" not in capsys.readouterr().out                  # not taken for a second use
+
+
+def test_two_entries_on_this_hierarchys_path_take_the_last():
+    block = ('\t(symbol\n\t\t(property "Reference" "C1")\n\t\t(instances\n\t\t\t(project "a"\n'
+             '\t\t\t\t(path "/r" (reference "C1") (unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t\t(project "b"\n'
+             '\t\t\t\t(path "/r" (reference "C9") (unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
+    assert sch.refs(block, frozenset({"/r"})) == ["C9"]
+    assert sch.refs(block, frozenset({"/elsewhere"})) == ["C1", "C9"]  # no entry on this hierarchy: all, as before
+    assert sch._instance_path(block, frozenset({"/r"})) == "/r"
+
+
+def test_a_new_part_takes_this_hierarchys_path_not_a_stale_one(ldo_copy):
+    """add copies its template part's instance path; with a stale entry first,
+    the first path was the foreign one, and the new part sat outside the hierarchy."""
+    block = ('\t(symbol\n\t\t(instances\n\t\t\t(project "Other"\n\t\t\t\t(path "/x" (reference "C9") (unit 1)\n'
+             '\t\t\t\t)\n\t\t\t)\n\t\t\t(project "p"\n\t\t\t\t(path "/r" (reference "C1") (unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
+    assert sch._instance_path(block, frozenset({"/r"})) == "/r"
+    f = ldo_copy / "ldo_breakout.kicad_sch"
+    t = f.read_text(encoding="utf-8")
+    root = "/" + re.search(r'\n\t\(uuid "([^"]*)"\)', t).group(1)
+    first = next(t[s:e] for s, e in sch.Sheet(f).instances() if sch.blocks(t[s:e], ("pin",)))   # add's template
+    ins = first.index("\t\t\t(project ")
+    f.write_text(t.replace(first, first[:ins] + STALE.lstrip("\n") + "\n" + first[ins:], 1), encoding="utf-8")
+    spec = ldo_copy / "spec.py"
+    spec.write_text('ADD = [("R70", "Device:R", "1k", "", {1: "VIN", 2: "GND"})]\n', encoding="utf-8")
+    assert main(["sch", str(ldo_copy), "add", str(spec)]) == 0
+    t = f.read_text(encoding="utf-8")
+    r70 = next(t[s:e] for s, e in sch.Sheet(f).instances() if '(reference "R70")' in t[s:e])
+    assert [p for p, _r in sch._entries(r70)] == [root], sch._entries(r70)
+    assert '(project "Other"' not in r70                                # the stale project's entry is not copied

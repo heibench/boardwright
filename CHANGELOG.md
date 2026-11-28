@@ -7,6 +7,14 @@ the command line).
 
 ## [Unreleased]
 
+### Fixed
+- `sch` reads a symbol's references only from its instance entries on a path
+  of the project's hierarchy, as KiCad does (#209). A sheet copied from
+  another project can carry that project's entries too; `parts` listed their
+  references as more parts, `set`, `remove` and `move` found them, and `move`
+  took the part for one on a sheet used twice. A new part from `add` gets one
+  entry, on the hierarchy's path, not the stale one its template carried.
+
 ## [0.17.3] - 2026-11-27
 
 ### Fixed
